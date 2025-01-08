@@ -1,0 +1,19 @@
+{
+	"name": "Next.js DevContainer",
+	"image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+	"forwardPorts": [3000],
+	"postCreateCommand": "npm install", // Nur Abhängigkeiten installieren
+	"customizations": {
+	  "vscode": {
+		"extensions": [
+			"esbenp.prettier-vscode",
+			"dbaeumer.vscode-eslint",
+			"ms-vscode.vscode-typescript-next",
+			"bradlc.vscode-tailwindcss",
+			"rodrigovallades.es7-react-js-snippets"
+		]
+	  }
+	},
+	"remoteUser": "node"
+  }
+  
