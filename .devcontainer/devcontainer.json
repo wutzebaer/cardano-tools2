@@ -1,7 +1,6 @@
 {
 	"name": "Next.js DevContainer",
 	"image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
-	"forwardPorts": [3000],
 	"postCreateCommand": "npm install", // Nur Abhängigkeiten installieren
 	"customizations": {
 	  "vscode": {
