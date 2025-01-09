@@ -1,0 +1,140 @@
+<svg
+  width="700"
+  height="120"
+  viewBox="0 0 700 80"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <!-- 
+    Einheitlicher Stil:
+      - Dicke, eckige Linien (stroke-width="6")
+      - Ecken = Miter (spitze/rechte Ecken)
+      - Enden = Butt (keine Abrundung)
+      - Farbe = #111 (dunkles, leicht abgedämpftes Schwarz)
+      - Koordinaten so gewählt, dass jeder Letter ~50px breit und ~60px hoch ist 
+  -->
+  <g
+    stroke="#111"
+    stroke-width="6"
+    stroke-linecap="butt"
+    stroke-linejoin="miter"
+    transform="translate(20, 10)"
+  >
+    <!--
+      Jede Buchstabe-Gruppe ~50 Einheiten breit, 
+      60 hoch (von y=0 bis y=60).
+      Zwischen Buchstaben ~5-10px.
+      Wir haben 12 Zeichen (C, A, R, D, A, N, O, -, T, O, O, L, S => 13),
+      also ~ (13 * 50) + etwas Rand = ~ 670 Breite. 
+      viewBox = "0 0 700 80" bietet etwas Luft.
+    -->
+
+    <!-- C -->
+    <g transform="translate(0,0)">
+      <!-- Offenes Rechteck: Linke, obere und untere Linie. Offen rechts. -->
+      <!-- Oben: (10,0) -> (0,0) -->
+      <path d="M40,0 H0 V60 H40" />
+    </g>
+
+    <!-- A -->
+    <g transform="translate(50,0)">
+      <!-- Dach + Querstrich. 
+           Achte auf gleichmäßige Höhe. -->
+      <!-- Dreieck: (0,60)->(20,0)->(40,60) -->
+      <path d="M0,60 L20,0 L40,60" />
+      <!-- Querbalken in der Mitte -->
+      <path d="M12,30 H28" />
+    </g>
+
+    <!-- R -->
+    <g transform="translate(100,0)">
+      <!-- Senkrechter Balken -->
+      <path d="M0,0 V60" />
+      <!-- Rechteck oben (Kopf) => (0,0)->(30,0)->(30,30)->(0,30) -->
+      <path d="M0,0 H25 Q40,5 25,15 H0" />
+      <!-- Schräger Bein -->
+      <path d="M25,15 L40,60" />
+    </g>
+
+    <!-- D -->
+    <g transform="translate(150,0)">
+      <!-- Linker Balken -->
+      <path d="M0,0 V60" />
+      <!-- Rechte Seite => 'halbes' Rechteck / Bogen: 
+           Im Minimalstil eher eckig -->
+      <path d="M0,0 H35 V60 H0" />
+    </g>
+
+    <!-- A (erneut) -->
+    <g transform="translate(200,0)">
+      <path d="M0,60 L20,0 L40,60" />
+      <path d="M12,30 H28" />
+    </g>
+
+    <!-- N -->
+    <g transform="translate(250,0)">
+      <!-- Senkrecht | Diagonal | Senkrecht -->
+      <path d="M0,60 V0 L40,60 V0" />
+    </g>
+
+    <!-- O -->
+    <g transform="translate(300,0)">
+      <!-- Rechteck mit abgerundeten Ecken? 
+           Wir machen’s eckig-minimal: 
+           Ein großes Rechteck innen leer => 2 Pfade 
+      -->
+      <!-- Außenrand -->
+      <path d="M0,0 H40 V60 H0 Z" />
+      <!-- Innenausschnitt => (10,10)->(30,10)->(30,50)->(10,50) -->
+      <!-- Falls du es voll eckig willst, lass diesen Pfad aus und 
+           nimm lieber 2 Pfade für den inneren "Cutout". 
+           Wir probieren’s mal so:
+      -->
+      <path d="M10,10 H30 V50 H10 Z" fill="white" stroke="none" />
+    </g>
+
+    <!-- Bindestrich "-" -->
+    <g transform="translate(350,0)">
+      <!-- horizontale Linie mittig -->
+      <path d="M0,30 H40" />
+    </g>
+
+    <!-- T -->
+    <g transform="translate(400,0)">
+      <!-- Horizontaler Balken oben + Senkrecht in der Mitte -->
+      <path d="M0,0 H40" />
+      <path d="M20,0 V60" />
+    </g>
+
+    <!-- O (nochmal) -->
+    <g transform="translate(450,0)">
+      <path d="M0,0 H40 V60 H0 Z" />
+      <path d="M10,10 H30 V50 H10 Z" fill="white" stroke="none" />
+    </g>
+
+    <!-- O (drittes O) -->
+    <g transform="translate(500,0)">
+      <path d="M0,0 H40 V60 H0 Z" />
+      <path d="M10,10 H30 V50 H10 Z" fill="white" stroke="none" />
+    </g>
+
+    <!-- L -->
+    <g transform="translate(550,0)">
+      <!-- L-Form -->
+      <path d="M0,0 V60 H40" />
+    </g>
+
+    <!-- S -->
+    <g transform="translate(600,0)">
+      <!-- „S“ aus 2-3 Rechteck-Segmenten: 
+           Minimalistisch eckig, in Next.js-ähnlichem Stil. 
+      -->
+      <!-- Oberer Balken -->
+      <path d="M0,0 H40 V20 H0 Z" />
+      <!-- Unterer Balken -->
+      <path d="M0,40 H40 V60 H0 Z" />
+      <!-- „Mitte“ offen lassen, um den S-Effekt zu haben (S = getrennter Ober-/Unterblock) -->
+    </g>
+
+  </g>
+</svg>
