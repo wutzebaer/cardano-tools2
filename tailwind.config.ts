@@ -17,7 +17,16 @@ export default {
   },
   plugins: [daisyui],
   daisyui: {
-    themes: ["winter", "night"],
-    darkTheme : "night",
+    themes: [
+      {
+        light: {
+          ...require("daisyui/src/theming/themes")["dark"],
+          primary: "blue",
+          secondary: "teal",
+          "base-100": "101012",
+          "base-200": "16171A",
+        },
+      },
+    ],
   },
 } satisfies Config;
