@@ -21,8 +21,6 @@ export default {
       {
         light: {
           ...require("daisyui/src/theming/themes")["dark"],
-          primary: "blue",
-          secondary: "teal",
           "base-100": "101012",
           "base-200": "16171A",
         },
