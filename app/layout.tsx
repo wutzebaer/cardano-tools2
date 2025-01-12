@@ -1,10 +1,10 @@
+import { CircleStackIcon } from "@heroicons/react/24/outline";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Quicksand } from "next/font/google";
-import "./globals.css";
 import Image from "next/image";
-import { CircleStackIcon, GlobeAltIcon } from "@heroicons/react/24/outline";
-import StakeNow from "./components/StakeNow";
 import Link from "next/link";
+import StakeNow from "./components/StakeNow";
+import "./globals.css";
 import StateProvider from "./StateProvider";
 
 const geistSans = Geist({
