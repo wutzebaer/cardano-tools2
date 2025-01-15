@@ -11,7 +11,7 @@ export interface ApplicationStateContext {
   setState: (state: ApplicationState) => void;
 }
 
-export const SidebarContext = createContext<ApplicationStateContext>({
+export const ApplicationContext = createContext<ApplicationStateContext>({
   state: { count: 0 },
   setState: () => {},
 });
@@ -20,9 +20,9 @@ const StateProvider = ({ children }: { children: ReactNode }) => {
   const [state, setState] = useState<ApplicationState>({ count: 0 });
 
   return (
-    <SidebarContext.Provider value={{ state, setState }}>
+    <ApplicationContext.Provider value={{ state, setState }}>
       {children}
-    </SidebarContext.Provider>
+    </ApplicationContext.Provider>
   );
 };
 

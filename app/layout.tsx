@@ -6,6 +6,7 @@ import Link from "next/link";
 import StakeNow from "./components/StakeNow";
 import "./globals.css";
 import StateProvider from "./StateProvider";
+import WalletDialog from "./components/WalletDialog";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,10 +32,10 @@ export const metadata: Metadata = {
 function MenuItem({
   children,
   href,
-}: {
+}: Readonly<{
   children: React.ReactNode;
   href: string;
-}) {
+}>) {
   return (
     <li className="text-lg">
       <Link href={href} className="flex items-center">
@@ -54,6 +55,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${quicksand.variable} antialiased`}
       >
+        <WalletDialog />
         <StateProvider>
           <div className="drawer lg:drawer-open">
             <input id="my-drawer-2" type="checkbox" className="drawer-toggle" />

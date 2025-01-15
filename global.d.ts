@@ -1,9 +1,9 @@
-import { WalletInfo } from "./app/types";
+import { Cardano } from "./app/types";
 
 export {};
 
 declare global {
   interface Window {
-    cardano?: Record<string, WalletInfo>;
+    cardano: Cardano;
   }
 }

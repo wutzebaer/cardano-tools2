@@ -20,7 +20,8 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "@types": ["./app/types"]
+      "@types": ["./app/types"],
+      "@cardano/*": ["./app/cardano/*"]
     }
   },
   "include": [
