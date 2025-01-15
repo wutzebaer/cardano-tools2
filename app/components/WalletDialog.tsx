@@ -14,28 +14,32 @@ function WalletDialog() {
     <dialog id="wallet_dialog" className="modal">
       <div className="modal-box">
         <p className="py-4">Please select your wallet</p>
-        <div className="flex flex-col gap-2 py-4">
-          {wallets.map((wallet) => (
-            <button key={wallet.name} className="btn btn-md" onClick={() => selectWallet(wallet)}>
-              <img
-                width="24"
-                height="24"
-                src={wallet.icon}
-                alt="{wallet.name} logo"
-              />
-              {wallet.name}
-            </button>
-          ))}
-        </div>
+        <form method="dialog">
+          <div className="flex flex-col gap-2 py-4">
+            {[...wallets.entries()].map(([key, value]) => (
+              <button key={key} className="btn btn-md" value={key}>
+                <img
+                  width="24"
+                  height="24"
+                  src={value.icon}
+                  alt="{wallet.name} logo"
+                />
+                {value.name}
+              </button>
+            ))}
+          </div>
+        </form>
         <div className="modal-action">
           <form method="dialog">
             {/* if there is a button in form, it will close the modal */}
-            <button className="btn">Close</button>
+            <button className="btn" value="">
+              Close
+            </button>
           </form>
         </div>
       </div>
       <form method="dialog" className="modal-backdrop">
-        <button>close</button>
+        <button value="">close</button>
       </form>
     </dialog>
   );

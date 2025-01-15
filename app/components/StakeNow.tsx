@@ -1,7 +1,7 @@
 "use client";
 import React, { useContext } from "react";
 import { ApplicationContext } from "@/app/StateProvider";
-import { listWallets } from "@cardano/wallet";
+import { listWallets, stake } from "@cardano/wallet";
 import WalletDropdown from "./WalletDialog";
 
 const StakeNow = () => {
@@ -17,7 +17,7 @@ const StakeNow = () => {
     <>
       <button
         className="btn btn-sm btn-primary"
-        onClick={() => (document.getElementById("my_modal_1") as HTMLFormElement).showModal()}
+        onClick={stake}
       >
         Stake Now! {context.state.count}
       </button>
