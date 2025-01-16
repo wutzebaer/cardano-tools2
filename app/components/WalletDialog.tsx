@@ -4,7 +4,6 @@ import { listWallets } from "../cardano/wallet";
 import { Cardano } from "../types";
 
 function WalletDialog() {
-
   const [wallets, setWallets] = useState<Cardano>(new Map());
   useEffect(() => {
     const fetchedWallets = listWallets(); // Your function to list wallets

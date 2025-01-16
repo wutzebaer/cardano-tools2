@@ -21,6 +21,7 @@
     "paths": {
       "@/*": ["./*"],
       "@types": ["./app/types"],
+      "@components/*": ["./app/components/*"],
       "@cardano/*": ["./app/cardano/*"]
     }
   },
