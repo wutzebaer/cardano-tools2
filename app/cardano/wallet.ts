@@ -1,5 +1,5 @@
-"use client";
 import { Cardano, WalletConnection, WalletInfo } from "@types";
+import { showReturningModal } from "./dialog";
 
 export const listWallets = (): Cardano => {
   return Object.entries(window.cardano ?? {})
@@ -10,46 +10,26 @@ export const listWallets = (): Cardano => {
     }, new Map());
 };
 
-export const connectWallet = async (key: string): Promise<WalletConnection> => {
-  const wallet = listWallets().get(key);
-  if (!wallet) {
-    throw new Error(`Wallet with key ${key} not found`);
+export const getConnection = async (): Promise<WalletConnection> => {
+  const wallets = listWallets();
+  let walletKey: Promise<string>;
+
+  const localStorageWallet = localStorage.getItem("wallet");
+  if (localStorageWallet && wallets.has(localStorageWallet)) {
+    walletKey = Promise.resolve(localStorageWallet);
+  } else {
+    walletKey = showReturningModal("wallet_dialog");
   }
-  return wallet
-    .enable()
-    .then((wallet) => {
+
+  return walletKey
+    .then((key) => {
       localStorage.setItem("wallet", key);
-      return wallet;
+      return wallets.get(key)!.enable();
     })
     .catch((error) => {
       localStorage.removeItem("wallet");
       throw error;
     });
-};
-
-export const getConnection = async (): Promise<WalletConnection> => {
-  const wallets = listWallets();
-
-  const localStorageWallet = localStorage.getItem("wallet");
-  if (localStorageWallet && wallets.has(localStorageWallet)) {
-    return connectWallet(localStorageWallet);
-  }
-
-  const dialog = document.getElementById("wallet_dialog") as HTMLFormElement;
-  const selected = new Promise<string>((resolve, reject) => {
-    const listener = () => {
-      dialog.removeEventListener("close", listener);
-      if (dialog.returnValue) {
-        resolve(dialog.returnValue);
-      } else {
-        reject(new Error("No wallet selected"));
-      }
-    };
-    dialog.addEventListener("close", listener);
-    dialog.showModal();
-  });
-
-  return connectWallet(await selected);
 };
 
 export const stake = async () => {
