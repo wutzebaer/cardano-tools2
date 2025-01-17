@@ -1,6 +1,13 @@
 import { Cardano, WalletConnection, WalletInfo } from "@types";
 import { showReturningModal } from "./dialog";
-import { Address } from "@emurgo/cardano-serialization-lib-browser";
+import {
+  Address,
+  BaseAddress,
+  ByronAddress,
+  EnterpriseAddress,
+  PointerAddress,
+  RewardAddress,
+} from "@emurgo/cardano-serialization-lib-browser";
 
 export const listWallets = (): Cardano => {
   return Object.entries(window.cardano ?? {})
@@ -38,9 +45,27 @@ export const stake = async () => {
 
   const connection = await getConnection();
   const stakeAddressHash = (await connection.getRewardAddresses())[0];
-
   const address = Address.from_bytes(Buffer.from(stakeAddressHash, "hex"));
-  console.log(address);
+
+  // Determine the specific address type
+  if (BaseAddress.from_address(address)) {
+    console.log("This is a Base Address.");
+  } else if (EnterpriseAddress.from_address(address)) {
+    console.log("This is an Enterprise Address.");
+  } else if (PointerAddress.from_address(address)) {
+    console.log("This is a Pointer Address.");
+  } else if (RewardAddress.from_address(address)) {
+    console.log("This is a Reward Address.");
+  } else if (ByronAddress.from_address(address)) {
+    console.log("This is a Byron Address.");
+  } else {
+    console.error("Unknown address type or invalid address.");
+  }
+  console.log(address.to_bech32());
+
+  const rewardAddress = RewardAddress.from_address(address);
+  const bech32Address = rewardAddress!.to_address().to_bech32();
+  console.log(bech32Address);
 
   // Delegation certificate
   //const delegationCert = Certificate.new_stake_delegation(
