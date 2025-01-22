@@ -1,24 +1,21 @@
 "use client";
-import React, { useContext } from "react";
 import { ApplicationContext } from "@/app/StateProvider";
-import { listWallets, stake } from "@cardano/wallet";
-import WalletDropdown from "./WalletDialog";
+import { getConnection } from "@cardano/wallet";
+import { useContext } from "react";
+import { delegateToPool } from "../cardano/transaction";
 
 const StakeNow = () => {
   const context = useContext(ApplicationContext);
 
-  const logWallets = () => {
-    const wallets = listWallets();
-    console.log(wallets);
-    context.setState({ count: context.state.count + 1 });
+  const stake = async () => {
+    const poolId = "pool180fejev4xgwe2y53ky0pxvgxr3wcvkweu6feq5mdljfzcsmtg6u";
+    const connection = await getConnection();
+    delegateToPool(connection, poolId);
   };
 
   return (
     <>
-      <button
-        className="btn btn-sm btn-primary"
-        onClick={stake}
-      >
+      <button className="btn btn-sm btn-primary" onClick={stake}>
         Stake Now! {context.state.count}
       </button>
     </>
