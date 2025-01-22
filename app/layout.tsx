@@ -103,6 +103,9 @@ export default function RootLayout({
                   />
                   <span>[CHIEN] Pool</span>
                 </MenuItem>
+                <MenuItem href="/browse">
+                  <CircleStackIcon className="h-7" /> Mint
+                </MenuItem>
                 <MenuItem href="/mint">
                   <CircleStackIcon className="h-7" /> Mint
                 </MenuItem>

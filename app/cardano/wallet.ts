@@ -1,6 +1,5 @@
 import { Cardano, WalletConnection, WalletInfo } from "@types";
 import { showReturningModal } from "./dialog";
-import { Address } from "@emurgo/cardano-serialization-lib-browser";
 
 export const listWallets = (): Cardano => {
   return Object.entries(window.cardano ?? {})
