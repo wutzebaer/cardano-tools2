@@ -17,3 +17,26 @@ export interface WalletConnection {
   signTx: (cbor: string, partialSign: boolean) => Promise<string>;
   submitTx: (cbor: string) => Promise<string>;
 }
+
+export interface SimpleScript {
+  type: "all" | "any" | "atLeast" | "before" | "after" | "sig";
+  scripts?: SimpleScript[];
+  required?: number;
+  slot?: number;
+  keyHash?: string;
+}
+
+export interface PolicyPrivate {
+  id?: number;
+  policyId: string;
+  policy: string;
+  address: AddressPrivate;
+  policyDueSlot: number;
+  name?: string;
+}
+
+export interface AddressPrivate {
+  address: string;
+  skey: string;
+  vkey: string;
+}
