@@ -85,7 +85,6 @@ export const delegateToPool = async (
   await sendTransaction(connection, (txBuilder) => {
     txBuilder.set_certs(certificates);
     console.log(stakeCredential.to_keyhash()?.to_hex());
-    //txBuilder.add_required_signer(stakeCredential.to_keyhash()!);
   });
 };
 
@@ -116,33 +115,22 @@ const buildTransaction = async (
     transactionUnspentOutputs.add(utxo);
   }
 
-  let lastError;
-  for (let i = 0; i < 100; i++) {
-    try {
-      const txBuilder = TransactionBuilder.new(txBuilderConfig);
+  const txBuilder = TransactionBuilder.new(txBuilderConfig);
+  txBuilder.set_ttl(currentSlot() + 60 * 10);
 
-      txBuilder.set_ttl(currentSlot() + 60 * 10);
+  // add output
+  addOutputs(txBuilder);
 
-      // add output
-      addOutputs(txBuilder);
+  // add inputs
+  txBuilder.add_inputs_from(
+    transactionUnspentOutputs,
+    CoinSelectionStrategyCIP2.RandomImproveMultiAsset
+  );
 
-      txBuilder.add_inputs_from(
-        transactionUnspentOutputs,
-        CoinSelectionStrategyCIP2.RandomImproveMultiAsset
-      );
+  // add change
+  txBuilder.add_change_if_needed(changeAddress);
 
-      txBuilder.add_change_if_needed(changeAddress);
-      if (txBuilder.get_total_output().to_js_value().coin == "0") {
-        //continue;
-      }
-
-      return txBuilder.build_tx();
-    } catch (error) {
-      lastError = error;
-      console.warn("retry", i, error);
-    }
-  }
-  throw lastError;
+  return txBuilder.build_tx();
 };
 
 const submitTransaction = async (
