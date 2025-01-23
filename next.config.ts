@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/", // Incoming request path
-        destination: "/mint", // Path to serve content from
+        destination: "/browse", // Path to serve content from
       },
     ];
   },
