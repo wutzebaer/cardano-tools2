@@ -1,10 +1,13 @@
+import { getTip } from "@cardano/kupo";
 
-const page = () => {
+const page = async () => {
+  const tip = await getTip();
+
   return (
     <div>
-       Hello Mint
+      <pre>{tip}</pre>
     </div>
-  )
-}
+  );
+};
 
-export default page
+export default page;

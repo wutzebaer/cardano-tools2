@@ -29,7 +29,7 @@ import {
 } from "@emurgo/cardano-serialization-lib-browser";
 import { PolicyPrivate, SimpleScript, WalletConnection } from "@types";
 
-const currentSlot = () => {
+export const currentSlot = () => {
   return new Date().getTime() / 1000 - 1596491091 + 4924800;
 };
 
