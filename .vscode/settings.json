@@ -1,2 +1,6 @@
 {
+  "editor.formatOnSave": true,
+  "[typescript]": {
+    "editor.wordWrapColumn": 200
+  }
 }
