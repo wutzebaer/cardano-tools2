@@ -9,7 +9,7 @@ import StateProvider from "./StateProvider";
 import WalletDialog from "./components/WalletDialog";
 import SidebarHeader from "./components/SidebarHeader";
 import Navbar from "./components/Navbar";
-import WalletOverview from "./components/WalletInfo";
+import WalletOverview from "./components/WalletOverview";
 
 
 const geistSans = Geist({
@@ -82,9 +82,6 @@ export default function RootLayout({
                 {/* Sidebar header */}
                 <SidebarHeader />
 
-                {/* Wallet info */}
-                <WalletOverview />
-
                 {/* Sidebar items */}
                 <MenuItem href="/pool">
                   <Image
@@ -108,16 +105,14 @@ export default function RootLayout({
                 </MenuItem>
 
                 {/* Sidebar footer */}
-                <div className="flex flex-col items-center mt-20">
-                  <Image
-                    src="/charlien-t.png"
-                    alt="CHIEN logo"
-                    width={180}
-                    height={180}
-                  />
+                <div className="mt-20">
                   <StakeNow />
                 </div>
+
+                <div className="flex-grow"></div> {/* Spacer to push WalletOverview to the bottom */}
+                <WalletOverview />
               </ul>
+
             </div>
           </div>
         </StateProvider>

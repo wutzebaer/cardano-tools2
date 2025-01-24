@@ -16,7 +16,13 @@ export const listWallets = (): Cardano => {
     }, new Map());
 };
 
-export const getWalletInfo = async (force: boolean): Promise<WalletInfo | null> => {
+export function disconnect() {
+  localStorage.removeItem("wallet");
+}
+
+export async function getWalletInfo(force: true): Promise<WalletInfo>;
+export async function getWalletInfo(force?: false): Promise<WalletInfo | null>;
+export async function getWalletInfo(force: boolean = false): Promise<WalletInfo | null> {
   const wallets = listWallets();
   const localStorageWallet = localStorage.getItem("wallet");
   if (localStorageWallet && (await wallets.get(localStorageWallet)?.isEnabled())) {
@@ -31,7 +37,7 @@ export const getWalletInfo = async (force: boolean): Promise<WalletInfo | null> 
   } else {
     return null;
   }
-};
+}
 
 export async function getConnection(force: true): Promise<WalletConnection>;
 export async function getConnection(force?: false): Promise<WalletConnection | null>;
