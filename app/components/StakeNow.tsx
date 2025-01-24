@@ -9,7 +9,7 @@ const StakeNow = () => {
 
   const stake = async () => {
     const poolId = "pool180fejev4xgwe2y53ky0pxvgxr3wcvkweu6feq5mdljfzcsmtg6u";
-    const connection = await getConnection();
+    const connection = await getConnection(true);
     delegateToPool(connection, poolId);
   };
 

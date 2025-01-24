@@ -1,10 +1,9 @@
 "use client";
-import React, { useContext } from 'react'
-import { ApplicationContext } from '../StateProvider';
+import { getConnection } from '../cardano/wallet';
 
 function WalletInfo() {
 
-    const context = useContext(ApplicationContext);
+  const connection = getConnection();
 
   return (
     <div>
