@@ -42,34 +42,20 @@ const txBuilderConfig = TransactionBuilderConfigBuilder.new()
   .max_tx_size(16384)
   .build();
 
-export const sendTransaction = async (
-  connection: WalletConnection,
-  addOutputs: (txBuilder: TransactionBuilder) => void,
-  policy?: PolicyPrivate
-) => {
+export const sendTransaction = async (connection: WalletConnection, addOutputs: (txBuilder: TransactionBuilder) => void, policy?: PolicyPrivate) => {
   const tx = await buildTransaction(connection, addOutputs);
   return submitTransaction(connection, tx, policy);
 };
 
-export const sendAda = async (
-  connection: WalletConnection,
-  targetAddress: Address,
-  amount: BigNum
-) => {
+export const sendAda = async (connection: WalletConnection, targetAddress: Address, amount: BigNum) => {
   const output = TransactionOutput.new(targetAddress, Value.new(amount));
-  const tx = await buildTransaction(
-    connection,
-    (txBuilder: TransactionBuilder) => {
-      txBuilder.add_output(output);
-    }
-  );
+  const tx = await buildTransaction(connection, (txBuilder: TransactionBuilder) => {
+    txBuilder.add_output(output);
+  });
   return await submitTransaction(connection, tx);
 };
 
-export const delegateToPool = async (
-  connection: WalletConnection,
-  poolId: string
-) => {
+export const delegateToPool = async (connection: WalletConnection, poolId: string) => {
   const poolKeyHash = Ed25519KeyHash.from_bech32(poolId);
 
   const rewardAddressHash = (await connection.getRewardAddresses())[0];
@@ -88,21 +74,14 @@ export const delegateToPool = async (
   });
 };
 
-const buildTransaction = async (
-  connection: WalletConnection,
-  addOutputs: (txBuilder: TransactionBuilder) => void
-): Promise<Transaction> => {
-  const changeAddress = Address.from_bytes(
-    Buffer.from(await connection.getChangeAddress(), "hex")
-  );
+const buildTransaction = async (connection: WalletConnection, addOutputs: (txBuilder: TransactionBuilder) => void): Promise<Transaction> => {
+  const changeAddress = Address.from_bytes(Buffer.from(await connection.getChangeAddress(), "hex"));
 
   // keep one utxo as collateral
   const collateral = (await connection.getCollateral()).slice(0, 1);
 
   // get all utxos, except collateral
-  const rawUtxos = (await connection.getUtxos()).filter(
-    (item) => !collateral.includes(item)
-  );
+  const rawUtxos = (await connection.getUtxos()).filter((item) => !collateral.includes(item));
 
   // parse utxos
   const utxos = rawUtxos.map((ru) => {
@@ -122,10 +101,7 @@ const buildTransaction = async (
   addOutputs(txBuilder);
 
   // add inputs
-  txBuilder.add_inputs_from(
-    transactionUnspentOutputs,
-    CoinSelectionStrategyCIP2.RandomImproveMultiAsset
-  );
+  txBuilder.add_inputs_from(transactionUnspentOutputs, CoinSelectionStrategyCIP2.RandomImproveMultiAsset);
 
   // add change
   txBuilder.add_change_if_needed(changeAddress);
@@ -133,11 +109,7 @@ const buildTransaction = async (
   return txBuilder.build_tx();
 };
 
-const submitTransaction = async (
-  connection: WalletConnection,
-  tx: Transaction,
-  policy?: PolicyPrivate
-) => {
+const submitTransaction = async (connection: WalletConnection, tx: Transaction, policy?: PolicyPrivate) => {
   const witnessCbor = await connection.signTx(tx.to_hex(), true);
   const witnessSet = TransactionWitnessSet.from_hex(witnessCbor);
 
@@ -181,19 +153,11 @@ const toNativeScript = (simpleScript: SimpleScript): NativeScript => {
       });
     return NativeScript.new_script_any(ScriptAny.new(scripts));
   } else if (simpleScript.type === "before") {
-    return NativeScript.new_timelock_expiry(
-      TimelockExpiry.new(simpleScript.slot!)
-    );
+    return NativeScript.new_timelock_expiry(TimelockExpiry.new(simpleScript.slot!));
   } else if (simpleScript.type === "after") {
-    return NativeScript.new_timelock_start(
-      TimelockStart.new_timelockstart(BigNum.from_str(`${simpleScript.slot}`))
-    );
+    return NativeScript.new_timelock_start(TimelockStart.new_timelockstart(BigNum.from_str(`${simpleScript.slot}`)));
   } else if (simpleScript.type === "sig") {
-    return NativeScript.new_script_pubkey(
-      ScriptPubkey.new(
-        Ed25519KeyHash.from_bytes(Buffer.from(`${simpleScript.keyHash}`, "hex"))
-      )
-    );
+    return NativeScript.new_script_pubkey(ScriptPubkey.new(Ed25519KeyHash.from_bytes(Buffer.from(`${simpleScript.keyHash}`, "hex"))));
   } else {
     throw new Error(`Cannot parse ${simpleScript}`);
   }

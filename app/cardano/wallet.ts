@@ -1,6 +1,12 @@
 import { Cardano, WalletConnection, WalletInfo } from "@types";
 import { showReturningModal } from "./dialog";
 
+/* if (typeof window !== "undefined") {
+  window.addEventListener("unhandledrejection", (event) => {
+    alert(event.reason);
+  });
+} */
+
 export const listWallets = (): Cardano => {
   return Object.entries(window.cardano ?? {})
     .filter(([, value]: [string, WalletInfo]) => value.apiVersion)
@@ -10,37 +16,35 @@ export const listWallets = (): Cardano => {
     }, new Map());
 };
 
-export async function getConnection(force: true): Promise<WalletConnection>;
-export async function getConnection(force?: false): Promise<WalletConnection | void>;
-export async function getConnection(force: boolean = false): Promise<WalletConnection | void> {
+export const getWalletInfo = async (force: boolean): Promise<WalletInfo | null> => {
   const wallets = listWallets();
-  let walletKey: string;
-
-  // Check if there is a wallet stored in localStorage and if it is enabled
   const localStorageWallet = localStorage.getItem("wallet");
   if (localStorageWallet && (await wallets.get(localStorageWallet)?.isEnabled())) {
-    walletKey = localStorageWallet;
+    return wallets.get(localStorageWallet) ?? null;
   } else if (force) {
-    // If force is true, check if there is only one wallet available
     if (wallets.size === 1) {
-      walletKey = wallets.keys().next().value!;
+      return wallets.values().next().value!;
     } else {
-      // Show the wallet selection dialog if there are multiple wallets
-      walletKey = await showReturningModal("wallet_dialog");
+      const walletKey = await showReturningModal("wallet_dialog");
+      return wallets.get(walletKey) ?? null;
     }
   } else {
-    // If force is false and no wallet is enabled, return without doing anything
-    return;
+    return null;
+  }
+};
+
+export async function getConnection(force: true): Promise<WalletConnection>;
+export async function getConnection(force?: false): Promise<WalletConnection | null>;
+export async function getConnection(force: boolean = false): Promise<WalletConnection | null> {
+  const walletInfo = await getWalletInfo(force);
+
+  if (!walletInfo) {
+    return null;
   }
 
-  // Store the selected wallet in localStorage and enable it
-  localStorage.setItem("wallet", walletKey);
-  return wallets
-    .get(walletKey)!
-    .enable()
-    .catch((error) => {
-      // Remove the wallet from localStorage if there is an error
-      localStorage.removeItem("wallet");
-      throw error;
-    });
+  localStorage.setItem("wallet", walletInfo.name);
+  return walletInfo.enable().catch((error) => {
+    localStorage.removeItem("wallet");
+    throw error;
+  });
 }
