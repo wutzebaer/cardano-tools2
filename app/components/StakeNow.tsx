@@ -4,6 +4,7 @@ import { delegateToPool } from "@cardano/transaction";
 import { getConnection } from "@cardano/wallet";
 import { useContext } from "react";
 import { ApplicationContext } from "../StateProvider";
+import Image from "next/image";
 
 const StakeNow = () => {
   const context = useContext(ApplicationContext);
@@ -15,11 +16,17 @@ const StakeNow = () => {
   };
 
   return (
-    <>
-      <button className="btn btn-sm btn-primary" onClick={stake}>
-        Stake Now! {context.state.count}
+    <div className="flex flex-col items-center gap-2">
+      <Image
+        src="/charlien-t.png"
+        alt="CHIEN logo"
+        width={150}
+        height={150}
+      />
+      <button className="btn btn-ghost w-full" onClick={stake}>
+        Stake Now!
       </button>
-    </>
+    </div>
   );
 };
 
