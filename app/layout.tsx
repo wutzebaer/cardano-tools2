@@ -7,6 +7,9 @@ import StakeNow from "./components/StakeNow";
 import "./globals.css";
 import StateProvider from "./StateProvider";
 import WalletDialog from "./components/WalletDialog";
+import SidebarHeader from "./components/SidebarHeader";
+import Navbar from "./components/Navbar";
+import WalletInfo from "./components/WalletInfo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -59,14 +62,10 @@ export default function RootLayout({
         <StateProvider>
           <div className="drawer lg:drawer-open">
             <input id="my-drawer-2" type="checkbox" className="drawer-toggle" />
-            <div className="drawer-content flex flex-col items-center justify-center">
-              <label
-                htmlFor="my-drawer-2"
-                className="btn btn-primary drawer-button lg:hidden"
-              >
-                Open drawer
-              </label>
-              {children}
+            <div className="drawer-content">
+              {/* Navbar */}
+              <Navbar />
+              <main className="mt-14">{children}</main>
             </div>
             <div className="drawer-side">
               {/* backdrop for open drawer on mobile */}
@@ -78,18 +77,12 @@ export default function RootLayout({
 
               {/* Sidebar content */}
               <ul className="menu bg-base-200 text-base-content min-h-full w-80 gap-2">
+
                 {/* Sidebar header */}
-                <h1 className="text-3xl font-bold font-[family-name:var(--font-quicksand)] flex items-center gap-x-2 p-4 mb-20">
-                  <Image
-                    className="invert"
-                    src="/cardano-tools-logo.svg"
-                    alt="Cardano logo"
-                    width={50}
-                    height={50}
-                    priority
-                  />
-                  <span>Cardano Tools</span>
-                </h1>
+                <SidebarHeader />
+
+                {/* Wallet info */}
+                <WalletInfo />
 
                 {/* Sidebar items */}
                 <MenuItem href="/pool">
