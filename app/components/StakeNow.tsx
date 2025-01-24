@@ -1,8 +1,9 @@
 "use client";
-import { ApplicationContext } from "@/app/StateProvider";
+
+import { delegateToPool } from "@cardano/transaction";
 import { getConnection } from "@cardano/wallet";
 import { useContext } from "react";
-import { delegateToPool } from "../cardano/transaction";
+import { ApplicationContext } from "../StateProvider";
 
 const StakeNow = () => {
   const context = useContext(ApplicationContext);

@@ -1,15 +1,26 @@
 "use client";
-import { getConnection } from '../cardano/wallet';
 
-function WalletInfo() {
+import { getWalletInfo } from "@cardano/wallet";
+import { WalletInfo } from "@types";
+import { useEffect, useState } from "react";
 
-  const connection = getConnection();
+function WalletOverview() {
+
+  const [connection, setConnection] = useState<WalletInfo | null>(null);
+
+  // Get wallet info
+  useEffect(() => {
+    (async () => {
+      setConnection(await getWalletInfo(false));
+    })();
+  }, []);
+
 
   return (
     <div>
-      WALLET
+      {connection?.name}
     </div>
   )
 }
 
-export default WalletInfo
+export default WalletOverview

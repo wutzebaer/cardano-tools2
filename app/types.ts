@@ -40,4 +40,3 @@ export interface AddressPrivate {
   skey: string;
   vkey: string;
 }
-

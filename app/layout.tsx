@@ -9,7 +9,8 @@ import StateProvider from "./StateProvider";
 import WalletDialog from "./components/WalletDialog";
 import SidebarHeader from "./components/SidebarHeader";
 import Navbar from "./components/Navbar";
-import WalletInfo from "./components/WalletInfo";
+import WalletOverview from "./components/WalletInfo";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -82,7 +83,7 @@ export default function RootLayout({
                 <SidebarHeader />
 
                 {/* Wallet info */}
-                <WalletInfo />
+                <WalletOverview />
 
                 {/* Sidebar items */}
                 <MenuItem href="/pool">
