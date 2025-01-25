@@ -29,7 +29,7 @@ const ErrorToast = () => {
   }, []);
 
   return (
-    <div className="toast toast-center toast-top">
+    <div className="toast toast-center toast-top z-50">
       {errorMessages.map((message, index) => (
         <div key={index} className="alert alert-warning flex items-center">
           <ExclamationCircleIcon className="h-6" />
