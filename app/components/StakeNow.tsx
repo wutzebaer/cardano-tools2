@@ -1,16 +1,21 @@
 "use client";
 
 import { delegateToPool } from "@cardano/transaction";
-import { getConnection } from "@cardano/wallet";
+import { getSelectedWallet, SelectionMode } from "@cardano/wallet";
+import { ApplicationContext } from "@components/StateProvider";
 import Image from "next/image";
+import { useCallback, useContext } from "react";
 
 const StakeNow = () => {
 
-  const stake = async () => {
+  const context = useContext(ApplicationContext);
+
+  const stake = useCallback(async () => {
     const poolId = "pool180fejev4xgwe2y53ky0pxvgxr3wcvkweu6feq5mdljfzcsmtg6u";
-    const connection = await getConnection(true);
-    delegateToPool(connection, poolId);
-  };
+    const walletInfo = await getSelectedWallet(SelectionMode.ForceSelectIfNone);
+    context.setState({ walletInfo: walletInfo });
+    delegateToPool(await walletInfo.enable(), poolId);
+  }, [context]);
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -21,7 +26,7 @@ const StakeNow = () => {
         height={150}
       />
       <button className="btn btn-ghost w-full" onClick={stake}>
-        Stake Now!
+        delegate to [CHIEN]
       </button>
     </div>
   );
