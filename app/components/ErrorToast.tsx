@@ -11,7 +11,7 @@ const ErrorToast = () => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       setErrorMessages((prevMessages) => [
         ...prevMessages,
-        event.reason?.message || event.reason?.info || (event.reason?.code ? `error: ${event.reason.code}` : "An unexpected error occurred.")
+        event.reason?.message || event.reason?.info || (event.reason?.code ? `error: ${event.reason.code}` : undefined) || event.reason || "An unexpected error occurred."
       ]);
 
       // Clear the specific error message after 5 seconds
