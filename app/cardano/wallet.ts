@@ -1,18 +1,5 @@
-import { Cardano, WalletConnection, WalletInfo } from "@types";
+import { Cardano, WalletInfo } from "@types";
 import { showReturningModal } from "./dialog";
-
-if (typeof window !== "undefined") {
-  window.addEventListener("unhandledrejection", function (event) {
-    // Standardverhalten verhindern
-    event.preventDefault();
-
-    // Eigene Logik
-    console.log("Eigenes Handling: Unhandled Promise Rejection:", event.reason);
-
-    // Optional: Promise-Referenz anzeigen
-    console.log("Betroffenes Promise:", event.promise);
-  });
-}
 
 export const listWallets = (): Cardano => {
   return Object.entries(window.cardano ?? {})

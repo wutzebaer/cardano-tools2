@@ -10,6 +10,7 @@ import WalletDialog from "./components/WalletDialog";
 import SidebarHeader from "./components/SidebarHeader";
 import Navbar from "./components/Navbar";
 import WalletOverview from "./components/WalletOverview";
+import ErrorToast from "@components/ErrorToast";
 
 
 const geistSans = Geist({
@@ -59,6 +60,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${quicksand.variable} antialiased`}
       >
+        <ErrorToast />
         <WalletDialog />
         <StateProvider>
           <div className="drawer lg:drawer-open">

@@ -22,7 +22,6 @@ function WalletOverview() {
   const context = useContext(ApplicationContext);
 
   const updateWalletStats = async (fetchedWalletInfo: WalletInfo | null) => {
-    console.log("updateWalletStats");
     if (!fetchedWalletInfo) {
       setWalletStats(null);
     } else {
@@ -50,7 +49,6 @@ function WalletOverview() {
   // Initial fetch
   useEffect(() => {
     (async () => {
-      console.log("getWalletInfo");
       if (!context.state.walletInfo) {
         const fetchedWalletInfo = await getSelectedWallet(SelectionMode.IfSelected);
         if (fetchedWalletInfo) {
