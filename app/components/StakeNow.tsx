@@ -2,12 +2,9 @@
 
 import { delegateToPool } from "@cardano/transaction";
 import { getConnection } from "@cardano/wallet";
-import { useContext } from "react";
-import { ApplicationContext } from "../StateProvider";
 import Image from "next/image";
 
 const StakeNow = () => {
-  const context = useContext(ApplicationContext);
 
   const stake = async () => {
     const poolId = "pool180fejev4xgwe2y53ky0pxvgxr3wcvkweu6feq5mdljfzcsmtg6u";

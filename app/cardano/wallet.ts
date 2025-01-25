@@ -1,11 +1,18 @@
 import { Cardano, WalletConnection, WalletInfo } from "@types";
 import { showReturningModal } from "./dialog";
 
-/* if (typeof window !== "undefined") {
-  window.addEventListener("unhandledrejection", (event) => {
-    alert(event.reason);
+if (typeof window !== "undefined") {
+  window.addEventListener("unhandledrejection", function (event) {
+    // Standardverhalten verhindern
+    event.preventDefault();
+
+    // Eigene Logik
+    console.log("Eigenes Handling: Unhandled Promise Rejection:", event.reason);
+
+    // Optional: Promise-Referenz anzeigen
+    console.log("Betroffenes Promise:", event.promise);
   });
-} */
+}
 
 export const listWallets = (): Cardano => {
   return Object.entries(window.cardano ?? {})
@@ -21,7 +28,7 @@ export function disconnect() {
 }
 
 export async function getWalletInfo(force: true): Promise<WalletInfo>;
-export async function getWalletInfo(force?: false): Promise<WalletInfo | null>;
+export async function getWalletInfo(force: boolean): Promise<WalletInfo | null>;
 export async function getWalletInfo(force: boolean = false): Promise<WalletInfo | null> {
   const wallets = listWallets();
   const localStorageWallet = localStorage.getItem("wallet");
@@ -40,7 +47,7 @@ export async function getWalletInfo(force: boolean = false): Promise<WalletInfo 
 }
 
 export async function getConnection(force: true): Promise<WalletConnection>;
-export async function getConnection(force?: false): Promise<WalletConnection | null>;
+export async function getConnection(force: boolean): Promise<WalletConnection>;
 export async function getConnection(force: boolean = false): Promise<WalletConnection | null> {
   const walletInfo = await getWalletInfo(force);
 
