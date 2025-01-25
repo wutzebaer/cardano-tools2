@@ -44,7 +44,7 @@ const txBuilderConfig = TransactionBuilderConfigBuilder.new()
 
 export const sendTransaction = async (connection: WalletConnection, addOutputs: (txBuilder: TransactionBuilder) => void, policy?: PolicyPrivate) => {
   const tx = await buildTransaction(connection, addOutputs);
-  return submitTransaction(connection, tx, policy);
+  return signAndSubmitTransaction(connection, tx, policy);
 };
 
 export const sendAda = async (connection: WalletConnection, targetAddress: Address, amount: BigNum) => {
@@ -52,7 +52,7 @@ export const sendAda = async (connection: WalletConnection, targetAddress: Addre
   const tx = await buildTransaction(connection, (txBuilder: TransactionBuilder) => {
     txBuilder.add_output(output);
   });
-  return await submitTransaction(connection, tx);
+  return await signAndSubmitTransaction(connection, tx);
 };
 
 export const delegateToPool = async (connection: WalletConnection, poolId: string) => {
@@ -70,7 +70,6 @@ export const delegateToPool = async (connection: WalletConnection, poolId: strin
 
   await sendTransaction(connection, (txBuilder) => {
     txBuilder.set_certs(certificates);
-    console.log(stakeCredential.to_keyhash()?.to_hex());
   });
 };
 
@@ -78,7 +77,7 @@ const buildTransaction = async (connection: WalletConnection, addOutputs: (txBui
   const changeAddress = Address.from_bytes(Buffer.from(await connection.getChangeAddress(), "hex"));
 
   // keep one utxo as collateral
-  const collateral = (await connection.getCollateral()).slice(0, 1);
+  const collateral = (await connection.getCollateral().catch(() => [])).slice(0, 1);
 
   // get all utxos, except collateral
   const rawUtxos = (await connection.getUtxos()).filter((item) => !collateral.includes(item));
@@ -109,7 +108,7 @@ const buildTransaction = async (connection: WalletConnection, addOutputs: (txBui
   return txBuilder.build_tx();
 };
 
-const submitTransaction = async (connection: WalletConnection, tx: Transaction, policy?: PolicyPrivate) => {
+const signAndSubmitTransaction = async (connection: WalletConnection, tx: Transaction, policy?: PolicyPrivate) => {
   const witnessCbor = await connection.signTx(tx.to_hex(), true);
   const witnessSet = TransactionWitnessSet.from_hex(witnessCbor);
 
