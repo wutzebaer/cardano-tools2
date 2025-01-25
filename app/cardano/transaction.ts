@@ -77,7 +77,7 @@ const buildTransaction = async (connection: WalletConnection, addOutputs: (txBui
   const changeAddress = Address.from_bytes(Buffer.from(await connection.getChangeAddress(), "hex"));
 
   // keep one utxo as collateral
-  const collateral = (await connection.getCollateral().catch(() => [])).slice(0, 1);
+  const collateral = (connection.getCollateral && (await connection.getCollateral().catch(() => []))?.slice(0, 1)) ?? [];
 
   // get all utxos, except collateral
   const rawUtxos = (await connection.getUtxos()).filter((item) => !collateral.includes(item));
