@@ -2,10 +2,11 @@
 
 import { rewardAddressHashToBech32 } from "@cardano/transaction";
 import { formatAda } from "@cardano/utils";
-import { disconnect, getWalletInfo } from "@cardano/wallet";
+import { getSelectedWallet, SelectionMode } from "@cardano/wallet";
+import { ApplicationContext } from "@components/StateProvider";
 import { Value } from "@emurgo/cardano-serialization-lib-browser";
 import { WalletInfo } from "@types";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 
 interface WalletStats {
   name: string;
@@ -18,42 +19,52 @@ interface WalletStats {
 function WalletOverview() {
 
   const [walletStats, setWalletStats] = useState<WalletStats | null>(null);
+  const context = useContext(ApplicationContext);
 
-  const updateWalletStats = async (fetchedWalletInfo: WalletInfo) => {
-    const connection = await fetchedWalletInfo.enable();
-    const name = fetchedWalletInfo.name;
-    const icon = fetchedWalletInfo.icon;
-    const balanceCBORHex = await connection.getBalance();
-    const balanceBigNum = Value.from_bytes(
-      Buffer.from(balanceCBORHex, 'hex')
-    ).coin();
-    const balance = Number(balanceBigNum.to_str());
-    const changeAddress = await connection.getChangeAddress();
-    const rewardAddresses = await connection.getRewardAddresses();
-    setWalletStats({ name, icon, balance, changeAddress, rewardAddresses });
-  }
+  const updateWalletStats = async (fetchedWalletInfo: WalletInfo | null) => {
+    console.log("updateWalletStats");
+    if (!fetchedWalletInfo) {
+      setWalletStats(null);
+    } else {
+      const connection = await fetchedWalletInfo.enable();
+      const name = fetchedWalletInfo.name;
+      const icon = fetchedWalletInfo.icon;
+      const balanceCBORHex = await connection.getBalance();
+      const balanceBigNum = Value.from_bytes(
+        Buffer.from(balanceCBORHex, 'hex')
+      ).coin();
+      const balance = Number(balanceBigNum.to_str());
+      const changeAddress = await connection.getChangeAddress();
+      const rewardAddresses = await connection.getRewardAddresses();
+      setWalletStats({ name, icon, balance, changeAddress, rewardAddresses });
+    }
+  };
 
-  // Get wallet info
+  // Update when context chnages
   useEffect(() => {
     (async () => {
-      const fetchedWalletInfo = await getWalletInfo(false);
-      if (fetchedWalletInfo) {
-        updateWalletStats(fetchedWalletInfo);
+      updateWalletStats(context.state.walletInfo);
+    })();
+  }, [context.state.walletInfo]);
+
+  // Initial fetch
+  useEffect(() => {
+    (async () => {
+      console.log("getWalletInfo");
+      if (!context.state.walletInfo) {
+        const fetchedWalletInfo = await getSelectedWallet(SelectionMode.IfSelected);
+        if (fetchedWalletInfo) {
+          context.setState({ walletInfo: fetchedWalletInfo });
+        }
       }
     })();
-  }, []);
+  }, [context]);
 
-  const connect = async () => {
-    const fetchedWalletInfo = await getWalletInfo(true);
-    updateWalletStats(fetchedWalletInfo);
+  const reconnect = async () => {
+    const fetchedWalletInfo = await getSelectedWallet(SelectionMode.ForceSelection);
+    context.setState({ walletInfo: fetchedWalletInfo });
   }
 
-  const switchWallet = async () => {
-    disconnect();
-    setWalletStats(null);
-    const fetchedWalletInfo = await getWalletInfo(true);
-    updateWalletStats(fetchedWalletInfo);
-  }
 
   /* flex items-center justify-center gap-1 font-[family-name:var(--font-geist-mono)] */
   return (
@@ -69,14 +80,14 @@ function WalletOverview() {
                 alt="{walletStats.name} logo"
               />
             </div>
-            <div className="stat-title"><button className="btn btn-xs btn-link p-0" onClick={switchWallet}>switch wallet</button></div>
+            <div className="stat-title"><button className="btn btn-xs btn-link p-0" onClick={reconnect}>switch wallet</button></div>
             <div className="stat-value text-2xl">
               {formatAda(walletStats.balance)}</div>
             <div className="stat-desc overflow-hidden text-ellipsis">{rewardAddressHashToBech32(walletStats.rewardAddresses[0])}</div>
           </div>
         </div>
       ) : (
-        <button className="btn btn-ghost w-full" onClick={connect}>
+        <button className="btn btn-ghost w-full" onClick={reconnect}>
           Connect wallet
         </button>
       )}

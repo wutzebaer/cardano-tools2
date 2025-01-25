@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import StakeNow from "./components/StakeNow";
 import "./globals.css";
-import StateProvider from "./StateProvider";
+import StateProvider from "./components/StateProvider";
 import WalletDialog from "./components/WalletDialog";
 import SidebarHeader from "./components/SidebarHeader";
 import Navbar from "./components/Navbar";
