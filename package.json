@@ -7,13 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "update-schema": "openapi-typescript https://cardanosolutions.github.io/kupo/api/nightly.yaml -o ./app/cardano/kupo.schema.ts"
+    "update-schema": "openapi-typescript http://localhost:8080/cardanoDbSyncApi/v3/api-docs -o ./app/cardano/dbsync.schema.ts"
   },
   "dependencies": {
-    "@cardano-ogmios/client": "^6.11.0",
     "@emurgo/cardano-serialization-lib-browser": "^13",
     "@heroicons/react": "^2",
     "next": "^15",
+    "openapi-fetch": "^0.13.4",
     "react": "^19",
     "react-dom": "^19"
   },

@@ -1,11 +1,15 @@
-import { getTip } from "@cardano/kupo";
+import { getLatestTokens, getTip } from "@cardano/dbsync";
+import Token from "@components/Token";
+
 
 const page = async () => {
-  const tip = await getTip();
+  const latestTokens = await getLatestTokens();
 
   return (
     <div>
-      <pre>{tip}</pre>
+      {latestTokens.map((token) => (
+        <Token key={token.maFingerprint} tokenListItem={token} />
+      ))}
     </div>
   );
 };
