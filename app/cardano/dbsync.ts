@@ -1,7 +1,7 @@
 import { components, paths } from "./dbsync.schema";
 import createClient from "openapi-fetch";
 
-const baseUrl = process.env.NODE_ENV === "production" ? "https://cardano-tools.io" : "http://localhost:8080";
+const baseUrl = process.env.NODE_ENV === "test" ? "https://cardano-tools.io" : "http://localhost:8080";
 const client = createClient<paths>({ baseUrl });
 
 export async function getTip() {

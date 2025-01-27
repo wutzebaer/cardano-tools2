@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  cleanDistDir: false,
+
   webpack: (config) => {
     // Enable async WebAssembly
     config.experiments.asyncWebAssembly = true;
