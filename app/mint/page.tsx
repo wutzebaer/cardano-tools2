@@ -2,7 +2,7 @@
 const page = () => {
   return (
     <div>
-       Hello Mint
+      Hello Mint
     </div>
   )
 }
