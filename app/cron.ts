@@ -1,13 +1,19 @@
 import cron from "node-cron";
+import puppeteer from "puppeteer";
 
 export const startCron = async () => {
-  const baseUrl = process.env.BASE_URL || "https://cardano-tools.io";
+  const baseUrl = `http://localhost:${process.env.PORT}`;
   console.log("BASE_URL", baseUrl);
-  const pagesToFetch = ["/browse"];
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1920, height: 30000 });
+  const paths = ["/browse"];
   cron.schedule("* * * * *", async () => {
-    for (const page of pagesToFetch) {
-      const result = await fetch(`${baseUrl}${page}`);
-      console.log("Refreshed", page, result.status);
+    for (const path of paths) {
+      await page.goto(`${baseUrl}${path}`, {
+        waitUntil: "networkidle0",
+      });
+      console.log(`Refreshed ${path}`);
     }
   });
 };

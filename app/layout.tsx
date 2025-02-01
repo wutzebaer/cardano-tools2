@@ -11,6 +11,7 @@ import SidebarHeader from "./components/SidebarHeader";
 import Navbar from "./components/Navbar";
 import WalletOverview from "./components/WalletOverview";
 import ErrorToast from "@components/ErrorToast";
+import ErrorBoundary from "@components/ErrorBoundary";
 
 
 const geistSans = Geist({
@@ -65,10 +66,12 @@ export default function RootLayout({
         <StateProvider>
           <div className="drawer lg:drawer-open">
             <input id="my-drawer-2" type="checkbox" className="drawer-toggle" />
-            <div className="drawer-content">
+            <div className="drawer-content min-h-dvh flex flex-col">
               {/* Navbar */}
               <Navbar />
-              <main className="mt-14">{children}</main>
+              <main className="mt-14 flex-grow mx-14">
+                <ErrorBoundary>{children}</ErrorBoundary>
+              </main>
             </div>
             <div className="drawer-side">
               {/* backdrop for open drawer on mobile */}

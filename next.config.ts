@@ -19,6 +19,14 @@ const nextConfig: NextConfig = {
     config.ignoreWarnings.push(/The generated code contains 'async\/await' because this module is using "asyncWebAssembly"/);
     return config;
   },
+
+  images: {
+    remotePatterns: [
+      {
+        hostname: "**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;
