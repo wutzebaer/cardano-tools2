@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/cardanoDbSyncApi/lastMint": {
+    "/lastMint": {
         parameters: {
             query?: never;
             header?: never;
@@ -21,7 +21,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/{stakeAddress}/stakeInfo": {
+    "/{stakeAddress}/stakeInfo": {
         parameters: {
             query?: never;
             header?: never;
@@ -38,7 +38,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/{stakeAddress}/returnAddress": {
+    "/{stakeAddress}/returnAddress": {
         parameters: {
             query?: never;
             header?: never;
@@ -55,7 +55,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/{stakeAddress}/handles": {
+    "/{stakeAddress}/handles": {
         parameters: {
             query?: never;
             header?: never;
@@ -72,7 +72,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/{address}/utxos": {
+    "/{address}/utxos": {
         parameters: {
             query?: never;
             header?: never;
@@ -89,7 +89,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/{address}/token": {
+    "/{address}/token": {
         parameters: {
             query?: never;
             header?: never;
@@ -106,7 +106,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/{address}/statement": {
+    "/{address}/statement": {
         parameters: {
             query?: never;
             header?: never;
@@ -123,7 +123,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/{address}/stakeAddress": {
+    "/{address}/stakeAddress": {
         parameters: {
             query?: never;
             header?: never;
@@ -140,7 +140,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/transaction/{txId}/outputs": {
+    "/transaction/{txId}/outputs": {
         parameters: {
             query?: never;
             header?: never;
@@ -157,7 +157,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/transaction/{txId}/metadata": {
+    "/transaction/{txId}/metadata": {
         parameters: {
             query?: never;
             header?: never;
@@ -174,7 +174,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/transaction/{txId}/confirmed": {
+    "/transaction/{txId}/confirmed": {
         parameters: {
             query?: never;
             header?: never;
@@ -191,7 +191,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/token": {
+    "/token": {
         parameters: {
             query?: never;
             header?: never;
@@ -208,7 +208,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/token/{policyId}/": {
+    "/token/{policyId}/{assetName}": {
         parameters: {
             query?: never;
             header?: never;
@@ -225,7 +225,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/token/{policyId}/{assetName}": {
+    "/token/{policyId}/": {
         parameters: {
             query?: never;
             header?: never;
@@ -242,7 +242,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/tip": {
+    "/tip": {
         parameters: {
             query?: never;
             header?: never;
@@ -259,7 +259,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/stakeHash/{stakeAddress}": {
+    "/stakeHash/{stakeAddress}": {
         parameters: {
             query?: never;
             header?: never;
@@ -276,7 +276,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/stakeAddress/{stakeAddressHash}": {
+    "/stakeAddress/{stakeAddressHash}": {
         parameters: {
             query?: never;
             header?: never;
@@ -293,7 +293,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/poolList": {
+    "/poolList": {
         parameters: {
             query?: never;
             header?: never;
@@ -310,7 +310,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/policy/{policyId}/owners": {
+    "/policy/{policyId}/owners": {
         parameters: {
             query?: never;
             header?: never;
@@ -327,7 +327,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/minswap/{policyId}/{assetName}": {
+    "/minswap/{policyId}/{assetName}": {
         parameters: {
             query?: never;
             header?: never;
@@ -344,7 +344,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/handles/{handle}": {
+    "/handles/{handle}": {
         parameters: {
             query?: never;
             header?: never;
@@ -361,7 +361,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/cardanoDbSyncApi/epochStake/{poolHash}/{epoch}": {
+    "/epochStake/{poolHash}/{epoch}": {
         parameters: {
             query?: never;
             header?: never;
@@ -781,6 +781,8 @@ export interface operations {
             path: {
                 /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982 */
                 policyId: string;
+                /** @example 436176616c6965724b696e67436861726c6573 */
+                assetName: string;
             };
             cookie?: never;
         };
@@ -804,8 +806,6 @@ export interface operations {
             path: {
                 /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982 */
                 policyId: string;
-                /** @example 436176616c6965724b696e67436861726c6573 */
-                assetName: string;
             };
             cookie?: never;
         };

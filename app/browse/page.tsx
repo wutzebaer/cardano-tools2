@@ -2,16 +2,18 @@ import { getLatestTokens } from "@cardano/dbsync";
 import Token from "@components/Token";
 
 export const revalidate = 10
-const page = async () => {
-  const latestTokens = await getLatestTokens();
-  //const latestTokens: components["schemas"]["TokenListItem"][] = await (await fetch('http://localhost:8080/cardanoDbSyncApi/token')).json();
 
+const page = async () => {
+  const latestTokens = (await getLatestTokens());
   return (
-    <div>
-      {latestTokens.map((token) => (
-        <Token key={token.maFingerprint} tokenListItem={token} />
-      ))}
-    </div>
+    <>
+      <h1 className="text-2xl font-bold mb-10">Latest Tokens</h1>
+      <div className="flex flex-wrap gap-10 justify-center">
+        {latestTokens!.map((token) => (
+          <Token key={token.maFingerprint} tokenListItem={token} />
+        ))}
+      </div>
+    </>
   );
 };
 

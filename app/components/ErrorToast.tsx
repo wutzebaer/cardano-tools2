@@ -1,5 +1,6 @@
 "use client";
 
+import { errorToMessage } from '@cardano/utils';
 import { ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import React, { useState, useEffect } from 'react';
 
@@ -11,7 +12,7 @@ const ErrorToast = () => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       setErrorMessages((prevMessages) => [
         ...prevMessages,
-        event.reason?.message || event.reason?.info || (event.reason?.code ? `error: ${event.reason.code}` : undefined) || event.reason || "An unexpected error occurred."
+        errorToMessage(event.reason),
       ]);
 
       // Clear the specific error message after 5 seconds
