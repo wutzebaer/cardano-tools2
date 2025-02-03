@@ -1,5 +1,3 @@
-import { ImageError } from "next/dist/server/image-optimizer";
-
 const SHELLEY_GENESIS_TIME = 1591566291; // Cardano mainnet genesis time in seconds (June 29, 2020, 21:44:51 UTC)
 
 const IPFS_PROVIDERS = [
@@ -10,15 +8,26 @@ const IPFS_PROVIDERS = [
 ];
 
 export function formatAda(value?: number) {
+  const numberFormat = Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 2,
+  });
   if (value == null) {
     return "";
   }
-  const browserLocale = navigator.language || "en-US"; // Fallback zu "en-US"
-  const formattedValue = new Intl.NumberFormat(browserLocale, {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 2,
-  }).format(value / 1000000);
+  const formattedValue = numberFormat.format(value / 1000000);
   return `${formattedValue}\xa0₳`;
+}
+
+export function formatNumber(value?: number) {
+  const numberFormat = Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+  if (value == null) {
+    return "";
+  }
+  return numberFormat.format(value);
 }
 
 export function slotToDate(slotNo: number) {
@@ -50,4 +59,46 @@ export function toIpfsUrl(ipfs: string) {
 export function errorToMessage(error: unknown): string {
   const e = error as Record<string, string>;
   return e?.message ?? e?.info ?? (e?.code ? `error: ${e.code}` : undefined) ?? e ?? "An unexpected error occurred.";
+}
+
+export function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function parseMetadata(metadata: unknown) {
+  try {
+    return flattenAndTransform(JSON.parse(metadata as string));
+  } catch {
+    return {};
+  }
+}
+
+function flattenAndTransform(obj: ReturnType<typeof JSON.parse>, path: string[] = []): ReturnType<typeof JSON.parse> {
+  if (Array.isArray(obj)) {
+    // Wenn es ein Array von Strings ist, verbinde sie zu einem String
+    if (obj.every((item) => typeof item === "string")) {
+      return { [path.join(" / ")]: obj.join("") };
+    }
+    // Ansonsten verarbeite jedes Element einzeln und flache es weiter ab
+    return Object.assign({}, ...obj.map((item, index) => flattenAndTransform(item, [...path, index.toString()])));
+  } else if (typeof obj === "object") {
+    // Wenn es ein Objekt ist, verarbeite jedes Schlüssel-Wert-Paar rekursiv
+    return Object.assign({}, ...Object.entries(obj).map(([key, value]) => flattenAndTransform(value, [...path, key])));
+  } else if (typeof obj === "number") {
+    // Formatiere Zahlen mit formatNumber
+    return { [path.join(" / ")]: formatNumber(obj) };
+  }
+  // Andernfalls gib den Wert mit dem aktuellen Pfad als Schlüssel zurück
+  return { [path.join(" / ")]: obj };
+}
+
+export function toDisplayMetadata(metadata: ReturnType<typeof JSON.parse>): object {
+  if (metadata.properties) {
+    return metadata.properties;
+  }
+  if (metadata.attributes) {
+    return metadata.attributes;
+  }
+  const RESERVED_METADATA_FIELDS = ["name", "description", "files", "image", "mediaType"];
+  return Object.fromEntries(Object.entries(metadata).filter(([key, value]) => !RESERVED_METADATA_FIELDS.some((field) => key.startsWith(field)) && typeof value !== "object"));
 }
