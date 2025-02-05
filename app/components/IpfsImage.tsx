@@ -1,6 +1,6 @@
 "use client"
-import { FC, ReactEventHandler, useState } from "react"
 import Image, { ImageProps } from "next/image"
+import { FC, ReactEventHandler, useState } from "react"
 
 const IpfsImage: FC<ImageProps> = (props) => {
     const { alt, onLoad, className, ...rest } = props

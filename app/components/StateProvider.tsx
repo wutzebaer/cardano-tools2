@@ -1,6 +1,6 @@
 "use client";
 
-import { WalletInfo } from "@types";
+import { WalletInfo } from "@cardano/types";
 import { createContext, ReactNode, useState } from "react";
 
 export interface ApplicationState {

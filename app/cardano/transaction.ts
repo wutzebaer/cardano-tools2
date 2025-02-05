@@ -27,7 +27,7 @@ import {
   Value,
   make_vkey_witness,
 } from "@emurgo/cardano-serialization-lib-browser";
-import { PolicyPrivate, SimpleScript, WalletConnection } from "@types";
+import { PolicyPrivate, SimpleScript, WalletConnection } from "@cardano/types";
 
 export const currentSlot = () => {
   return new Date().getTime() / 1000 - 1596491091 + 4924800;
