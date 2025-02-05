@@ -1,4 +1,4 @@
-import { Cardano } from "./app/types";
+import { Cardano } from "./app/cardano/types";
 
 export {};
 

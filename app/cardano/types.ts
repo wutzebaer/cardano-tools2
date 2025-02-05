@@ -44,3 +44,4 @@ export interface AddressPrivate {
 }
 
 export type TokenListItem = components["schemas"]["TokenListItem"];
+export type TokenDetails = components["schemas"]["TokenDetails"];

@@ -5,7 +5,7 @@ import { formatAda } from "@cardano/utils";
 import { getSelectedWallet, SelectionMode } from "@cardano/wallet";
 import { ApplicationContext } from "@components/StateProvider";
 import { Value } from "@emurgo/cardano-serialization-lib-browser";
-import { WalletInfo } from "@types";
+import { WalletInfo } from "@cardano/types";
 import { useContext, useEffect, useState } from "react";
 
 interface WalletStats {

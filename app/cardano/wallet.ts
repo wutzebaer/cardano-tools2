@@ -1,4 +1,4 @@
-import { Cardano, WalletInfo } from "@types";
+import { Cardano, WalletInfo } from "@cardano/types";
 import { showReturningModal } from "./dialog";
 
 export const listWallets = (): Cardano => {

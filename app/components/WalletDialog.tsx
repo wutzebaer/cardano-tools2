@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { listWallets } from "../cardano/wallet";
-import { Cardano } from "../types";
+import { Cardano } from "../cardano/types";
 
 function WalletDialog() {
   const [wallets, setWallets] = useState<Cardano>(new Map());
