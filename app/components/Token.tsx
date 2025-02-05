@@ -4,16 +4,19 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { components } from '../cardano/dbsync.schema';
 import IpfsImage from '@components/IpfsImage';
+import { getCollectionInfo } from '@cardano/jpg.store';
+import { Verified } from '@components/JpgStoreIcons';
 
 interface TokenProps {
     tokenListItem: components["schemas"]["TokenListItem"];
 }
 
 async function Token({ tokenListItem }: TokenProps) {
-    const maxEntries = 6;
+    const maxEntries = 5;
     const tokenDetails = await getTokenDetails(tokenListItem);
     const metadata = parseMetadata(tokenDetails.metadata);
     const displayMetadata = toDisplayMetadata(metadata);
+    const collectionInfo = await getCollectionInfo(tokenListItem.maPolicyId);
 
     return (
         <div className="card bg-base-200 w-full md:w-80 xl:w-96">
@@ -23,7 +26,11 @@ async function Token({ tokenListItem }: TokenProps) {
                 </Link>
             </figure>
             <div className="card-body">
-                <h2 className="card-title">{metadata.name ?? tokenListItem.name}</h2>
+                <h2 className="card-title">
+                    <Link href={`?query=${tokenListItem.maFingerprint}`} className='link-hover'>
+                        {metadata.name ?? tokenListItem.name}
+                    </Link>
+                </h2>
                 <div className=''>{metadata.description}</div>
                 <div className="grid p-2 grid-cols-1">
                     {Object.entries(displayMetadata)
@@ -36,13 +43,26 @@ async function Token({ tokenListItem }: TokenProps) {
                         ))}
                 </div>
                 <p>{/* spacer */}</p>
-                <div className="card-actions flex justify-between items-center">
-                    <span>
-                        <Link href={`https://pool.pm/${tokenListItem.maFingerprint}`} target='_blank'>
-                            <Image src="/poolpm.ico" alt="pool.pm" width="20" height="20" />
+                {collectionInfo.is_verified &&
+                    <div className="w-full truncate">
+                        <Link href={`?query=${tokenListItem.maPolicyId}`} className="link-hover">
+                            {collectionInfo.display_name}
                         </Link>
-                    </span>
-                    <span>{slotToDate(tokenListItem.slotNo!)}</span>
+                    </div>
+                }
+                <div className="card-actions">
+                    <div className="flex justify-between items-center w-full">
+                        <span className="flex items-center gap-1">
+                            <Link href={`https://pool.pm/${tokenListItem.maFingerprint}`} target='_blank'>
+                                <Image src="/poolpm.ico" alt="pool.pm" width="20" height="20" />
+                            </Link>
+                            {collectionInfo.is_verified &&
+                                <Link href={`https://www.jpg.store/collection/${collectionInfo.url}`} className="flex items-center truncate gap-2" target='_blank'>
+                                    <Verified />
+                                </Link>}
+                        </span>
+                        <span>{slotToDate(tokenListItem.slotNo!)}</span>
+                    </div>
                 </div>
             </div>
         </div>
