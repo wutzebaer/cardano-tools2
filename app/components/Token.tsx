@@ -3,6 +3,7 @@ import { parseMetadata, slotToDate, toDisplayMetadata, toIpfsUrl } from '@cardan
 import Image from 'next/image';
 import Link from 'next/link';
 import { components } from '../cardano/dbsync.schema';
+import IpfsImage from '@components/IpfsImage';
 
 interface TokenProps {
     tokenListItem: components["schemas"]["TokenListItem"];
@@ -18,7 +19,7 @@ async function Token({ tokenListItem }: TokenProps) {
         <div className="card bg-base-200 w-full md:w-80 xl:w-96">
             <figure>
                 <Link href={`?query=${tokenListItem.maFingerprint}`} className='w-full'>
-                    <Image width="384" height="384" className="aspect-square object-cover skeleton w-full" src={toIpfsUrl(metadata.image)} alt={metadata.name} />
+                    <IpfsImage width="384" height="384" className="aspect-square object-cover  w-full" src={toIpfsUrl(metadata.image)} alt={metadata.name} />
                 </Link>
             </figure>
             <div className="card-body">
