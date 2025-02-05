@@ -1,3 +1,5 @@
+import { components } from "@cardano/dbsync.schema";
+
 export type Cardano = Map<string, WalletInfo>;
 
 export interface WalletInfo {
@@ -40,3 +42,5 @@ export interface AddressPrivate {
   skey: string;
   vkey: string;
 }
+
+export type TokenListItem = components["schemas"]["TokenListItem"];
