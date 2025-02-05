@@ -32,7 +32,7 @@ export function formatNumber(value?: number) {
 
 export function slotToDate(slotNo: number) {
   const timestamp = SHELLEY_GENESIS_TIME + slotNo;
-  return new Date(timestamp * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "medium" });
+  return new Date(timestamp * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
 export function toIpfsUrl(ipfs: string) {
