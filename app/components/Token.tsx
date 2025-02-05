@@ -17,7 +17,9 @@ async function Token({ tokenListItem }: TokenProps) {
     return (
         <div className="card bg-base-200 w-full md:w-80 xl:w-96">
             <figure>
-                <Image width="384" height="384" className="aspect-square object-cover w-full skeleton" src={toIpfsUrl(metadata.image)} alt={metadata.name} />
+                <Link href={`?query=${tokenListItem.maFingerprint}`} className='w-full'>
+                    <Image width="384" height="384" className="aspect-square object-cover skeleton w-full" src={toIpfsUrl(metadata.image)} alt={metadata.name} />
+                </Link>
             </figure>
             <div className="card-body">
                 <h2 className="card-title">{metadata.name ?? tokenListItem.name}</h2>
