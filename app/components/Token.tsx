@@ -22,7 +22,7 @@ async function Token({ fingerprint, maxEntries = 5, className = 'w-full md:w-80 
         <div className={`card bg-base-200 break-words ${className}`}>
             <figure>
                 <Link href={`/browse/token/${tokenDetails.fingerprint}`} className='w-full' scroll={false}>
-                    <IpfsImage width="384" height="384" className="aspect-square object-cover w-full" src={toIpfsUrl(metadata.image)} alt={metadata.name} />
+                    <IpfsImage width="576" height="576" className="aspect-square object-cover w-full" src={toIpfsUrl(metadata.image)} alt={metadata.name} />
                 </Link>
             </figure>
             <div className="card-body">
