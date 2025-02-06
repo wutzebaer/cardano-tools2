@@ -225,14 +225,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/token/{policyId}/": {
+    "/token/{fingerprint}/": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** getTokenDetails */
+        /** getTokenDetailsByFingerprint */
         get: operations["getTokenDetails_1"];
         put?: never;
         post?: never;
@@ -804,8 +804,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982 */
-                policyId: string;
+                /** @example asset1r9v95ujk83kx90lr3g8cd0uqu5de3kqjptp7sm */
+                fingerprint: string;
             };
             cookie?: never;
         };

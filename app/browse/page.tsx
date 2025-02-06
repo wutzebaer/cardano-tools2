@@ -18,7 +18,7 @@ const page = async ({ searchParams }: PageProps) => {
       </div>
       <div className="flex flex-wrap gap-10 justify-center">
         {latestTokens!.map((token) => (
-          <Token key={token.maMintId} tokenListItem={token} />
+          <Token key={token.maMintId} fingerprint={token.maFingerprint} />
         ))}
       </div>
     </>
