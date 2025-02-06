@@ -7,8 +7,8 @@ const SidebarHeader = () => {
         className="invert"
         src="/cardano-tools-logo.svg"
         alt="Cardano logo"
-        width={50}
-        height={50}
+        width={150}
+        height={150}
         priority
       />
       <span>Cardano Tools</span>

@@ -7,6 +7,7 @@ import { ApplicationContext } from "@components/StateProvider";
 import { Value } from "@emurgo/cardano-serialization-lib-browser";
 import { WalletInfo } from "@cardano/types";
 import { useContext, useEffect, useState } from "react";
+import Image from "next/image";
 
 interface WalletStats {
   name: string;
@@ -71,11 +72,12 @@ function WalletOverview() {
         <div className="stats shadow w-full">
           <div className="stat">
             <div className="stat-figure text-primary">
-              <img
+              <Image
                 width="30"
                 height="30"
                 src={walletStats.icon}
                 alt="{walletStats.name} logo"
+                unoptimized
               />
             </div>
             <div className="stat-title"><button className="btn btn-xs btn-link p-0" onClick={reconnect}>switch wallet</button></div>
