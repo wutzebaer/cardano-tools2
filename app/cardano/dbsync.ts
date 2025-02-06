@@ -1,4 +1,5 @@
-import { components, paths } from "@cardano/dbsync.schema";
+import { paths } from "@cardano/dbsync.schema";
+import { TokenListItem } from "@cardano/types";
 import { errorToMessage } from "@cardano/utils";
 import createClient from "openapi-fetch";
 
@@ -18,13 +19,25 @@ export async function getLatestTokens(filter?: string) {
   return tokenResponse.data!;
 }
 
-export async function getTokenDetails(tokenListItem: components["schemas"]["TokenListItem"]) {
+export async function getTokenDetails(tokenListItem: TokenListItem) {
   return (
     await client.GET(`/token/{policyId}/{assetName}`, {
       params: {
         path: {
           policyId: tokenListItem.maPolicyId,
           assetName: tokenListItem.maName,
+        },
+      },
+    })
+  ).data!;
+}
+
+export async function getTokenDetailsByFingerprint(fingerprint: string) {
+  return (
+    await client.GET(`/token/{fingerprint}/`, {
+      params: {
+        path: {
+          fingerprint: fingerprint,
         },
       },
     })

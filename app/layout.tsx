@@ -69,7 +69,8 @@ export default function RootLayout({
             <div className="drawer-content min-h-dvh flex flex-col">
               {/* Navbar */}
               <Navbar />
-              <main className="mt-14 flex-grow mx-4 sm:mx-14">
+              {/* Main content */}
+              <main className="my-14 flex-grow mx-4 sm:mx-14">
                 <ErrorBoundary>{children}</ErrorBoundary>
               </main>
             </div>
