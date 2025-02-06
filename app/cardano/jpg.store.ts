@@ -10,7 +10,6 @@ export async function getCollectionInfo(policyId: string) {
     }
     return (await response.json()).collection ?? {};
   } catch (error) {
-    console.error("Failed to fetch collection info:", error);
     throw error;
   }
 }

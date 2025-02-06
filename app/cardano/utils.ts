@@ -56,9 +56,15 @@ export function toIpfsUrl(ipfs: string) {
   return ipfsProvider + ipfs.replace("ipfs://ipfs/", "").replace("ipfs://", "").replace("ipfs/", "");
 }
 
-export function errorToMessage(error: unknown): string {
-  const e = error as Record<string, string>;
-  return e?.message ?? e?.info ?? (e?.code ? `error: ${e.code}` : undefined) ?? e ?? "An unexpected error occurred.";
+export function errorToMessage(e: unknown): string {
+  let error = e as Record<string, unknown>;
+  const messages: string[] = [];
+  do {
+    const message = String(error.digest || error.message || error.info || error.code || error);
+    if (message) messages.push(message);
+    error = error.cause as Record<string, unknown>;
+  } while (error);
+  return messages.length > 0 ? messages.join(", ") : "An unexpected error occurred.";
 }
 
 export function sleep(ms: number) {

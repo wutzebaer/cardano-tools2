@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { listWallets } from "../cardano/wallet";
 import { Cardano } from "../cardano/types";
+import Image from "next/image";
 
 function WalletDialog() {
   const [wallets, setWallets] = useState<Cardano>(new Map());
@@ -23,12 +24,13 @@ function WalletDialog() {
                   className="btn btn-md flex items-center gap-2 p-2 border rounded-md hover:bg-gray-100"
                   value={key}
                 >
-                  <img
+                  <Image
                     width="24"
                     height="24"
                     src={value.icon}
                     alt={`${value.name} logo`}
                     className="rounded-full"
+                    unoptimized
                   />
                   <span className="font-medium">{value.name}</span>
                 </button>

@@ -5,7 +5,7 @@ import Token from "@components/Token";
 export const revalidate = 10
 
 interface PageProps {
-  searchParams: { query?: string };
+  searchParams: Promise<{ query?: string }>;
 }
 
 const page = async ({ searchParams }: PageProps) => {
