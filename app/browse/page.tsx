@@ -1,28 +1,11 @@
-import SearchInput from "@/app/browse/SearchInput";
-import { getLatestTokens } from "@cardano/dbsync";
-import Token from "@components/Token";
+import SearchPage from "@/app/browse/search/[query]/page";
 
 export const revalidate = 10
 
-interface PageProps {
-  searchParams: Promise<{ query?: string }>;
-}
-
-const page = async ({ searchParams }: PageProps) => {
-  const { query } = await searchParams;
-  const latestTokens = await getLatestTokens(query);
+const Page = async () => {
   return (
-    <>
-      <div className="flex justify-center mb-10">
-        <SearchInput />
-      </div>
-      <div className="flex flex-wrap gap-10 justify-center">
-        {latestTokens!.map((token) => (
-          <Token key={token.maMintId} fingerprint={token.maFingerprint} />
-        ))}
-      </div>
-    </>
+    <SearchPage params={Promise.resolve({ query: '' })} />
   );
 };
 
-export default page;
+export default Page;
