@@ -50,7 +50,7 @@ async function Token({ fingerprint, maxEntries = 5, className = 'w-full md:w-80 
                 </div>
                 <p>{/* spacer */}</p>
                 <div className="w-3/4 truncate">
-                    <Link href={`?query=${tokenDetails.maPolicyId}`} className="link-hover">
+                    <Link href={`/browse/search/${tokenDetails.maPolicyId}`} className="link-hover">
                         {collectionInfo.display_name ?? tokenDetails.maPolicyId}
                     </Link>
                 </div>

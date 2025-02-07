@@ -21,7 +21,12 @@ export async function getTip() {
 }
 
 export async function getLatestTokens(filter?: string) {
-  return handleRequest(client.GET("/token", { params: { query: { filter } } }));
+  return handleRequest(
+    client.GET("/token", {
+      params: { query: { filter } },
+      next: { revalidate: 10 },
+    })
+  );
 }
 
 export async function getTokenDetailsByFingerprint(fingerprint: string) {
@@ -32,6 +37,7 @@ export async function getTokenDetailsByFingerprint(fingerprint: string) {
           fingerprint: fingerprint,
         },
       },
+      next: { revalidate: 10 },
     })
   );
 }

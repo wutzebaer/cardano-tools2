@@ -1,39 +1,29 @@
 'use client';
 
 import { MagnifyingGlassIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, useTransition, useEffect, ChangeEvent } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { ChangeEvent, KeyboardEvent, useState, useTransition } from 'react';
 
 const SearchInput: React.FC = () => {
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const [searchTerm, setSearchTerm] = useState<string>('');
+    const { query } = useParams<{ query: string }>();
+    const [searchTerm, setSearchTerm] = useState<string>(query);
     const [, startTransition] = useTransition();
 
-    useEffect(() => {
-        const initialQuery = searchParams.get('query') ?? '';
-        setSearchTerm(initialQuery);
-    }, [searchParams]);
-
-    const updateSearchParams = (value: string) => {
-        setSearchTerm(value);
-        const params = new URLSearchParams(searchParams.toString());
-        if (value) {
-            params.set('query', value);
-        } else {
-            params.delete('query');
+    const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            startTransition(() => {
+                router.replace(`/browse/${searchTerm}`);
+            });
         }
-        startTransition(() => {
-            router.replace(`?${params.toString()}`);
-        });
     };
 
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-        updateSearchParams(e.target.value);
+        setSearchTerm(e.target.value);
     };
 
     const handleClear = () => {
-        updateSearchParams('');
+        setSearchTerm('');
     };
 
     return (
@@ -42,6 +32,7 @@ const SearchInput: React.FC = () => {
                 type="text"
                 value={searchTerm}
                 onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
                 placeholder="PolicyId or Fingerprint..."
                 className="grow"
             />

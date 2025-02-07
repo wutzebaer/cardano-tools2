@@ -1,11 +1,15 @@
 import Token from '@components/Token';
 
-interface PageProps {
-    fingerprint: string;
-}
 
-async function Page({ params, }: { params: Promise<PageProps> }) {
-    const fingerprint = (await params).fingerprint;
+export const revalidate = 10
+export const generateStaticParams = async () => {
+    return [];
+};
+
+async function page({ params }: {
+    params: Promise<{ fingerprint: string; }>
+}) {
+    const { fingerprint } = await params;
     return (
         <div className="flex justify-center">
             <Token fingerprint={fingerprint} maxEntries={100} className='w-full max-w-xl' />
@@ -13,4 +17,4 @@ async function Page({ params, }: { params: Promise<PageProps> }) {
     )
 }
 
-export default Page
+export default page
