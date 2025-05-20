@@ -92,11 +92,11 @@ export default function RootLayout({
                 <MenuItem href="/pool">
                   <Image
                     className="rounded-btn"
-                    src="/charlien-t.png"
+                    src="/charlien-t-xs.png"
                     alt="CHIEN logo"
                     priority
                     width={28}
-                    height={28}
+                    height={33}
                   />
                   <span>[CHIEN] Pool</span>
                 </MenuItem>
