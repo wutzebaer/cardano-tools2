@@ -6,14 +6,15 @@
    id="Layer_1"
    x="0px"
    y="0px"
-   viewBox="0 0 375 346.5"
-   style="enable-background:new 0 0 375 346.5;"
+   viewBox="0 0 375 375"
    xml:space="preserve"
    sodipodi:docname="cardano-tools-logo.svg"
    inkscape:version="1.4 (86a8ad7, 2024-10-11)"
    inkscape:export-filename="..\app\favicon.ico"
    inkscape:export-xdpi="96"
    inkscape:export-ydpi="96"
+   width="375"
+   height="375"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -33,7 +34,7 @@
      id="linearGradient4"
      x1="-2.3207664"
      y1="173.25"
-     x2="377.32073"
+     x2="377.32074"
      y2="173.25"
      gradientUnits="userSpaceOnUse" /></defs><sodipodi:namedview
    id="namedview30"
@@ -45,11 +46,11 @@
    inkscape:pagecheckerboard="0"
    inkscape:deskcolor="#d1d1d1"
    inkscape:zoom="1.7425834"
-   inkscape:cx="-61.690017"
-   inkscape:cy="234.42206"
+   inkscape:cx="-61.403087"
+   inkscape:cy="234.42207"
    inkscape:window-width="2560"
    inkscape:window-height="1369"
-   inkscape:window-x="-8"
+   inkscape:window-x="2552"
    inkscape:window-y="-8"
    inkscape:window-maximized="1"
    inkscape:current-layer="Layer_1" />
@@ -60,7 +61,7 @@
 </style>
 <g
    id="Layer_2_1_"
-   transform="matrix(0.63917611,0,0,0.63845276,17.438271,8.9551135)"
+   transform="matrix(0.63917611,0,0,0.63845276,19.159852,32.483399)"
    inkscape:label="Layer_2_1_"
    style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:4.62504;stroke-dasharray:none;stroke-opacity:1">
 	<g
@@ -225,7 +226,7 @@
    style="fill:#ffffff;fill-opacity:1"><g
      style="fill:#ffffff;fill-opacity:1;stroke:currentColor;stroke-width:1.32617;stroke-dasharray:none"
      id="g31"
-     transform="matrix(9.0486011,0,0,9.0486011,138.17634,111.22711)"><path
+     transform="matrix(9.0486011,0,0,9.0486011,140.47178,133.60767)"><path
        stroke-linecap="round"
        stroke-linejoin="round"
        d="m 10.551192,16.222362 7.396533,7.391161 a 3.3645977,3.3621542 0 0 0 4.757632,-4.754177 L 15.249195,11.4086 m -4.698003,4.813762 3.16668,-3.841376 c 0.402179,-0.486826 0.93884,-0.79363 1.532593,-0.971119 m -4.699273,4.812495 -5.9058071,7.166763 A 3.2326527,3.2303049 0 1 1 0.09581948,18.842865 L 8.7699347,11.705261 m 6.4805303,-0.295394 c 0.697785,-0.207916 1.475501,-0.238343 2.211347,-0.17749 A 5.709159,5.7050126 0 0 0 23.153209,3.1997206 L 18.996942,7.3542371 A 3.8111807,3.8084129 0 0 1 16.142362,4.5017312 L 20.29863,0.34848211 A 5.709159,5.7050126 0 0 0 12.260134,6.0357457 c 0.115463,1.364132 -0.09006,2.8702547 -1.146906,3.7399537 l -0.129412,0.107752 M 8.7699347,11.705258 3.5593761,6.4984831 H 1.771775 L -1.0828046,1.7443086 0.82024838,-0.15736249 5.577881,2.6951439 v 1.7863028 l 5.404671,5.4007457 M 8.7686667,11.703992 10.982552,9.8821924 M 19.375015,20.285599 16.044672,16.957674 M 2.2373887,21.236435 h 0.010161 v 0.01015 h -0.010161 z"

@@ -20,11 +20,14 @@ const StakeNow = () => {
   return (
     <div className="flex flex-col items-center gap-2">
       <Image
-        src="/charlien-t.png"
+        src="/charlien-t-sm.png"
         alt="CHIEN logo"
         width={150}
-        height={150}
+        height={175}
       />
+
+
+
       <button className="btn btn-ghost w-full" onClick={stake}>
         delegate to [CHIEN]
       </button>
