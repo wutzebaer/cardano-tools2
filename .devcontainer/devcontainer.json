@@ -1,5 +1,12 @@
 {
     "name": "Next.js Dev Container",
     "image": "mcr.microsoft.com/devcontainers/javascript-node",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "bradlc.vscode-tailwindcss"
+            ]
+        }
+    },
     "postStartCommand": "npm install"
 }
