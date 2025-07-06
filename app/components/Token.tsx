@@ -27,12 +27,12 @@ async function Token({ fingerprint, maxEntries = 5, className = 'w-full md:w-80 
             </figure>
             <div className="card-body">
                 <h2 className="card-title">
-                    <Link href={`/browse/token/${tokenDetails.fingerprint}`} className='link-hover'>
+                    <Link href={`/browse/token/${tokenDetails.fingerprint}`} className='link-hover truncate'>
                         {metadata.name ?? tokenDetails.maName}
                     </Link>
                 </h2>
                 <div>{metadata.description}</div>
-                <div className="grid p-2 grid-cols-1">
+                <div className="grid grid-cols-1">
                     {Object.entries(displayMetadata)
                         .slice(0, maxEntries) // Limit to maxEntries
                         .map(([key, value]) => (
