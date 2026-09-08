@@ -1,18 +1,18 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { listWallets } from "../cardano/wallet";
 import { Cardano } from "../cardano/types";
 import Image from "next/image";
 
 function WalletDialog() {
   const [wallets, setWallets] = useState<Cardano>(new Map());
-  useEffect(() => {
-    const fetchedWallets = listWallets(); // Your function to list wallets
-    setWallets(fetchedWallets); // Update the state with the fetched wallets
-  }, []); // Empty dependency array ensures this runs only once on mount
 
   return (
-    <dialog id="wallet_dialog" className="modal">
+    <dialog
+      id="wallet_dialog"
+      className="modal"
+      onToggle={() => setWallets(listWallets())}
+    >
       <div className="modal-box">
         <h2 className="text-2xl font-bold mb-4">Select Your Wallet</h2>
         <form method="dialog">

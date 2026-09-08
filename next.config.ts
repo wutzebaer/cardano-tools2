@@ -12,14 +12,6 @@ const nextConfig: NextConfig = {
 
   cleanDistDir: false,
 
-  webpack: (config) => {
-    // Enable async WebAssembly
-    config.experiments.asyncWebAssembly = true;
-    config.ignoreWarnings = config.ignoreWarnings || [];
-    config.ignoreWarnings.push(/The generated code contains 'async\/await' because this module is using "asyncWebAssembly"/);
-    return config;
-  },
-
   images: {
     remotePatterns: [
       {
