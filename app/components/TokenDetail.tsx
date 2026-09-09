@@ -26,6 +26,61 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
     );
 }
 
+function propertyHref(key: string, text: string) {
+    if (text.startsWith('http://') || text.startsWith('https://')) {
+        return text;
+    }
+    if (text.startsWith('@') && /twitter|\bx\b|follow/i.test(key)) {
+        return `https://x.com/${text.slice(1)}`;
+    }
+    return null;
+}
+
+const PROPERTY_PATH_SEP = ' / ';
+
+function groupedProperties(entries: [string, unknown][]) {
+    const groups = new Map<string, [string, string][]>();
+    for (const [key, value] of entries) {
+        const i = key.indexOf(PROPERTY_PATH_SEP);
+        const group = i === -1 ? '' : key.slice(0, i);
+        const label = i === -1 ? key : key.slice(i + PROPERTY_PATH_SEP.length);
+        const items = groups.get(group) ?? [];
+        items.push([label, String(value ?? '')]);
+        groups.set(group, items);
+    }
+    return [...groups].map(([group, items]) => ({
+        title: group || 'Properties',
+        items,
+    }));
+}
+
+function PropertyCards({ items }: { items: [string, string][] }) {
+    return (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {items.map(([key, text]) => {
+                const href = propertyHref(key, text);
+                const long = text.length > 40;
+                return (
+                    <div key={key} className={`surface min-w-0 px-3 py-2.5 ${long ? 'col-span-full' : ''}`}>
+                        <p className="truncate text-[11px] uppercase tracking-wide text-base-content/45" title={key}>
+                            {key}
+                        </p>
+                        <p className={`text-sm font-medium ${long ? 'leading-relaxed' : 'truncate'}`} title={text}>
+                            {href ? (
+                                <Link href={href} target="_blank" className="hover:text-primary">
+                                    {text.startsWith('http') ? text.replace(/^https?:\/\//, '') : text}
+                                </Link>
+                            ) : (
+                                text
+                            )}
+                        </p>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 async function TokenDetail({ fingerprint }: { fingerprint: string }) {
     const tokenDetails = await getTokenDetailsByFingerprint(fingerprint);
     const metadata = parseMetadata(tokenDetails.metadata);
@@ -35,7 +90,7 @@ async function TokenDetail({ fingerprint }: { fingerprint: string }) {
     const name = (typeof metadata.name === 'string' ? metadata.name : undefined) ?? assetName;
     const image = typeof metadata.image === 'string' ? metadata.image : '';
     const description = typeof metadata.description === 'string' && metadata.description !== name ? metadata.description : undefined;
-    const properties = Object.entries(displayMetadata);
+    const propertyGroups = groupedProperties(Object.entries(displayMetadata));
 
     return (
         <div className="flex flex-col gap-8">
@@ -92,32 +147,11 @@ async function TokenDetail({ fingerprint }: { fingerprint: string }) {
                         </Link>
                     </div>
 
-                    {properties.length > 0 ? (
-                        <Section title="Properties">
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                {properties.map(([key, value]) => {
-                                    const text = String(value ?? '');
-                                    const long = text.length > 40;
-                                    return (
-                                        <div key={key} className={`surface min-w-0 px-3 py-2.5 ${long ? 'col-span-full' : ''}`}>
-                                            <p className="truncate text-[11px] uppercase tracking-wide text-base-content/45" title={key}>
-                                                {key}
-                                            </p>
-                                            <p className={`text-sm font-medium ${long ? 'leading-relaxed' : 'truncate'}`} title={text}>
-                                                {text.startsWith('http') ? (
-                                                    <Link href={text} target="_blank" className="hover:text-primary">
-                                                        {text.replace(/^https?:\/\//, '')}
-                                                    </Link>
-                                                ) : (
-                                                    text
-                                                )}
-                                            </p>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                    {propertyGroups.map(({ title, items }) => (
+                        <Section key={title} title={title}>
+                            <PropertyCards items={items} />
                         </Section>
-                    ) : null}
+                    ))}
 
                     <Section title="Details">
                         <dl className="surface divide-y divide-line">
