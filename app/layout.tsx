@@ -1,11 +1,11 @@
-import { CircleStackIcon } from "@heroicons/react/24/outline";
+import { SparklesIcon, Squares2X2Icon } from "@heroicons/react/24/outline";
 import type { Metadata } from "next";
-import { Quicksand } from "next/font/google";
+import { Inter } from "next/font/google";
 import Image from "next/image";
-import Link from "next/link";
 import ErrorBoundary from "@components/ErrorBoundary";
 import ErrorToast from "@components/ErrorToast";
 import Navbar from "./components/Navbar";
+import NavLink from "./components/NavLink";
 import SidebarHeader from "./components/SidebarHeader";
 import StakeNow from "./components/StakeNow";
 import StateProvider from "./components/StateProvider";
@@ -13,10 +13,9 @@ import WalletDialog from "./components/WalletDialog";
 import WalletOverview from "./components/WalletOverview";
 import "./globals.css";
 
-const quicksand = Quicksand({
-  variable: "--font-quicksand",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -24,76 +23,63 @@ export const metadata: Metadata = {
   description: "Browse, mint, and stake on Cardano",
 };
 
-function MenuItem({
-  children,
-  href,
-}: Readonly<{
-  children: React.ReactNode;
-  href: string;
-}>) {
-  return (
-    <li className="text-lg">
-      <Link href={href} className="flex items-center">
-        {children}
-      </Link>
-    </li>
-  );
-}
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${quicksand.variable} antialiased`}>
+    <html lang="en" className={inter.variable}>
+      <body className="antialiased">
         <ErrorToast />
         <WalletDialog />
         <StateProvider>
           <div className="drawer lg:drawer-open">
             <input id="my-drawer-2" type="checkbox" className="drawer-toggle" />
-            <div className="drawer-content min-h-dvh flex flex-col">
+            <div className="drawer-content flex min-h-dvh flex-col">
               <Navbar />
-              <main className="my-14 flex-grow mx-4 sm:mx-14">
+              <main className="mx-auto w-full max-w-6xl flex-grow px-5 py-8 sm:px-8 lg:px-12 lg:py-12">
                 <ErrorBoundary>{children}</ErrorBoundary>
               </main>
             </div>
-            <div className="drawer-side">
-              <label
-                htmlFor="my-drawer-2"
-                aria-label="close sidebar"
-                className="drawer-overlay"
-              ></label>
+            <div className="drawer-side z-40">
+              <label htmlFor="my-drawer-2" aria-label="close sidebar" className="drawer-overlay"></label>
 
-              <ul className="menu bg-base-200 text-base-content min-h-full w-80 gap-2">
+              <aside className="flex min-h-full w-72 flex-col gap-8 border-r border-line bg-base-100 p-4">
                 <SidebarHeader />
 
-                <MenuItem href="/pool">
-                  <Image
-                    className="rounded-btn"
-                    src="/charlien-t-xs.png"
-                    alt="CHIEN logo"
-                    priority
-                    width={28}
-                    height={33}
-                  />
-                  <span>[CHIEN] Pool</span>
-                </MenuItem>
-                <MenuItem href="/browse">
-                  <CircleStackIcon className="h-7" /> Browse
-                </MenuItem>
-                <MenuItem href="/mint">
-                  <CircleStackIcon className="h-7" /> Mint
-                </MenuItem>
-
-                <div className="mt-20">
-                  <StakeNow />
-                </div>
+                <nav className="flex flex-col gap-1">
+                  <p className="section-label mb-2 px-3">Tools</p>
+                  <NavLink href="/browse" icon={<Squares2X2Icon className="size-5" />}>
+                    Browse
+                  </NavLink>
+                  <NavLink href="/mint" icon={<SparklesIcon className="size-5" />}>
+                    Mint
+                  </NavLink>
+                  <NavLink
+                    href="/pool"
+                    icon={
+                      <Image
+                        className="size-5 rounded-full object-cover"
+                        src="/charlien-t-xs.png"
+                        alt="CHIEN logo"
+                        priority
+                        width={20}
+                        height={20}
+                      />
+                    }
+                  >
+                    [CHIEN] Pool
+                  </NavLink>
+                </nav>
 
                 <div className="flex-grow"></div>
-                <WalletOverview />
-              </ul>
+
+                <div className="flex flex-col gap-3">
+                  <StakeNow />
+                  <WalletOverview />
+                </div>
+              </aside>
             </div>
           </div>
         </StateProvider>

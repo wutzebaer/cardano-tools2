@@ -13,15 +13,16 @@ function WalletDialog() {
       className="modal"
       onToggle={() => setWallets(listWallets())}
     >
-      <div className="modal-box">
-        <h2 className="text-2xl font-bold mb-4">Select Your Wallet</h2>
+      <div className="modal-box surface">
+        <h2 className="text-xl font-semibold tracking-tight">Select your wallet</h2>
+        <p className="mt-1 text-sm text-base-content/55">Connect a CIP-30 compatible browser wallet.</p>
         <form method="dialog">
-          <div className="flex flex-col gap-4 py-4">
+          <div className="flex flex-col gap-2 py-5">
             {[...wallets.entries()].length > 0 ? (
               [...wallets.entries()].map(([key, value]) => (
                 <button
                   key={key}
-                  className="btn btn-md flex items-center gap-2 p-2 border rounded-md hover:bg-gray-100"
+                  className="btn justify-start gap-3 border-line bg-base-300 hover:border-line-strong hover:bg-base-300"
                   value={key}
                 >
                   <Image
@@ -36,9 +37,9 @@ function WalletDialog() {
                 </button>
               ))
             ) : (
-              <div>
+              <div className="text-sm text-base-content/70">
                 <p>No wallets found. Please install a Cardano wallet:</p>
-                <ul className="list-disc list-inside pl-4">
+                <ul className="mt-2 list-inside list-disc pl-2">
                   <li>
                     <a
                       href="https://namiwallet.io/"
@@ -76,7 +77,7 @@ function WalletDialog() {
         </form>
         <div className="modal-action">
           <form method="dialog">
-            <button className="btn btn-secondary" value="">
+            <button className="btn btn-ghost" value="">
               Close
             </button>
           </form>

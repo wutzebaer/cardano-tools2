@@ -1,4 +1,4 @@
-import Token from '@components/Token';
+import TokenDetail from '@components/TokenDetail';
 
 
 export const revalidate = 10
@@ -10,11 +10,7 @@ async function page({ params }: {
     params: Promise<{ fingerprint: string; }>
 }) {
     const { fingerprint } = await params;
-    return (
-        <div className="flex justify-center">
-            <Token fingerprint={fingerprint} maxEntries={100} className='w-full max-w-xl' />
-        </div>
-    )
+    return <TokenDetail fingerprint={fingerprint} />
 }
 
 export default page

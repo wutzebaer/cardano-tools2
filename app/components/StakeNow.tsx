@@ -18,18 +18,22 @@ const StakeNow = () => {
   }, [context]);
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <Image
-        src="/charlien-t-sm.png"
-        alt="CHIEN logo"
-        width={150}
-        height={175}
-      />
-
-
-
-      <button className="btn btn-ghost w-full" onClick={stake}>
-        delegate to [CHIEN]
+    <div className="surface flex flex-col gap-3 p-4">
+      <div className="flex items-center gap-3">
+        <Image
+          className="rounded-full"
+          src="/charlien-t-sm.png"
+          alt="CHIEN logo"
+          width={36}
+          height={42}
+        />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Stake with [CHIEN]</p>
+          <p className="text-xs text-base-content/55">Support Cardano Tools</p>
+        </div>
+      </div>
+      <button className="btn btn-sm w-full border-line bg-base-300 hover:border-line-strong hover:bg-base-300" onClick={stake}>
+        Delegate
       </button>
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { MagnifyingGlassIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useParams, useRouter } from 'next/navigation';
 import { ChangeEvent, KeyboardEvent, useState, useTransition } from 'react';
 
@@ -33,22 +33,21 @@ const SearchInput: React.FC = () => {
     };
 
     return (
-        <label className="input input-bordered flex items-center gap-2 w-full max-w-xl">
+        <label className="input w-full border-line bg-base-200 focus-within:border-primary focus-within:outline-none sm:w-80">
+            <MagnifyingGlassIcon className="size-4 shrink-0 text-base-content/45" />
             <input
                 type="text"
                 value={searchTerm}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="PolicyId or Fingerprint..."
-                className="grow"
+                placeholder="Policy ID or fingerprint"
+                className="grow text-sm"
             />
             {searchTerm ? (
-                <button type="button" onClick={handleClear}>
-                    <XCircleIcon className='h-6 w-6' />
+                <button type="button" onClick={handleClear} aria-label="Clear search" className="text-base-content/45 hover:text-base-content">
+                    <XMarkIcon className="size-4" />
                 </button>
-            ) : (
-                <MagnifyingGlassIcon className='h-6 w-6 opacity-70' />
-            )}
+            ) : null}
         </label>
     );
 };

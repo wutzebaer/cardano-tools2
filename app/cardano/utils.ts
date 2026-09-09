@@ -30,6 +30,14 @@ export function formatNumber(value?: number) {
   return numberFormat.format(value);
 }
 
+export function shortenId(id: string, chars = 6) {
+  return id.length > chars * 2 + 1 ? `${id.slice(0, chars)}…${id.slice(-chars)}` : id;
+}
+
+export function hexToUtf8(hex: string) {
+  return Buffer.from(hex, "hex").toString("utf8");
+}
+
 export function slotToDate(slotNo: number) {
   const timestamp = SHELLEY_GENESIS_TIME + slotNo;
   return new Date(timestamp * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });

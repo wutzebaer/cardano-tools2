@@ -1,4 +1,64 @@
 @import "tailwindcss";
+
 @plugin "daisyui" {
-  themes: dark --default, light;
+  themes: false;
+}
+
+/* Cardano Tools theme: near-black surfaces, Cardano blue as the single accent */
+@plugin "daisyui/theme" {
+  name: "cardano";
+  default: true;
+  color-scheme: dark;
+
+  --color-base-100: #0b0d11;
+  --color-base-200: #12151b;
+  --color-base-300: #1a1e26;
+  --color-base-content: #e6e8ee;
+
+  --color-primary: #4d7cfe;
+  --color-primary-content: #ffffff;
+  --color-secondary: #8b93a7;
+  --color-secondary-content: #0b0d11;
+  --color-accent: #22d3ee;
+  --color-accent-content: #062a30;
+  --color-neutral: #1a1e26;
+  --color-neutral-content: #e6e8ee;
+
+  --color-info: #60a5fa;
+  --color-info-content: #0b1a33;
+  --color-success: #34d399;
+  --color-success-content: #052e1c;
+  --color-warning: #fbbf24;
+  --color-warning-content: #2b1d03;
+  --color-error: #f87171;
+  --color-error-content: #2d0a0a;
+
+  --radius-selector: 9999px;
+  --radius-field: 0.625rem;
+  --radius-box: 1rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.16);
+}
+
+@layer base {
+  body {
+    @apply bg-base-100 text-base-content;
+  }
+}
+
+@utility surface {
+  @apply rounded-box border border-line bg-base-200;
+}
+
+@utility section-label {
+  @apply text-[11px] font-medium uppercase tracking-[0.14em] text-base-content/50;
 }

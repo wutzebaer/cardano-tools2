@@ -64,30 +64,35 @@ function WalletOverview() {
     context.setState({ walletInfo: fetchedWalletInfo });
   }
 
+  const [balanceInt, balanceFraction] = walletStats ? formatAda(walletStats.balance).split(".") : [];
 
-  /* flex items-center justify-center gap-1 font-[family-name:var(--font-geist-mono)] */
   return (
     <>
       {walletStats ? (
-        <div className="stats shadow w-full">
-          <div className="stat">
-            <div className="stat-figure text-primary">
+        <div className="surface flex flex-col gap-3 p-4">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-xs text-base-content/55">
               <Image
-                width="30"
-                height="30"
+                width="18"
+                height="18"
                 src={walletStats.icon}
-                alt="{walletStats.name} logo"
+                alt={`${walletStats.name} logo`}
                 unoptimized
               />
-            </div>
-            <div className="stat-title"><button className="btn btn-xs btn-link p-0" onClick={reconnect}>switch wallet</button></div>
-            <div className="stat-value text-2xl">
-              {formatAda(walletStats.balance)}</div>
-            <div className="stat-desc overflow-hidden text-ellipsis">{rewardAddressHashToBech32(walletStats.rewardAddresses[0])}</div>
+              {walletStats.name}
+            </span>
+            <button className="text-xs text-primary hover:underline" onClick={reconnect}>Switch</button>
           </div>
+          <div className="tabular-nums">
+            <span className="text-2xl font-semibold tracking-tight">{balanceInt}</span>
+            <span className="align-top text-sm text-base-content/55">.{balanceFraction}</span>
+          </div>
+          <p className="truncate font-mono text-[11px] text-base-content/45">
+            {rewardAddressHashToBech32(walletStats.rewardAddresses[0])}
+          </p>
         </div>
       ) : (
-        <button className="btn btn-ghost w-full" onClick={reconnect}>
+        <button className="btn btn-primary w-full" onClick={reconnect}>
           Connect wallet
         </button>
       )}
