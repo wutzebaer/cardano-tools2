@@ -1,5 +1,5 @@
 import { getTokenDetailsByFingerprint } from '@cardano/dbsync';
-import { getCollectionInfo } from '@cardano/jpg.store';
+import { getCollectionInfo } from '@cardano/wayup';
 import { parseMetadata, slotToDate, toDisplayMetadata, toIpfsUrl } from '@cardano/utils';
 import IpfsImage from '@components/IpfsImage';
 import { Verified } from '@components/JpgStoreIcons';
@@ -51,7 +51,7 @@ async function Token({ fingerprint, maxEntries = 5, className = 'w-full md:w-80 
                 <p>{/* spacer */}</p>
                 <div className="w-3/4 truncate">
                     <Link href={`/browse/search/${tokenDetails.maPolicyId}`} className="link-hover">
-                        {collectionInfo.display_name ?? tokenDetails.maPolicyId}
+                        {collectionInfo.name ?? tokenDetails.maPolicyId}
                     </Link>
                 </div>
                 <div className="card-actions">
@@ -60,10 +60,9 @@ async function Token({ fingerprint, maxEntries = 5, className = 'w-full md:w-80 
                             <Link href={`https://pool.pm/${tokenDetails.fingerprint}`} target='_blank'>
                                 <Image src="/poolpm.ico" alt="pool.pm" width="20" height="20" />
                             </Link>
-                            {collectionInfo.is_verified &&
-                                <Link href={`https://www.jpg.store/collection/${collectionInfo.url}`} className="flex items-center truncate gap-2" target='_blank'>
-                                    <Verified />
-                                </Link>}
+                            <Link href={`https://www.wayup.io/collection/${collectionInfo.handle ?? tokenDetails.maPolicyId}`} className="flex items-center truncate gap-2" target='_blank'>
+                                {collectionInfo.verified ? <Verified /> : <span className="text-xs">Wayup</span>}
+                            </Link>
                         </span>
                         <span>{slotToDate(tokenDetails.slotNo!)}</span>
                     </div>

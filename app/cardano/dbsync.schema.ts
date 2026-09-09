@@ -472,8 +472,14 @@ export interface components {
             maNames: string[];
         };
         LiquidityPool: {
-            assetA?: components["schemas"]["Utxo"];
-            assetB?: components["schemas"]["Utxo"];
+            policyA?: string;
+            nameA?: string;
+            /** Format: int64 */
+            quantityA?: number;
+            policyB?: string;
+            nameB?: string;
+            /** Format: int64 */
+            quantityB?: number;
         };
         EpochStake: {
             stakeAddress: string;
@@ -498,12 +504,14 @@ export interface operations {
         };
         requestBody: {
             content: {
-                /** @example {
-                 *       "stakeAddress": "stake1u8wmu7jc0e4a6fn5haflczfjy6aagwhsxh6w5p7hsyt8jeshhy0rn",
+                /**
+                 * @example {
+                 *       "stakeAddress": "stake1u9k8maputfwef7kjl6nvguupxcvllplpa967amss06fxwngzsj30w",
                  *       "policyIds": [
                  *         "38e97ac082af9312c69c9e2b0949c0d7873f0bbca34b0a8905ec2441"
                  *       ]
-                 *     } */
+                 *     }
+                 */
                 "application/json": components["schemas"]["GetLastMintRequest"];
             };
         };
@@ -524,7 +532,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @example stake1u8wmu7jc0e4a6fn5haflczfjy6aagwhsxh6w5p7hsyt8jeshhy0rn */
+                /** @example stake1u9k8maputfwef7kjl6nvguupxcvllplpa967amss06fxwngzsj30w */
                 stakeAddress: string;
             };
             cookie?: never;
@@ -547,7 +555,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @example stake1u8wmu7jc0e4a6fn5haflczfjy6aagwhsxh6w5p7hsyt8jeshhy0rn */
+                /** @example stake1u9k8maputfwef7kjl6nvguupxcvllplpa967amss06fxwngzsj30w */
                 stakeAddress: string;
             };
             cookie?: never;
@@ -570,7 +578,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @example stake1u8wmu7jc0e4a6fn5haflczfjy6aagwhsxh6w5p7hsyt8jeshhy0rn */
+                /** @example stake1u9k8maputfwef7kjl6nvguupxcvllplpa967amss06fxwngzsj30w */
                 stakeAddress: string;
             };
             cookie?: never;
@@ -593,7 +601,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @example stake1u8wmu7jc0e4a6fn5haflczfjy6aagwhsxh6w5p7hsyt8jeshhy0rn */
+                /** @example stake1u9k8maputfwef7kjl6nvguupxcvllplpa967amss06fxwngzsj30w */
                 address: string;
             };
             cookie?: never;
@@ -616,7 +624,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @example stake1u8wmu7jc0e4a6fn5haflczfjy6aagwhsxh6w5p7hsyt8jeshhy0rn */
+                /** @example stake1u9k8maputfwef7kjl6nvguupxcvllplpa967amss06fxwngzsj30w */
                 address: string;
             };
             cookie?: never;
@@ -639,7 +647,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @example stake1u8wmu7jc0e4a6fn5haflczfjy6aagwhsxh6w5p7hsyt8jeshhy0rn */
+                /** @example stake1u9k8maputfwef7kjl6nvguupxcvllplpa967amss06fxwngzsj30w */
                 address: string;
             };
             cookie?: never;
@@ -847,7 +855,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @example stake1u8wmu7jc0e4a6fn5haflczfjy6aagwhsxh6w5p7hsyt8jeshhy0rn */
+                /** @example stake1u9k8maputfwef7kjl6nvguupxcvllplpa967amss06fxwngzsj30w */
                 stakeAddress: string;
             };
             cookie?: never;
