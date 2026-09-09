@@ -1,11 +1,14 @@
 import { TokenListItem } from '@cardano/types';
 import { shortenId, slotToDate, toIpfsUrl } from '@cardano/utils';
+import { CollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
+import { Verified } from '@components/JpgStoreIcons';
 import Link from 'next/link';
 
-function TokenCard({ item }: { item: TokenListItem }) {
+function TokenCard({ item, collection }: { item: TokenListItem; collection?: CollectionInfo }) {
     const href = `/browse/token/${item.maFingerprint}`;
     const name = item.name || item.maName;
+    const collectionName = collection?.name;
 
     return (
         <article className="surface group flex flex-col overflow-hidden transition-colors hover:border-line-strong hover:bg-base-300">
@@ -21,10 +24,11 @@ function TokenCard({ item }: { item: TokenListItem }) {
             <div className="flex flex-col gap-1 p-4">
                 <Link
                     href={`/browse/search/${item.maPolicyId}`}
-                    className="truncate font-mono text-[11px] text-base-content/50 hover:text-base-content"
-                    title={item.maPolicyId}
+                    className={`flex items-center gap-1 text-[11px] hover:text-base-content ${collectionName ? "text-base-content/50" : "font-mono text-base-content/50"}`}
+                    title={collectionName ?? item.maPolicyId}
                 >
-                    {shortenId(item.maPolicyId)}
+                    <span className="truncate">{collectionName ?? shortenId(item.maPolicyId)}</span>
+                    {collection?.verified ? <Verified className="size-3.5 shrink-0" /> : null}
                 </Link>
                 <h3 className="truncate text-[15px] font-semibold tracking-tight">
                     <Link href={href} scroll={false} className="hover:text-primary">

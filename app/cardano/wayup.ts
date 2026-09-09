@@ -16,3 +16,9 @@ export async function getCollectionInfo(policyId: string): Promise<CollectionInf
   const payload = await response.json();
   return payload?.[0]?.result?.data ?? {};
 }
+
+export async function getCollectionInfos(policyIds: string[]): Promise<Map<string, CollectionInfo>> {
+  const unique = [...new Set(policyIds)];
+  const entries = await Promise.all(unique.map(async (id) => [id, await getCollectionInfo(id)] as const));
+  return new Map(entries);
+}
