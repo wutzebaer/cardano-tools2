@@ -61,7 +61,7 @@ export default function RootLayout({
                     icon={
                       <Image
                         className="size-5 rounded-full object-cover"
-                        src="/charlien-t-xs.png"
+                        src="/images/charlien-t-xs.png"
                         alt="CHIEN logo"
                         priority
                         width={20}

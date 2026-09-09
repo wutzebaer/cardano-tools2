@@ -7,7 +7,7 @@ const SidebarHeader = () => {
       <span className="flex size-9 items-center justify-center rounded-field bg-primary">
         <Image
           className="invert"
-          src="/cardano-tools-logo.svg"
+          src="/images/cardano-tools-logo.svg"
           alt="Cardano Tools logo"
           width={24}
           height={24}

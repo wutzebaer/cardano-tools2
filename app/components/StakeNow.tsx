@@ -22,7 +22,7 @@ const StakeNow = () => {
       <div className="flex items-center gap-3">
         <Image
           className="rounded-full"
-          src="/charlien-t-sm.png"
+          src="/images/charlien-t-sm.png"
           alt="CHIEN logo"
           width={36}
           height={42}

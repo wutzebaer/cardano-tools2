@@ -77,7 +77,7 @@ async function TokenDetail({ fingerprint }: { fingerprint: string }) {
                             target="_blank"
                             className="btn btn-sm gap-2 border-line bg-base-200 hover:border-line-strong hover:bg-base-300"
                         >
-                            <Image src="/poolpm.ico" alt="" width="16" height="16" />
+                            <Image src="/images/poolpm.ico" alt="" width="16" height="16" />
                             pool.pm
                             <ArrowTopRightOnSquareIcon className="size-3.5 text-base-content/45" />
                         </Link>
@@ -86,6 +86,7 @@ async function TokenDetail({ fingerprint }: { fingerprint: string }) {
                             target="_blank"
                             className="btn btn-sm gap-2 border-line bg-base-200 hover:border-line-strong hover:bg-base-300"
                         >
+                            <Image src="/images/wayup.svg" alt="" width="16" height="16" />
                             Wayup
                             <ArrowTopRightOnSquareIcon className="size-3.5 text-base-content/45" />
                         </Link>
