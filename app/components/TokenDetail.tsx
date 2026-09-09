@@ -3,7 +3,8 @@ import { formatNumber, hexToUtf8, parseMetadata, shortenId, slotToDate, toDispla
 import { getCollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
 import { Verified } from '@components/JpgStoreIcons';
-import { ArrowLeftIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
+import BackToBrowse from '@components/BackToBrowse';
+import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ReactNode } from 'react';
@@ -81,7 +82,7 @@ function PropertyCards({ items }: { items: [string, string][] }) {
     );
 }
 
-async function TokenDetail({ fingerprint }: { fingerprint: string }) {
+async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string; closeOverlay?: boolean }) {
     const tokenDetails = await getTokenDetailsByFingerprint(fingerprint);
     const metadata = parseMetadata(tokenDetails.metadata);
     const displayMetadata = toDisplayMetadata(metadata);
@@ -94,10 +95,7 @@ async function TokenDetail({ fingerprint }: { fingerprint: string }) {
 
     return (
         <div className="flex flex-col gap-8">
-            <Link href="/browse" className="flex w-fit items-center gap-1.5 text-sm text-base-content/55 hover:text-base-content">
-                <ArrowLeftIcon className="size-4" />
-                Browse
-            </Link>
+            <BackToBrowse closeOverlay={closeOverlay} />
 
             <div className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-12">
                 <div className="self-start lg:sticky lg:top-12">
