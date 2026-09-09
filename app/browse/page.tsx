@@ -1,11 +1,7 @@
-import SearchPage from "@/app/browse/search/[query]/page";
+import BrowseTokens from "@/app/browse/BrowseTokens";
 
-export const revalidate = 10
+export const revalidate = 10;
 
-const Page = async () => {
-  return (
-    <SearchPage params={Promise.resolve({ query: '' })} />
-  );
-};
-
-export default Page;
+export default function Page() {
+  return <BrowseTokens />;
+}

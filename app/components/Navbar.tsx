@@ -1,10 +1,9 @@
 import Image from "next/image";
-import Link from "next/link";
 
 const Navbar = () => {
   return (
     <div className="navbar bg-base-300 w-full lg:hidden">
-      <div className="flex-none lg:hidden">
+      <div className="flex-none">
         <label
           htmlFor="my-drawer-2"
           aria-label="open sidebar"
@@ -37,17 +36,6 @@ const Navbar = () => {
           />
           <span>Cardano Tools</span>
         </h1>
-      </div>
-      <div className="hidden flex-none lg:block">
-        <ul className="menu menu-horizontal">
-          {/* Navbar menu content here */}
-          <li>
-            <Link href="#">Navbar Item 1</Link>
-          </li>
-          <li>
-            <Link href="#">Navbar Item 2</Link>
-          </li>
-        </ul>
       </div>
     </div>
   );
