@@ -16,10 +16,19 @@ export async function getTip() {
   return handleRequest(client.GET("/tip"));
 }
 
-export async function getLatestTokens(filter?: string) {
+export async function getTokenFeed(beforeMintid?: number, afterMintid?: number) {
   return handleRequest(
-    client.GET("/token", {
-      params: { query: { filter } },
+    client.GET("/tokenFeed", {
+      params: { query: { beforeMintid, afterMintid } },
+      next: { revalidate: 10 },
+    })
+  );
+}
+
+export async function getTokenSearch(filter: string, after?: string) {
+  return handleRequest(
+    client.GET("/tokenSearch", {
+      params: { query: { filter, after } },
       next: { revalidate: 10 },
     })
   );

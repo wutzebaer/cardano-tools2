@@ -66,9 +66,11 @@ function PropertyCards({ items }: { items: [string, string][] }) {
                 const long = text.length > 40;
                 return (
                     <div key={`${key}-${i}`} className={`surface min-w-0 px-3 py-2.5 ${long ? 'col-span-full' : ''}`}>
-                        <p className="truncate text-[11px] uppercase tracking-wide text-base-content/45" title={key}>
-                            {key}
-                        </p>
+                        {/^\d+$/.test(key) ? null : (
+                            <p className="truncate text-[11px] uppercase tracking-wide text-base-content/45" title={key}>
+                                {key}
+                            </p>
+                        )}
                         <p className={`text-sm font-medium ${long ? 'leading-relaxed' : 'truncate'}`} title={text}>
                             {href ? (
                                 <Link href={href} target="_blank" className="hover:text-primary">

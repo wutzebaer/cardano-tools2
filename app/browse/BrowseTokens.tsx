@@ -1,13 +1,10 @@
 import SearchInput from "@/app/browse/SearchInput";
-import { getLatestTokens } from "@cardano/dbsync";
-import { cip67Label } from "@cardano/utils";
-import { getCollectionInfos } from "@cardano/wayup";
-import TokenCard from "@components/TokenCard";
+import TokenGrid from "@/app/browse/TokenGrid";
+import { loadFeedPage, loadSearchPage } from "@/app/browse/loadTokens";
 import { Suspense } from "react";
 
 export default async function BrowseTokens({ query }: { query?: string }) {
-  const latestTokens = (await getLatestTokens(query || undefined))?.filter((token) => cip67Label(token.maName) !== 100);
-  const collections = await getCollectionInfos(latestTokens!.map((token) => token.maPolicyId));
+  const initial = query ? await loadSearchPage(query) : await loadFeedPage();
   return (
     <>
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -27,17 +24,7 @@ export default async function BrowseTokens({ query }: { query?: string }) {
           <SearchInput />
         </Suspense>
       </div>
-      {latestTokens!.length > 0 ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-5">
-          {latestTokens!.map((token) => (
-            <TokenCard key={token.maMintId} item={token} collection={collections.get(token.maPolicyId)} />
-          ))}
-        </div>
-      ) : (
-        <div className="surface px-6 py-16 text-center text-sm text-base-content/55">
-          No tokens found.
-        </div>
-      )}
+      <TokenGrid key={query ?? "feed"} query={query} initial={initial} />
     </>
   );
 }

@@ -191,15 +191,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/token": {
+    "/tokenSearch": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** getTokenList */
-        get: operations["getTokenList"];
+        /** getTokenSearch */
+        get: operations["getTokenSearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tokenFeed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** getTokenFeed */
+        get: operations["getTokenFeed"];
         put?: never;
         post?: never;
         delete?: never;
@@ -761,13 +778,36 @@ export interface operations {
             };
         };
     };
-    getTokenList: {
+    getTokenSearch: {
+        parameters: {
+            query: {
+                /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982 */
+                filter: string;
+                /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982.436176616c6965724b696e67436861726c6573 */
+                after?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenListItem"][];
+                };
+            };
+        };
+    };
+    getTokenFeed: {
         parameters: {
             query?: {
                 afterMintid?: number;
                 beforeMintid?: number;
-                /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982 */
-                filter?: string;
             };
             header?: never;
             path?: never;

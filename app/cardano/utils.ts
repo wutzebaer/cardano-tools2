@@ -83,7 +83,11 @@ export function formatTokenAmount(value?: number, decimals = 0) {
 
 export function slotToDate(slotNo: number) {
   const timestamp = SHELLEY_GENESIS_TIME + slotNo;
-  return new Date(timestamp * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  return new Date(timestamp * 1000).toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  });
 }
 
 export function toIpfsUrl(ipfs?: string | string[] | null) {
@@ -198,13 +202,17 @@ export function metadataDecimals(metadata: Record<string, unknown>) {
   return 0;
 }
 
+function isJoinedTextPath(path: string[]) {
+  const last = path.at(-1);
+  return last === "name" || last === "image" || last === "description" || last === "logo" || last === "mediaType" || last === "src";
+}
+
 function flattenAndTransform(obj: ReturnType<typeof JSON.parse>, path: string[] = []): ReturnType<typeof JSON.parse> {
   if (Array.isArray(obj)) {
-    // Wenn es ein Array von Strings ist, verbinde sie zu einem String
-    if (obj.every((item) => typeof item === "string")) {
+    // CIP-25: name/image/description (and similar) may be split across strings
+    if (obj.length > 0 && obj.every((item) => typeof item === "string") && isJoinedTextPath(path)) {
       return { [path.join(" / ")]: obj.join("") };
     }
-    // Ansonsten verarbeite jedes Element einzeln und flache es weiter ab
     return Object.assign({}, ...obj.map((item, index) => flattenAndTransform(item, [...path, index.toString()])));
   } else if (typeof obj === "object") {
     // Wenn es ein Objekt ist, verarbeite jedes Schlüssel-Wert-Paar rekursiv
