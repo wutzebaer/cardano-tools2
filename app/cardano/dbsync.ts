@@ -28,7 +28,8 @@ export async function getTokenFeed(beforeMintid?: number, afterMintid?: number) 
 export async function getTokenSearch(filter: string, after?: string) {
   return handleRequest(
     client.GET("/tokenSearch", {
-      params: { query: { filter, after } },
+      params: { query: { filter: decodeURIComponent(filter), after } },
+      querySerializer: { allowReserved: true },
       next: { revalidate: 10 },
     })
   );

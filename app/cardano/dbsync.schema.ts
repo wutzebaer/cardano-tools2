@@ -781,7 +781,7 @@ export interface operations {
     getTokenSearch: {
         parameters: {
             query: {
-                /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982 */
+                /** @example $petergrossmann */
                 filter: string;
                 /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982.436176616c6965724b696e67436861726c6573 */
                 after?: string;

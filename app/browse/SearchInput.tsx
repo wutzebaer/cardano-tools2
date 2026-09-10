@@ -7,7 +7,7 @@ import { ChangeEvent, KeyboardEvent, useState, useTransition } from 'react';
 const SearchInput: React.FC = () => {
     const router = useRouter();
     const { query } = useParams<{ query?: string }>();
-    const [searchTerm, setSearchTerm] = useState<string>(query ?? '');
+    const [searchTerm, setSearchTerm] = useState<string>(query ? decodeURIComponent(query) : '');
     const [, startTransition] = useTransition();
 
     const goToSearch = (term: string) => {

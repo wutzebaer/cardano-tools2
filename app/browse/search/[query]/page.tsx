@@ -7,5 +7,5 @@ export const generateStaticParams = async () => {
 
 export default async function SearchPage({ params }: { params: Promise<{ query?: string }> }) {
   const { query } = await params;
-  return <BrowseTokens query={query} />;
+  return <BrowseTokens query={query ? decodeURIComponent(query) : query} />;
 }
