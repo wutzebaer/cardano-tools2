@@ -1,18 +1,12 @@
 "use client";
-import { useState } from "react";
-import { listWallets } from "../cardano/wallet";
-import { Cardano } from "../cardano/types";
 import Image from "next/image";
+import { useWallets } from "../cardano/wallet";
 
 function WalletDialog() {
-  const [wallets, setWallets] = useState<Cardano>(new Map());
+  const wallets = useWallets();
 
   return (
-    <dialog
-      id="wallet_dialog"
-      className="modal"
-      onToggle={() => setWallets(listWallets())}
-    >
+    <dialog id="wallet_dialog" className="modal">
       <div className="modal-box surface">
         <h2 className="text-xl font-semibold tracking-tight">Select your wallet</h2>
         <p className="mt-1 text-sm text-base-content/55">Connect a CIP-30 compatible browser wallet.</p>

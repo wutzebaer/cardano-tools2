@@ -58,7 +58,7 @@ export function assetNameFromHex(hex: string) {
   return hexToUtf8(labeled ? labeled.nameHex : hex);
 }
 
-function crc8(bytes: Uint8Array) {
+export function crc8(bytes: Uint8Array) {
   let crc = 0;
   for (const byte of bytes) {
     crc ^= byte;

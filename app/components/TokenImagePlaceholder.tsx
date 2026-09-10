@@ -6,7 +6,7 @@ export default function TokenImagePlaceholder() {
             <Image
                 src="/images/cardano-tools-logo.svg"
                 alt=""
-                width={680}
+                width={577}
                 height={524}
                 className="w-2/5 opacity-50"
             />

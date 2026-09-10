@@ -29,13 +29,15 @@ import {
 } from "@emurgo/cardano-serialization-lib-browser";
 import { PolicyPrivate, SimpleScript, WalletConnection } from "@cardano/types";
 
-export const currentSlot = () => {
-  return new Date().getTime() / 1000 - 1596491091 + 4924800;
-};
+export const unixToSlot = (unixSeconds: number) => unixSeconds - 1591566291;
+
+export const currentSlot = () => unixToSlot(Date.now() / 1000);
+
+export const COINS_PER_UTXO_BYTE = BigNum.from_str("4310");
 
 const txBuilderConfig = TransactionBuilderConfigBuilder.new()
   .fee_algo(LinearFee.new(BigNum.from_str("44"), BigNum.from_str("155381")))
-  .coins_per_utxo_byte(BigNum.from_str("4310"))
+  .coins_per_utxo_byte(COINS_PER_UTXO_BYTE)
   .pool_deposit(BigNum.from_str("500000000"))
   .key_deposit(BigNum.from_str("2000000"))
   .max_value_size(5000)
@@ -111,6 +113,12 @@ const buildTransaction = async (connection: WalletConnection, addOutputs: (txBui
 const signAndSubmitTransaction = async (connection: WalletConnection, tx: Transaction, policy?: PolicyPrivate) => {
   const witnessCbor = await connection.signTx(tx.to_hex(), true);
   const witnessSet = TransactionWitnessSet.from_hex(witnessCbor);
+
+  // keep the mint scripts the builder put into the witness set; wallets only return their vkeys
+  const builtNativeScripts = tx.witness_set().native_scripts();
+  if (builtNativeScripts) {
+    witnessSet.set_native_scripts(builtNativeScripts);
+  }
 
   const fixedTransaction = FixedTransaction.from_bytes(tx.to_bytes());
   const txHash = fixedTransaction.transaction_hash();

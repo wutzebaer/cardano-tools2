@@ -43,5 +43,37 @@ export interface AddressPrivate {
   vkey: string;
 }
 
+/** Native script `all[sig(keyHash), before(end of lockYear UTC)]`. Same wallet + year always yields the same policy. */
+export interface MintPolicy {
+  policyId: string;
+  keyHash: string;
+  dueSlot: number;
+  lockYear: number;
+}
+
+/** CIP-68 user token class: 222 = NFT, 333 = FT */
+export type TokenStandard = 222 | 333;
+
+export interface TokenProperty {
+  key: string;
+  value: string;
+}
+
+export interface MintToken {
+  id: string;
+  standard: TokenStandard;
+  assetName: string;
+  amount: string;
+  name: string;
+  description: string;
+  /** image (222) or logo (333) URI: ipfs://, https://, ar:// or data: */
+  image: string;
+  mediaType: string;
+  ticker: string;
+  url: string;
+  decimals: string;
+  properties: TokenProperty[];
+}
+
 export type TokenListItem = components["schemas"]["TokenListItem"];
 export type TokenDetails = components["schemas"]["TokenDetails"];

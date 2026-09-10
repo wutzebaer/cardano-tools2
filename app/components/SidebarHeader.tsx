@@ -7,7 +7,7 @@ const SidebarHeader = () => {
       <Image
         src="/images/cardano-tools-logo.svg"
         alt="Cardano Tools logo"
-        width={680}
+        width={577}
         height={524}
         className="h-8 w-auto lg:h-14"
       />
