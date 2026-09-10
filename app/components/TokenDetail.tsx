@@ -2,6 +2,7 @@ import { getTokenDetailsByFingerprint } from '@cardano/dbsync';
 import { assetNameFromHex, formatTokenAmount, metadataDecimals, parseMetadata, shortenId, slotToDate, toDisplayMetadata, tokenFiles, tokenImage, toIpfsUrl } from '@cardano/utils';
 import { getCollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
+import TokenImagePlaceholder from '@components/TokenImagePlaceholder';
 import { Verified } from '@components/JpgStoreIcons';
 import BackToBrowse from '@components/BackToBrowse';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
@@ -118,7 +119,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                                 priority
                             />
                         ) : (
-                            <div className="aspect-square w-full bg-base-300" />
+                            <TokenImagePlaceholder />
                         )}
                     </div>
                 </div>

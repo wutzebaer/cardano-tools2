@@ -2,6 +2,7 @@ import { TokenListItem } from '@cardano/types';
 import { assetNameFromHex, shortenId, slotToDate, toIpfsUrl } from '@cardano/utils';
 import { CollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
+import TokenImagePlaceholder from '@components/TokenImagePlaceholder';
 import { Verified } from '@components/JpgStoreIcons';
 import Link from 'next/link';
 
@@ -22,7 +23,9 @@ function TokenCard({ item, collection }: { item: TokenListItem; collection?: Col
                         src={imageSrc}
                         alt={name}
                     />
-                ) : null}
+                ) : (
+                    <TokenImagePlaceholder />
+                )}
             </Link>
             <div className="flex flex-col gap-1 p-4">
                 <Link
