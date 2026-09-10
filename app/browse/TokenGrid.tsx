@@ -11,7 +11,40 @@ export default function TokenGrid({ query, initial }: { query?: string; initial:
   const [hasMore, setHasMore] = useState(initial.hasMore);
   const [loading, setLoading] = useState(false);
   const loadingRef = useRef(false);
+  const pollingRef = useRef(false);
+  const newestMintIdRef = useRef(initial.newestMintId);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (query) {
+      return;
+    }
+    const interval = setInterval(() => {
+      const afterMintid = newestMintIdRef.current;
+      if (afterMintid == null || pollingRef.current) {
+        return;
+      }
+      pollingRef.current = true;
+      loadFeedPage(undefined, afterMintid)
+        .then((page) => {
+          if (page.newestMintId != null) {
+            newestMintIdRef.current = page.newestMintId;
+          }
+          if (page.tokens.length === 0) {
+            return;
+          }
+          setTokens((prev) => {
+            const seen = new Set(prev.map((token) => token.maMintId));
+            return [...page.tokens.filter((token) => !seen.has(token.maMintId)), ...prev];
+          });
+          setCollections((prev) => ({ ...prev, ...page.collections }));
+        })
+        .finally(() => {
+          pollingRef.current = false;
+        });
+    }, 10_000);
+    return () => clearInterval(interval);
+  }, [query]);
 
   useEffect(() => {
     if (!hasMore) {

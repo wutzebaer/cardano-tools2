@@ -12,6 +12,7 @@ export type TokenPage = {
   collections: Record<string, CollectionInfo>;
   hasMore: boolean;
   cursor?: number | string;
+  newestMintId?: number;
 };
 
 async function toPage(page: TokenListItem[], cursor?: number | string): Promise<TokenPage> {
@@ -22,11 +23,12 @@ async function toPage(page: TokenListItem[], cursor?: number | string): Promise<
     collections,
     hasMore: page.length === PAGE_SIZE && cursor != null,
     cursor,
+    newestMintId: page[0]?.maMintId,
   };
 }
 
-export async function loadFeedPage(beforeMintid?: number) {
-  const page = await getTokenFeed(beforeMintid);
+export async function loadFeedPage(beforeMintid?: number, afterMintid?: number) {
+  const page = await getTokenFeed(beforeMintid, afterMintid);
   return toPage(page, page.at(-1)?.maMintId);
 }
 
