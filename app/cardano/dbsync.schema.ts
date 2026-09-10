@@ -393,6 +393,8 @@ export interface components {
             maName: string;
             fingerprint: string;
             metadata?: string;
+            /** Format: int32 */
+            cip?: number;
             maPolicyScript: string;
             txHash: string;
             /** Format: int64 */
@@ -435,6 +437,8 @@ export interface components {
             quantity: number;
             name: string;
             image: string;
+            /** Format: int32 */
+            cip?: number;
         };
         AccountStatementRow: {
             /** Format: date-time */

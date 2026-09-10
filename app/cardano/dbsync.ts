@@ -1,7 +1,7 @@
 import { paths } from "@cardano/dbsync.schema";
 import createClient from "openapi-fetch";
 
-const baseUrl = process.env.CARDANO_DBSYNC_API_URL ?? "http://localhost:8080/cardanoDbSyncApi";
+const baseUrl = process.env.CARDANO_DBSYNC_API_URL;
 const client = createClient<paths>({ baseUrl });
 
 async function handleRequest<T>(request: Promise<{ data?: T; error?: unknown }>): Promise<T> {

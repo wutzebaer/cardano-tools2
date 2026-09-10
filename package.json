@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start -p 3333",
     "lint": "eslint .",
-    "update-schema": "openapi-typescript http://localhost:8080/cardanoDbSyncApi/v3/api-docs -o ./app/cardano/dbsync.schema.ts",
+    "update-schema": "npx -y -p typescript@6 -p openapi-typescript openapi-typescript http://host.docker.internal:4444/cardanoDbSyncApi/v3/api-docs -o ./app/cardano/dbsync.schema.ts",
     "check-outdated": "npm outdated"
   },
   "dependencies": {

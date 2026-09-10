@@ -1,11 +1,12 @@
 import SearchInput from "@/app/browse/SearchInput";
 import { getLatestTokens } from "@cardano/dbsync";
+import { cip67Label } from "@cardano/utils";
 import { getCollectionInfos } from "@cardano/wayup";
 import TokenCard from "@components/TokenCard";
 import { Suspense } from "react";
 
 export default async function BrowseTokens({ query }: { query?: string }) {
-  const latestTokens = await getLatestTokens(query || undefined);
+  const latestTokens = (await getLatestTokens(query || undefined))?.filter((token) => cip67Label(token.maName) !== 100);
   const collections = await getCollectionInfos(latestTokens!.map((token) => token.maPolicyId));
   return (
     <>

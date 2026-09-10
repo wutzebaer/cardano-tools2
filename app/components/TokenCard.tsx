@@ -1,5 +1,5 @@
 import { TokenListItem } from '@cardano/types';
-import { shortenId, slotToDate, toIpfsUrl } from '@cardano/utils';
+import { assetNameFromHex, shortenId, slotToDate, toIpfsUrl } from '@cardano/utils';
 import { CollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
 import { Verified } from '@components/JpgStoreIcons';
@@ -7,19 +7,22 @@ import Link from 'next/link';
 
 function TokenCard({ item, collection }: { item: TokenListItem; collection?: CollectionInfo }) {
     const href = `/browse/token/${item.maFingerprint}`;
-    const name = item.name || item.maName;
+    const name = item.name || assetNameFromHex(item.maName);
+    const imageSrc = toIpfsUrl(item.image);
     const collectionName = collection?.name;
 
     return (
         <article className="surface group flex flex-col overflow-hidden transition-colors hover:border-line-strong hover:bg-base-300">
             <Link href={href} scroll={false} className="relative block aspect-square overflow-hidden bg-base-300">
-                <IpfsImage
-                    width="512"
-                    height="512"
-                    className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                    src={toIpfsUrl(item.image)}
-                    alt={name}
-                />
+                {imageSrc ? (
+                    <IpfsImage
+                        width="512"
+                        height="512"
+                        className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                        src={imageSrc}
+                        alt={name}
+                    />
+                ) : null}
             </Link>
             <div className="flex flex-col gap-1 p-4">
                 <Link

@@ -1,5 +1,5 @@
 import { getTokenDetailsByFingerprint } from '@cardano/dbsync';
-import { formatNumber, hexToUtf8, parseMetadata, shortenId, slotToDate, toDisplayMetadata, toIpfsUrl } from '@cardano/utils';
+import { assetNameFromHex, formatTokenAmount, metadataDecimals, parseMetadata, shortenId, slotToDate, toDisplayMetadata, tokenFiles, tokenImage, toIpfsUrl } from '@cardano/utils';
 import { getCollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
 import { Verified } from '@components/JpgStoreIcons';
@@ -31,6 +31,9 @@ function propertyHref(key: string, text: string) {
     if (text.startsWith('http://') || text.startsWith('https://')) {
         return text;
     }
+    if (text.startsWith('ipfs://') || text.startsWith('ar://') || text.startsWith('data:')) {
+        return toIpfsUrl(text);
+    }
     if (text.startsWith('@') && /twitter|\bx\b|follow/i.test(key)) {
         return `https://x.com/${text.slice(1)}`;
     }
@@ -58,11 +61,11 @@ function groupedProperties(entries: [string, unknown][]) {
 function PropertyCards({ items }: { items: [string, string][] }) {
     return (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {items.map(([key, text]) => {
+            {items.map(([key, text], i) => {
                 const href = propertyHref(key, text);
                 const long = text.length > 40;
                 return (
-                    <div key={key} className={`surface min-w-0 px-3 py-2.5 ${long ? 'col-span-full' : ''}`}>
+                    <div key={`${key}-${i}`} className={`surface min-w-0 px-3 py-2.5 ${long ? 'col-span-full' : ''}`}>
                         <p className="truncate text-[11px] uppercase tracking-wide text-base-content/45" title={key}>
                             {key}
                         </p>
@@ -84,13 +87,16 @@ function PropertyCards({ items }: { items: [string, string][] }) {
 
 async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string; closeOverlay?: boolean }) {
     const tokenDetails = await getTokenDetailsByFingerprint(fingerprint);
-    const metadata = parseMetadata(tokenDetails.metadata);
+    const metadata = parseMetadata(tokenDetails.metadata, tokenDetails.maPolicyId, tokenDetails.maName);
     const displayMetadata = toDisplayMetadata(metadata);
     const collectionInfo = await getCollectionInfo(tokenDetails.maPolicyId);
-    const assetName = hexToUtf8(tokenDetails.maName);
+    const assetName = assetNameFromHex(tokenDetails.maName);
     const name = (typeof metadata.name === 'string' ? metadata.name : undefined) ?? assetName;
-    const image = typeof metadata.image === 'string' ? metadata.image : '';
+    const image = tokenImage(metadata);
+    const imageSrc = toIpfsUrl(image);
     const description = typeof metadata.description === 'string' && metadata.description !== name ? metadata.description : undefined;
+    const decimals = metadataDecimals(metadata);
+    const files = tokenFiles(metadata, image);
     const propertyGroups = groupedProperties(Object.entries(displayMetadata));
 
     return (
@@ -100,14 +106,18 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
             <div className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-12">
                 <div className="self-start lg:sticky lg:top-12">
                     <div className="surface overflow-hidden">
-                        <IpfsImage
-                            width="1024"
-                            height="1024"
-                            className="aspect-square w-full object-cover"
-                            src={toIpfsUrl(image)}
-                            alt={name}
-                            priority
-                        />
+                        {imageSrc ? (
+                            <IpfsImage
+                                width="1024"
+                                height="1024"
+                                className="aspect-square w-full object-cover"
+                                src={imageSrc}
+                                alt={name}
+                                priority
+                            />
+                        ) : (
+                            <div className="aspect-square w-full bg-base-300" />
+                        )}
                     </div>
                 </div>
 
@@ -151,6 +161,17 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                         </Section>
                     ))}
 
+                    {files.length > 0 ? (
+                        <Section title="Files">
+                            <PropertyCards
+                                items={files.map((file, i) => [
+                                    file.name || file.mediaType || `File ${i + 1}`,
+                                    file.src,
+                                ])}
+                            />
+                        </Section>
+                    ) : null}
+
                     <Section title="Details">
                         <dl className="surface divide-y divide-line">
                             <DetailRow label="Policy ID">
@@ -160,7 +181,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                             </DetailRow>
                             <DetailRow label="Fingerprint">{tokenDetails.fingerprint}</DetailRow>
                             <DetailRow label="Asset name">{assetName}</DetailRow>
-                            <DetailRow label="Total supply">{formatNumber(tokenDetails.totalSupply)}</DetailRow>
+                            <DetailRow label="Total supply">{formatTokenAmount(tokenDetails.totalSupply, decimals)}</DetailRow>
                             <DetailRow label="Minted">{slotToDate(tokenDetails.slotNo)}</DetailRow>
                             <DetailRow label="Transaction">{tokenDetails.txHash}</DetailRow>
                         </dl>
