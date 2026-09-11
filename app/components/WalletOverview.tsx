@@ -73,10 +73,11 @@ function WalletOverview() {
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 text-xs text-base-content/55">
               <Image
-                width="18"
-                height="18"
+                width={18}
+                height={18}
                 src={walletStats.icon}
                 alt={`${walletStats.name} logo`}
+                className="size-[18px]"
                 unoptimized
               />
               {walletStats.name}

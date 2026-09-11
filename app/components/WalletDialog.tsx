@@ -20,11 +20,11 @@ function WalletDialog() {
                   value={key}
                 >
                   <Image
-                    width="24"
-                    height="24"
+                    width={24}
+                    height={24}
                     src={value.icon}
                     alt={`${value.name} logo`}
-                    className="rounded-full"
+                    className="size-6 rounded-full"
                     unoptimized
                   />
                   <span className="font-medium">{value.name}</span>
