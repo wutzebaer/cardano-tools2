@@ -1,5 +1,5 @@
-import { COINS_PER_UTXO_BYTE, currentSlot, sendTransaction, unixToSlot } from "@cardano/transaction";
-import { MintPolicy, MintToken, WalletConnection } from "@cardano/types";
+import { COINS_PER_UTXO_BYTE, currentSlot, sendTransaction, toNativeScript } from "@cardano/transaction";
+import { MintPolicy, MintToken, SimpleScript, TokenDetails, WalletConnection } from "@cardano/types";
 import { crc8 } from "@cardano/utils";
 import {
   Address,
@@ -17,15 +17,12 @@ import {
   MintWitness,
   MultiAsset,
   NativeScript,
-  NativeScripts,
   NativeScriptSource,
   PlutusData,
   PlutusList,
   PlutusMap,
   PlutusMapValues,
-  ScriptAll,
   ScriptPubkey,
-  TimelockExpiry,
   TransactionOutputBuilder,
 } from "@emurgo/cardano-serialization-lib-browser";
 
@@ -46,25 +43,70 @@ export function paymentKeyHash(changeAddressHex: string) {
   return Address.from_bytes(hexToBytes(changeAddressHex)).payment_cred()!.to_keyhash()!.to_hex();
 }
 
-export function policyScript(policy: Pick<MintPolicy, "keyHash" | "dueSlot">): NativeScript {
-  const scripts = NativeScripts.new();
-  scripts.add(NativeScript.new_script_pubkey(ScriptPubkey.new(Ed25519KeyHash.from_hex(policy.keyHash))));
-  scripts.add(NativeScript.new_timelock_expiry(TimelockExpiry.new(policy.dueSlot)));
-  return NativeScript.new_script_all(ScriptAll.new(scripts));
+export function policyScript(policy: MintPolicy): NativeScript {
+  return toNativeScript(policy.script);
 }
 
-export function policyForLockYear(keyHash: string, lockYear: number): MintPolicy {
-  const dueSlot = Math.floor(unixToSlot(Date.UTC(lockYear + 1, 0, 1) / 1000));
-  return { lockYear, keyHash, dueSlot, policyId: policyScript({ keyHash, dueSlot }).hash().to_hex() };
+export function createPolicy(keyHash: string, days: number): MintPolicy {
+  const script: SimpleScript = {
+    type: "all",
+    scripts: [
+      { type: "sig", keyHash },
+      { type: "before", slot: Math.floor(currentSlot()) + days * 24 * 60 * 60 },
+    ],
+  };
+  return { policyId: toNativeScript(script).hash().to_hex(), script };
 }
 
-export function walletPolicies(keyHash: string) {
-  const currentYear = new Date().getUTCFullYear();
-  return Array.from({ length: 26 }, (_, i) => policyForLockYear(keyHash, currentYear + i));
+function scriptKeyHashes(script: SimpleScript): string[] {
+  if (script.type === "sig" && script.keyHash) {
+    return [script.keyHash];
+  }
+  return script.scripts?.flatMap(scriptKeyHashes) ?? [];
+}
+
+export function policyKeyHash(policy: MintPolicy) {
+  const keyHash = scriptKeyHashes(policy.script)[0];
+  if (!keyHash) {
+    throw new Error("Policy has no signature key");
+  }
+  return keyHash;
+}
+
+function scriptDueSlot(script: SimpleScript): number | undefined {
+  if (script.type === "before") {
+    return script.slot;
+  }
+  return script.scripts?.map(scriptDueSlot).find((slot) => slot != null);
+}
+
+export function policyDueSlot(policy: MintPolicy) {
+  return scriptDueSlot(policy.script);
 }
 
 export function policySecondsLeft(policy: MintPolicy) {
-  return policy.dueSlot - currentSlot();
+  const dueSlot = policyDueSlot(policy);
+  return dueSlot == null ? Number.POSITIVE_INFINITY : dueSlot - currentSlot();
+}
+
+export function policiesFromMints(mints: TokenDetails[], keyHash: string) {
+  const byId = new Map<string, MintPolicy>();
+  for (const mint of mints) {
+    if (byId.has(mint.maPolicyId)) {
+      continue;
+    }
+    try {
+      const script = JSON.parse(mint.maPolicyScript) as SimpleScript;
+      const policy = { policyId: mint.maPolicyId, script };
+      toNativeScript(script);
+      if (scriptKeyHashes(script).includes(keyHash)) {
+        byId.set(mint.maPolicyId, policy);
+      }
+    } catch {
+      continue;
+    }
+  }
+  return [...byId.values()];
 }
 
 // ---------------------------------------------------------------------------
@@ -152,7 +194,7 @@ export async function mintTokens(connection: WalletConnection, policy: MintPolic
   const changeAddress = Address.from_bytes(hexToBytes(await connection.getChangeAddress()));
   const script = policyScript(policy);
   const policyHash = script.hash();
-  const referenceOutputAddress = referenceAddress(changeAddress, policy.keyHash);
+  const referenceOutputAddress = referenceAddress(changeAddress, policyKeyHash(policy));
   const dataCost = DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE);
 
   return sendTransaction(connection, (txBuilder) => {
@@ -185,6 +227,6 @@ export async function mintTokens(connection: WalletConnection, policy: MintPolic
       TransactionOutputBuilder.new().with_address(changeAddress).next().with_asset_and_min_required_coin_by_utxo_cost(userAssets, dataCost).build()
     );
     txBuilder.set_mint_builder(mintBuilder);
-    txBuilder.add_required_signer(Ed25519KeyHash.from_hex(policy.keyHash));
+    txBuilder.add_required_signer(Ed25519KeyHash.from_hex(policyKeyHash(policy)));
   });
 }

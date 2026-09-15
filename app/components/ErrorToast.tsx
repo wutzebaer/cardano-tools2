@@ -2,7 +2,7 @@
 
 import { errorToMessage } from '@cardano/utils';
 import { ExclamationCircleIcon } from '@heroicons/react/24/outline';
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 
 const ErrorToast = () => {

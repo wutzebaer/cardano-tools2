@@ -142,7 +142,7 @@ const signAndSubmitTransaction = async (connection: WalletConnection, tx: Transa
   return txHash.to_hex();
 };
 
-const toNativeScript = (simpleScript: SimpleScript): NativeScript => {
+export const toNativeScript = (simpleScript: SimpleScript): NativeScript => {
   if (simpleScript.type === "all") {
     const scripts = NativeScripts.new();
     simpleScript.scripts

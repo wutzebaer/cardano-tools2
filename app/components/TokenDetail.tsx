@@ -113,7 +113,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                             <IpfsImage
                                 width="1024"
                                 height="1024"
-                                className="aspect-square w-full object-cover"
+                                className="h-auto w-full"
                                 src={imageSrc}
                                 alt={name}
                                 priority

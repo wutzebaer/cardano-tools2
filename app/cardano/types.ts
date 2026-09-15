@@ -43,12 +43,10 @@ export interface AddressPrivate {
   vkey: string;
 }
 
-/** Native script `all[sig(keyHash), before(end of lockYear UTC)]`. Same wallet + year always yields the same policy. */
+/** Native script JSON (sig / all / before). Only on-chain after the first mint. */
 export interface MintPolicy {
   policyId: string;
-  keyHash: string;
-  dueSlot: number;
-  lockYear: number;
+  script: SimpleScript;
 }
 
 /** CIP-68 user token class: 222 = NFT, 333 = FT */

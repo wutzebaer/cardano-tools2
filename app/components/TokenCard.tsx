@@ -19,7 +19,7 @@ function TokenCard({ item, collection }: { item: TokenListItem; collection?: Col
                     <IpfsImage
                         width="512"
                         height="512"
-                        className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                        className="aspect-square w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
                         src={imageSrc}
                         alt={name}
                     />

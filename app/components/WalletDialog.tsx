@@ -1,9 +1,17 @@
 "use client";
+
+import { Cardano } from "@cardano/types";
+import { listWallets } from "@cardano/wallet";
 import Image from "next/image";
-import { useWallets } from "../cardano/wallet";
+import { useEffect, useState } from "react";
 
 function WalletDialog() {
-  const wallets = useWallets();
+  const [wallets, setWallets] = useState<Cardano>(new Map());
+
+  useEffect(() => {
+    const wallets = listWallets();
+    setWallets(wallets);
+  }, []);
 
   return (
     <dialog id="wallet_dialog" className="modal">

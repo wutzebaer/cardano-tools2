@@ -1,14 +1,14 @@
-"use client";
-
 import { ASSET_NAME_MAX_BYTES, utf8Bytes } from "@cardano/mint";
 import { MintToken, TokenProperty } from "@cardano/types";
-import IpfsImage from "@components/IpfsImage";
 import { toIpfsUrl } from "@cardano/utils";
+import IpfsImage from "@components/IpfsImage";
 import { PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { ChangeEvent, ReactNode } from "react";
+import { ChangeEvent, ReactNode, useState } from "react";
+import { uploadToIpfs } from "./uploadToIpfs";
 
-/** Files are stored on-chain as data URI inside the datum, so they have to stay small. */
-const MAX_ONCHAIN_FILE_BYTES = 10_000;
+/** Same limits as the old mint form: ≤ 16 KB can go on-chain, otherwise IPFS, max 100 MB. */
+const MAX_FILE_BYTES = 104_857_600;
+const ONCHAIN_FILE_BYTES = 16_384;
 
 export function tokenErrors(token: MintToken, allTokens: MintToken[]) {
   const errors: Partial<Record<"assetName" | "amount" | "name" | "image" | "decimals", string>> = {};
@@ -52,6 +52,7 @@ const inputClass = "input w-full border-line bg-base-300 focus-within:border-pri
 export default function TokenForm({ token, allTokens, onChange, onRemove }: { token: MintToken; allTokens: MintToken[]; onChange: (token: MintToken) => void; onRemove?: () => void }) {
   const errors = tokenErrors(token, allTokens);
   const isNft = token.standard === 222;
+  const [uploading, setUploading] = useState(false);
   const update = (patch: Partial<MintToken>) => onChange({ ...token, ...patch });
   const updateProperty = (index: number, patch: Partial<TokenProperty>) =>
     update({ properties: token.properties.map((property, i) => (i === index ? { ...property, ...patch } : property)) });
@@ -60,15 +61,25 @@ export default function TokenForm({ token, allTokens, onChange, onRemove }: { to
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (file.size > MAX_ONCHAIN_FILE_BYTES) {
-      throw new Error(`File is too large for on-chain storage (max ${MAX_ONCHAIN_FILE_BYTES / 1000} KB). Upload it to IPFS and paste the ipfs:// URL instead.`);
+    if (file.size > MAX_FILE_BYTES) {
+      throw new Error("Max 100mb");
     }
-    const dataUri = await new Promise<string>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
-    });
-    update({ image: dataUri, mediaType: file.type });
+    if (file.size < ONCHAIN_FILE_BYTES && confirm(`Store file ${file.name} onchain?`)) {
+      const dataUri = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+      update({ image: dataUri, mediaType: file.type });
+      return;
+    }
+    setUploading(true);
+    try {
+      const cid = await uploadToIpfs(file);
+      update({ image: `ipfs://${cid}`, mediaType: file.type });
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -82,7 +93,7 @@ export default function TokenForm({ token, allTokens, onChange, onRemove }: { to
               className={`btn btn-sm join-item border-line ${token.standard === standard ? "btn-primary" : "bg-base-300"}`}
               onClick={() => update({ standard, amount: standard === 222 ? "1" : token.amount })}
             >
-              {standard === 222 ? "NFT (222)" : "Fungible (333)"}
+              {standard === 222 ? "NFT" : "Fungible"}
             </button>
           ))}
         </div>
@@ -96,12 +107,16 @@ export default function TokenForm({ token, allTokens, onChange, onRemove }: { to
       <div className="grid gap-5 lg:grid-cols-[10rem_minmax(0,1fr)]">
         <div className="flex flex-col gap-2">
           <div className="surface relative aspect-square overflow-hidden bg-base-300">
-            {token.image ? (
+            {uploading ? (
+              <div className="flex h-full items-center justify-center">
+                <span className="loading loading-spinner loading-md" />
+              </div>
+            ) : token.image ? (
               <IpfsImage src={toIpfsUrl(token.image)} alt="" width="256" height="256" className="aspect-square w-full object-cover" unoptimized />
             ) : (
               <label className="flex h-full cursor-pointer items-center justify-center p-3 text-center text-xs text-base-content/45 hover:text-base-content">
-                Upload small file (≤ 10 KB, stored on-chain)
-                <input type="file" accept="image/*" className="hidden" onChange={onFile} />
+                Upload file (IPFS, max 100 MB)
+                <input type="file" className="hidden" onChange={onFile} />
               </label>
             )}
             {token.image ? (

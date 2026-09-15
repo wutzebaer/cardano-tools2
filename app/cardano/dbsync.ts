@@ -1,3 +1,5 @@
+"use server";
+
 import { paths } from "@cardano/dbsync.schema";
 import createClient from "openapi-fetch";
 
@@ -44,6 +46,14 @@ export async function getTokenDetailsByFingerprint(fingerprint: string) {
         },
       },
       next: { revalidate: 10 },
+    })
+  );
+}
+
+export async function getMints(stakeAddress: string) {
+  return handleRequest(
+    client.GET("/{stakeAddress}/mints", {
+      params: { path: { stakeAddress } },
     })
   );
 }

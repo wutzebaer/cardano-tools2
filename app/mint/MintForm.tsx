@@ -1,6 +1,7 @@
 "use client";
 
 import { labeledAssetNameHex, mintTokens, paymentKeyHash } from "@cardano/mint";
+import { rewardAddressHashToBech32 } from "@cardano/transaction";
 import { MintPolicy, MintToken } from "@cardano/types";
 import { getSelectedWallet, SelectionMode } from "@cardano/wallet";
 import { ApplicationContext } from "@components/StateProvider";
@@ -36,6 +37,7 @@ function newToken(index: number): MintToken {
 export default function MintForm() {
   const context = useContext(ApplicationContext);
   const [keyHash, setKeyHash] = useState<string | null>(null);
+  const [stakeAddress, setStakeAddress] = useState("");
   const [policy, setPolicy] = useState<MintPolicy | null>(null);
   const [tokens, setTokens] = useState<MintToken[]>([newToken(1)]);
   const [minting, setMinting] = useState(false);
@@ -45,13 +47,19 @@ export default function MintForm() {
     const walletInfo = context.state.walletInfo;
     if (!walletInfo) {
       setKeyHash(null);
+      setStakeAddress("");
       return;
     }
-    walletInfo
-      .enable()
-      .then((connection) => connection.getChangeAddress())
-      .then((changeAddress) => setKeyHash(paymentKeyHash(changeAddress)));
+    walletInfo.enable().then(async (connection) => {
+      const [changeAddress, rewardAddresses] = await Promise.all([connection.getChangeAddress(), connection.getRewardAddresses()]);
+      setKeyHash(paymentKeyHash(changeAddress));
+      setStakeAddress(rewardAddressHashToBech32(rewardAddresses[0]));
+    });
   }, [context.state.walletInfo]);
+
+  useEffect(() => {
+    setPolicy(null);
+  }, [keyHash]);
 
   const connect = async () => {
     const walletInfo = await getSelectedWallet(SelectionMode.ForceSelectIfNone);
@@ -123,7 +131,7 @@ export default function MintForm() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PolicySelector keyHash={keyHash} selected={policy} onSelect={selectPolicy} />
+      <PolicySelector keyHash={keyHash} stakeAddress={stakeAddress} selected={policy} onSelect={selectPolicy} />
 
       <div className="flex flex-col gap-4">
         <p className="section-label">Tokens</p>
