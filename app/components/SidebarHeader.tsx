@@ -10,6 +10,7 @@ const SidebarHeader = () => {
         width={577}
         height={524}
         className="h-8 w-auto lg:h-14"
+        loading="eager"
       />
       <span className="text-base font-semibold tracking-tight lg:text-xl">Cardano Tools</span>
     </Link>
