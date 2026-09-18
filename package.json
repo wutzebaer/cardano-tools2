@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start -p 3333",
     "lint": "eslint .",
-    "update-schema": "npx -y -p typescript@6 -p openapi-typescript openapi-typescript http://host.docker.internal:4444/cardanoDbSyncApi/v3/api-docs -o ./app/cardano/dbsync.schema.ts",
+    "update-schema": "npx -y -p openapi-typescript openapi-typescript http://host.docker.internal:4444/cardanoDbSyncApi/v3/api-docs -o ./app/cardano/dbsync.schema.ts",
     "check-outdated": "npm outdated"
   },
   "dependencies": {
@@ -24,11 +24,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "daisyui": "^5",
-    "eslint": "^10",
     "eslint-config-next": "^16",
-    "openapi-typescript": "^7",
-    "postcss": "^8",
-    "tailwindcss": "^4",
-    "typescript": "^7"
+    "tailwindcss": "^4"
   }
 }

@@ -1,7 +1,7 @@
 import { Cardano, WalletInfo } from "@cardano/types";
 import { showReturningModal } from "./dialog";
 
-const EMPTY_WALLETS: Cardano = new Map();
+export const EMPTY_WALLETS: Cardano = new Map();
 
 export const listWallets = (): Cardano => {
   if (typeof window === "undefined") {
@@ -26,19 +26,26 @@ export async function getSelectedWallet(selectionMode: SelectionMode.ForceSelect
 export async function getSelectedWallet(selectionMode: SelectionMode.IfSelected): Promise<WalletInfo | null>;
 export async function getSelectedWallet(selectionMode: SelectionMode = SelectionMode.IfSelected): Promise<WalletInfo | null> {
   const wallets = listWallets();
-  const localStorageWallet = localStorage.getItem("wallet");
-  if (localStorageWallet && (await wallets.get(localStorageWallet)?.isEnabled()) && selectionMode !== SelectionMode.ForceSelection) {
-    return wallets.get(localStorageWallet) ?? null;
-  } else if (selectionMode !== SelectionMode.IfSelected) {
-    if (wallets.size === 1) {
-      localStorage.setItem("wallet", wallets.keys().next().value!);
-      return wallets.values().next().value!;
+  const localStorageWalletKey = localStorage.getItem("walletKey");
+
+  if (selectionMode === SelectionMode.ForceSelection) {
+    localStorage.removeItem("walletKey");
+    const walletKey = await showReturningModal("wallet_dialog");
+    localStorage.setItem("walletKey", walletKey);
+    return wallets.get(walletKey)!;
+  }
+  else if (selectionMode === SelectionMode.ForceSelectIfNone) {
+    if (localStorageWalletKey && wallets.has(localStorageWalletKey)) {
+      return wallets.get(localStorageWalletKey)!;
     } else {
       const walletKey = await showReturningModal("wallet_dialog");
-      localStorage.setItem("wallet", walletKey);
-      return wallets.get(walletKey) ?? null;
+      localStorage.setItem("walletKey", walletKey);
+      return wallets.get(walletKey)!;
     }
-  } else {
-    return null;
+  } else if (selectionMode === SelectionMode.IfSelected) {
+    if (localStorageWalletKey && wallets.has(localStorageWalletKey)) {
+      return wallets.get(localStorageWalletKey)!;
+    }
   }
+  return null;
 }

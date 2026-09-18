@@ -33,6 +33,11 @@ export const ASSET_NAME_MAX_BYTES = 32 - LABEL_BYTES;
 
 export const utf8Bytes = (text: string) => new TextEncoder().encode(text);
 
+/** On-chain asset name from the display name: alphanumeric only, CIP-67 payload limit. */
+export function assetNameFromName(name: string) {
+  return name.replace(/[^a-zA-Z0-9]/g, "").slice(0, ASSET_NAME_MAX_BYTES);
+}
+
 const hexToBytes = (hex: string) => Uint8Array.from(Buffer.from(hex, "hex"));
 
 // ---------------------------------------------------------------------------
@@ -203,8 +208,9 @@ export async function mintTokens(connection: WalletConnection, policy: MintPolic
     const userAssets = MultiAsset.new();
 
     for (const token of tokens) {
-      const referenceName = labeledAssetName(REFERENCE_LABEL, token.assetName);
-      const userName = labeledAssetName(token.standard, token.assetName);
+      const assetName = assetNameFromName(token.name);
+      const referenceName = labeledAssetName(REFERENCE_LABEL, assetName);
+      const userName = labeledAssetName(token.standard, assetName);
 
       mintBuilder.add_asset(witness, referenceName, Int.new_i32(1));
       mintBuilder.add_asset(witness, userName, Int.from_str(token.amount));

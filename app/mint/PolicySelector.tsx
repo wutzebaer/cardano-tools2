@@ -19,6 +19,8 @@ function policyLabel(policy: MintPolicy, onChain: boolean) {
   return `${shortenId(policy.policyId, 8)} · ${status}`;
 }
 
+const NO_POLICIES: MintPolicy[] = [];
+
 export default function PolicySelector({
   keyHash,
   stakeAddress,
@@ -30,17 +32,22 @@ export default function PolicySelector({
   selected: MintPolicy | null;
   onSelect: (policy: MintPolicy | null) => void;
 }) {
-  const [chainPolicies, setChainPolicies] = useState<MintPolicy[]>([]);
+  const [loadedPolicies, setLoadedPolicies] = useState<MintPolicy[]>([]);
   const [creating, setCreating] = useState(false);
   const [days, setDays] = useState("365");
 
   useEffect(() => {
-    if (!stakeAddress) {
-      setChainPolicies([]);
-      return;
-    }
-    getMints(stakeAddress).then((mints) => setChainPolicies(policiesFromMints(mints, keyHash)));
+    if (!stakeAddress) return;
+    let cancelled = false;
+    getMints(stakeAddress).then((mints) => {
+      if (!cancelled) setLoadedPolicies(policiesFromMints(mints, keyHash));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [stakeAddress, keyHash]);
+
+  const chainPolicies = stakeAddress ? loadedPolicies : NO_POLICIES;
 
   useEffect(() => {
     if (!selected && chainPolicies[0]) {

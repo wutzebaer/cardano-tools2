@@ -1,6 +1,6 @@
 "use client";
 
-import { labeledAssetNameHex, mintTokens, paymentKeyHash } from "@cardano/mint";
+import { assetNameFromName, labeledAssetNameHex, mintTokens, paymentKeyHash } from "@cardano/mint";
 import { rewardAddressHashToBech32 } from "@cardano/transaction";
 import { MintPolicy, MintToken } from "@cardano/types";
 import { getSelectedWallet, SelectionMode } from "@cardano/wallet";
@@ -18,12 +18,13 @@ interface MintResult {
 }
 
 function newToken(index: number): MintToken {
+  const name = `Token${String(index).padStart(3, "0")}`;
   return {
     id: crypto.randomUUID(),
     standard: 222,
-    assetName: `Token${String(index).padStart(3, "0")}`,
+    assetName: assetNameFromName(name),
     amount: "1",
-    name: "",
+    name,
     description: "",
     image: "",
     mediaType: "",
@@ -36,37 +37,45 @@ function newToken(index: number): MintToken {
 
 export default function MintForm() {
   const context = useContext(ApplicationContext);
-  const [keyHash, setKeyHash] = useState<string | null>(null);
-  const [stakeAddress, setStakeAddress] = useState("");
-  const [policy, setPolicy] = useState<MintPolicy | null>(null);
+  const walletInfo = context.state.walletInfo;
+  const [walletKeys, setWalletKeys] = useState<{ keyHash: string; stakeAddress: string } | null>(null);
+  const [selection, setSelection] = useState<{ keyHash: string; policy: MintPolicy | null } | null>(null);
   const [tokens, setTokens] = useState<MintToken[]>([newToken(1)]);
   const [minting, setMinting] = useState(false);
   const [result, setResult] = useState<MintResult | null>(null);
 
   useEffect(() => {
-    const walletInfo = context.state.walletInfo;
-    if (!walletInfo) {
-      setKeyHash(null);
-      setStakeAddress("");
-      return;
-    }
+    if (!walletInfo) return;
+    let cancelled = false;
     walletInfo.enable().then(async (connection) => {
       const [changeAddress, rewardAddresses] = await Promise.all([connection.getChangeAddress(), connection.getRewardAddresses()]);
-      setKeyHash(paymentKeyHash(changeAddress));
-      setStakeAddress(rewardAddressHashToBech32(rewardAddresses[0]));
+      if (!cancelled) {
+        setWalletKeys({
+          keyHash: paymentKeyHash(changeAddress),
+          stakeAddress: rewardAddressHashToBech32(rewardAddresses[0]),
+        });
+      }
     });
-  }, [context.state.walletInfo]);
+    return () => {
+      cancelled = true;
+    };
+  }, [walletInfo]);
 
-  useEffect(() => {
-    setPolicy(null);
-  }, [keyHash]);
+  const keyHash = walletInfo ? walletKeys?.keyHash ?? null : null;
+  const stakeAddress = walletInfo ? walletKeys?.stakeAddress ?? "" : "";
+  const policy = keyHash && selection?.keyHash === keyHash ? selection.policy : null;
 
   const connect = async () => {
     const walletInfo = await getSelectedWallet(SelectionMode.ForceSelectIfNone);
     context.setState({ walletInfo });
   };
 
-  const selectPolicy = useCallback((selected: MintPolicy | null) => setPolicy(selected), []);
+  const selectPolicy = useCallback(
+    (selected: MintPolicy | null) => {
+      if (keyHash) setSelection({ keyHash, policy: selected });
+    },
+    [keyHash],
+  );
 
   const valid = tokens.length > 0 && tokens.every((token) => Object.keys(tokenErrors(token, tokens)).length === 0);
 

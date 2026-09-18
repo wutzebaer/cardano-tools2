@@ -1,17 +1,17 @@
 "use client";
 
-import { Cardano } from "@cardano/types";
-import { listWallets } from "@cardano/wallet";
+import { EMPTY_WALLETS, listWallets } from "@cardano/wallet";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+
+const subscribe = () => () => {};
+
+let clientWallets: ReturnType<typeof listWallets> | undefined;
+const getClientWallets = () => (clientWallets ??= listWallets());
+const getServerWallets = () => EMPTY_WALLETS;
 
 function WalletDialog() {
-  const [wallets, setWallets] = useState<Cardano>(new Map());
-
-  useEffect(() => {
-    const wallets = listWallets();
-    setWallets(wallets);
-  }, []);
+  const wallets = useSyncExternalStore(subscribe, getClientWallets, getServerWallets);
 
   return (
     <dialog id="wallet_dialog" className="modal">

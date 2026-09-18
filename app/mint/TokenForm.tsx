@@ -1,4 +1,4 @@
-import { ASSET_NAME_MAX_BYTES, utf8Bytes } from "@cardano/mint";
+import { assetNameFromName } from "@cardano/mint";
 import { MintToken, TokenProperty } from "@cardano/types";
 import { toIpfsUrl } from "@cardano/utils";
 import IpfsImage from "@components/IpfsImage";
@@ -11,20 +11,17 @@ const MAX_FILE_BYTES = 104_857_600;
 const ONCHAIN_FILE_BYTES = 16_384;
 
 export function tokenErrors(token: MintToken, allTokens: MintToken[]) {
-  const errors: Partial<Record<"assetName" | "amount" | "name" | "image" | "decimals", string>> = {};
-  const assetName = token.assetName.trim();
-  if (!assetName) {
-    errors.assetName = "Required";
-  } else if (utf8Bytes(assetName).length > ASSET_NAME_MAX_BYTES) {
-    errors.assetName = `Max ${ASSET_NAME_MAX_BYTES} bytes`;
-  } else if (allTokens.some((other) => other.id !== token.id && other.assetName.trim() === assetName)) {
-    errors.assetName = "Duplicate asset name";
+  const errors: Partial<Record<"amount" | "name" | "image" | "decimals", string>> = {};
+  const assetName = assetNameFromName(token.name);
+  if (!token.name.trim()) {
+    errors.name = "Required";
+  } else if (!assetName) {
+    errors.name = "Needs letters or numbers";
+  } else if (allTokens.some((other) => other.id !== token.id && assetNameFromName(other.name) === assetName)) {
+    errors.name = "Duplicate asset name";
   }
   if (!/^\d+$/.test(token.amount) || Number(token.amount) < 1) {
     errors.amount = "Whole number ≥ 1";
-  }
-  if (!token.name.trim()) {
-    errors.name = "Required";
   }
   if (token.standard === 222 && !token.image.trim()) {
     errors.image = "Required";
@@ -133,14 +130,19 @@ export default function TokenForm({ token, allTokens, onChange, onRemove }: { to
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Asset name" error={errors.assetName}>
-            <input className={inputClass} value={token.assetName} onChange={(e) => update({ assetName: e.target.value })} placeholder="Token001" />
+          <Field label="Name" error={errors.name}>
+            <input
+              className={inputClass}
+              value={token.name}
+              onChange={(e) => update({ name: e.target.value, assetName: assetNameFromName(e.target.value) })}
+              placeholder="My token"
+            />
+            {token.assetName && token.assetName !== token.name.trim() ? (
+              <span className="text-[11px] text-base-content/45">Asset name {token.assetName}</span>
+            ) : null}
           </Field>
           <Field label={isNft ? "Amount" : "Amount (smallest unit)"} error={errors.amount}>
             <input className={inputClass} type="number" min="1" value={token.amount} disabled={isNft} onChange={(e) => update({ amount: e.target.value })} />
-          </Field>
-          <Field label="Name" error={errors.name}>
-            <input className={inputClass} value={token.name} onChange={(e) => update({ name: e.target.value })} placeholder="My token" />
           </Field>
           <Field label={isNft ? "Image URI" : "Logo URI"} error={errors.image}>
             <input

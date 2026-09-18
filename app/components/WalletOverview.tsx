@@ -1,13 +1,13 @@
 "use client";
 
 import { rewardAddressHashToBech32 } from "@cardano/transaction";
+import { WalletInfo } from "@cardano/types";
 import { formatAda } from "@cardano/utils";
 import { getSelectedWallet, SelectionMode } from "@cardano/wallet";
 import { ApplicationContext } from "@components/StateProvider";
 import { Value } from "@emurgo/cardano-serialization-lib-browser";
-import { WalletInfo } from "@cardano/types";
-import { useContext, useEffect, useState } from "react";
 import Image from "next/image";
+import { useContext, useEffect, useState } from "react";
 
 interface WalletStats {
   name: string;
@@ -52,16 +52,16 @@ function WalletOverview() {
     (async () => {
       if (!context.state.walletInfo) {
         const fetchedWalletInfo = await getSelectedWallet(SelectionMode.IfSelected);
-        if (fetchedWalletInfo) {
-          context.setState({ walletInfo: fetchedWalletInfo });
-        }
+        context.setState({ walletInfo: fetchedWalletInfo });
       }
     })();
   }, [context]);
 
   const reconnect = async () => {
-    const fetchedWalletInfo = await getSelectedWallet(SelectionMode.ForceSelection);
-    context.setState({ walletInfo: fetchedWalletInfo });
+    context.setState({ walletInfo: null });
+    getSelectedWallet(SelectionMode.ForceSelection).then(fetchedWalletInfo => {
+      context.setState({ walletInfo: fetchedWalletInfo });
+    });
   }
 
   const [balanceInt, balanceFraction] = walletStats ? formatAda(walletStats.balance).split(".") : [];
