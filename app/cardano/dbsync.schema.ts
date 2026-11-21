@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/returnAddresses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Find the first known address for many stake addresses at once, unknown stake addresses are omitted */
+        post: operations["getReturnAddresses"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/{stakeAddress}/mints": {
         parameters: {
             query?: never;
@@ -410,6 +427,10 @@ export interface components {
         ReturnAddress: {
             address?: string;
         };
+        StakeReturnAddress: {
+            stakeAddress: string;
+            address: string;
+        };
         TokenDetails: {
             /** Format: int64 */
             slotNo: number;
@@ -531,6 +552,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StakeInfo"];
+                };
+            };
+        };
+    };
+    getReturnAddresses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StakeReturnAddress"][];
                 };
             };
         };

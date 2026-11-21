@@ -65,3 +65,69 @@ export async function getMints(stakeAddress: string) {
     })
   );
 }
+
+export async function getTokenDetails(policyId: string, assetName: string) {
+  return handleRequest(
+    client.GET("/token/{policyId}/{assetName}", {
+      params: { path: { policyId, assetName } },
+    })
+  );
+}
+
+export async function getAddressTokens(address: string) {
+  return handleRequest(
+    client.GET("/{address}/token", {
+      params: { path: { address } },
+    })
+  );
+}
+
+export async function getStatement(address: string) {
+  return handleRequest(
+    client.GET("/{address}/statement", {
+      params: { path: { address } },
+    })
+  );
+}
+
+export async function getPoolList() {
+  return handleRequest(client.GET("/poolList", { next: { revalidate: 3600 } }));
+}
+
+export async function getEpochStake(poolHash: string, epoch: number) {
+  return handleRequest(
+    client.GET("/epochStake/{poolHash}/{epoch}", {
+      params: { path: { poolHash, epoch } },
+    })
+  );
+}
+
+export async function getReturnAddresses(stakeAddresses: string[]) {
+  return handleRequest(client.POST("/returnAddresses", { body: stakeAddresses }));
+}
+
+export async function isTransactionConfirmed(txId: string) {
+  return handleRequest(
+    client.GET("/transaction/{txId}/confirmed", {
+      params: { path: { txId } },
+      cache: "no-store",
+    })
+  );
+}
+
+export async function getUtxos(address: string) {
+  return handleRequest(
+    client.GET("/{address}/utxos", {
+      params: { path: { address } },
+      cache: "no-store",
+    })
+  );
+}
+
+export async function getAddressByHandle(handle: string) {
+  return handleRequest(
+    client.GET("/handles/{handle}", {
+      params: { path: { handle } },
+    })
+  );
+}

@@ -2,12 +2,13 @@ import { assetNameFromName } from "@cardano/mint";
 import { MintToken, TokenProperty } from "@cardano/types";
 import { toIpfsUrl } from "@cardano/utils";
 import IpfsImage from "@components/IpfsImage";
-import { PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { ChangeEvent, ReactNode, useState } from "react";
+import { Field, inputClass, textareaClass } from "@components/ui";
+import { DocumentDuplicateIcon, PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { ChangeEvent, useState } from "react";
 import { uploadToIpfs } from "./uploadToIpfs";
 
 /** Same limits as the old mint form: ≤ 16 KB can go on-chain, otherwise IPFS, max 100 MB. */
-const MAX_FILE_BYTES = 104_857_600;
+export const MAX_FILE_BYTES = 104_857_600;
 const ONCHAIN_FILE_BYTES = 16_384;
 
 export function tokenErrors(token: MintToken, allTokens: MintToken[]) {
@@ -32,21 +33,20 @@ export function tokenErrors(token: MintToken, allTokens: MintToken[]) {
   return errors;
 }
 
-function Field({ label, error, children, className = "" }: { label: string; error?: string; children: ReactNode; className?: string }) {
-  return (
-    <label className={`flex flex-col gap-1 ${className}`}>
-      <span className="flex justify-between text-xs text-base-content/55">
-        {label}
-        {error ? <span className="text-error">{error}</span> : null}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-const inputClass = "input w-full border-line bg-base-300 focus-within:border-primary";
-
-export default function TokenForm({ token, allTokens, onChange, onRemove }: { token: MintToken; allTokens: MintToken[]; onChange: (token: MintToken) => void; onRemove?: () => void }) {
+export default function TokenForm({
+  token,
+  allTokens,
+  onChange,
+  onCopyToAll,
+  onRemove,
+}: {
+  token: MintToken;
+  allTokens: MintToken[];
+  onChange: (token: MintToken) => void;
+  /** Applies the given fields of this token to all other tokens */
+  onCopyToAll?: (patch: Partial<MintToken>) => void;
+  onRemove?: () => void;
+}) {
   const errors = tokenErrors(token, allTokens);
   const isNft = token.standard === 222;
   const [uploading, setUploading] = useState(false);
@@ -171,7 +171,7 @@ export default function TokenForm({ token, allTokens, onChange, onRemove }: { to
             </>
           )}
           <Field label="Description" className="sm:col-span-2">
-            <textarea className="textarea w-full border-line bg-base-300 focus-within:border-primary" rows={2} value={token.description} onChange={(e) => update({ description: e.target.value })} />
+            <textarea className={textareaClass} rows={2} value={token.description} onChange={(e) => update({ description: e.target.value })} />
           </Field>
         </div>
       </div>
@@ -179,6 +179,17 @@ export default function TokenForm({ token, allTokens, onChange, onRemove }: { to
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-xs text-base-content/55">Custom properties</span>
+          {onCopyToAll ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs ml-auto gap-1"
+              title="Copy description and custom properties to all other tokens"
+              onClick={() => onCopyToAll({ description: token.description, properties: token.properties.map((property) => ({ ...property })) })}
+            >
+              <DocumentDuplicateIcon className="size-3.5" />
+              Copy to all
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn btn-ghost btn-xs gap-1"

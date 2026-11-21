@@ -1,9 +1,13 @@
-import { getMints } from "@cardano/dbsync";
-import { createPolicy, policiesFromMints, policySecondsLeft } from "@cardano/mint";
+"use client";
+
+import { createPolicy, policySecondsLeft } from "@cardano/mint";
+import { importPolicy } from "@cardano/policies";
 import { MintPolicy } from "@cardano/types";
 import { shortenId } from "@cardano/utils";
-import { PlusIcon } from "@heroicons/react/24/outline";
-import { useEffect, useState } from "react";
+import { Field, inputClass, secondaryButtonClass, textareaClass } from "@components/ui";
+import { ArrowDownTrayIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { useState } from "react";
+import { PolicySelection } from "./usePolicies";
 
 function formatTimeLeft(seconds: number) {
   if (!Number.isFinite(seconds)) return "no lock";
@@ -14,99 +18,140 @@ function formatTimeLeft(seconds: number) {
   return `locks in ${hours} h`;
 }
 
-function policyLabel(policy: MintPolicy, onChain: boolean) {
-  const status = onChain ? formatTimeLeft(policySecondsLeft(policy)) : "not minted yet";
-  return `${shortenId(policy.policyId, 8)} · ${status}`;
+function policyLabel(policy: MintPolicy, minted: boolean) {
+  const status = policy.skey || minted ? formatTimeLeft(policySecondsLeft(policy)) : `not minted yet · ${formatTimeLeft(policySecondsLeft(policy))}`;
+  const name = policy.name ? `${policy.name} · ` : "";
+  return `${name}${shortenId(policy.policyId, 8)} · ${status}${policy.skey ? " · imported" : ""}`;
 }
 
-const NO_POLICIES: MintPolicy[] = [];
+type Mode = "select" | "create" | "import";
 
-export default function PolicySelector({
-  keyHash,
-  stakeAddress,
-  selected,
-  onSelect,
-}: {
-  keyHash: string;
-  stakeAddress: string;
-  selected: MintPolicy | null;
-  onSelect: (policy: MintPolicy | null) => void;
-}) {
-  const [loadedPolicies, setLoadedPolicies] = useState<MintPolicy[]>([]);
-  const [creating, setCreating] = useState(false);
+export default function PolicySelector({ keyHash, selection }: { keyHash: string; selection: PolicySelection }) {
+  const { policies, minted, stored, selected, loading, select, add, remove } = selection;
+  const [mode, setMode] = useState<Mode>("select");
+  const [name, setName] = useState("");
   const [days, setDays] = useState("365");
+  const [script, setScript] = useState("");
+  const [signingKey, setSigningKey] = useState("");
+  const [importError, setImportError] = useState("");
 
-  useEffect(() => {
-    if (!stakeAddress) return;
-    let cancelled = false;
-    getMints(stakeAddress).then((mints) => {
-      if (!cancelled) setLoadedPolicies(policiesFromMints(mints, keyHash));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [stakeAddress, keyHash]);
-
-  const chainPolicies = stakeAddress ? loadedPolicies : NO_POLICIES;
-
-  useEffect(() => {
-    if (!selected && chainPolicies[0]) {
-      onSelect(chainPolicies[0]);
-    }
-  }, [chainPolicies, selected, onSelect]);
-
-  const onChain = chainPolicies.some((policy) => policy.policyId === selected?.policyId);
-  const options = selected && !onChain ? [...chainPolicies, selected] : chainPolicies;
+  const close = () => {
+    setMode("select");
+    setName("");
+    setScript("");
+    setSigningKey("");
+    setImportError("");
+  };
 
   const create = () => {
-    const policy = createPolicy(keyHash, Number(days));
-    onSelect(policy);
-    setCreating(false);
+    add({ ...createPolicy(keyHash, Number(days)), name: name.trim() || undefined });
+    close();
+  };
+
+  const doImport = () => {
+    try {
+      add(importPolicy(name, script, signingKey));
+      close();
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const removeSelected = () => {
+    if (selected && confirm(selected.skey ? "Remove this policy and its signing key from this browser? Without a backup of the key it cannot be restored." : "Remove this policy from this browser?")) {
+      remove(selected.policyId);
+    }
   };
 
   return (
     <div className="surface flex flex-col gap-4 p-5">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="section-label">Policy</p>
-        </div>
-        {!creating ? (
-          <button type="button" className="btn btn-sm gap-1 border-line bg-base-300 hover:border-line-strong" onClick={() => setCreating(true)}>
-            <PlusIcon className="size-4" />
-            New policy
-          </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="section-label">Policy</p>
+        {mode === "select" ? (
+          <div className="flex gap-2">
+            <button type="button" className={secondaryButtonClass} onClick={() => setMode("import")}>
+              <ArrowDownTrayIcon className="size-4" />
+              Import
+            </button>
+            <button type="button" className={secondaryButtonClass} onClick={() => setMode("create")}>
+              <PlusIcon className="size-4" />
+              New policy
+            </button>
+          </div>
         ) : null}
       </div>
 
-      {options.length > 0 ? (
-        <select
-          className="select w-full border-line bg-base-300"
-          value={selected?.policyId ?? ""}
-          onChange={(e) => onSelect(options.find((policy) => policy.policyId === e.target.value) ?? null)}
-        >
-          {options.map((policy) => (
-            <option key={policy.policyId} value={policy.policyId} disabled={policySecondsLeft(policy) <= 0}>
-              {policyLabel(policy, chainPolicies.some((onChainPolicy) => onChainPolicy.policyId === policy.policyId))}
-            </option>
-          ))}
-        </select>
+      {policies.length > 0 ? (
+        <div className="flex gap-2">
+          <select
+            className="select w-full border-line bg-base-300"
+            value={selected?.policyId ?? ""}
+            onChange={(e) => select(policies.find((policy) => policy.policyId === e.target.value) ?? null)}
+          >
+            {policies.map((policy) => (
+              <option key={policy.policyId} value={policy.policyId} disabled={policySecondsLeft(policy) <= 0}>
+                {policyLabel(policy, minted.has(policy.policyId))}
+              </option>
+            ))}
+          </select>
+          {selected && stored.has(selected.policyId) ? (
+            <button type="button" className="btn btn-ghost btn-square text-base-content/55 hover:text-error" onClick={removeSelected} aria-label="Remove policy from this browser">
+              <TrashIcon className="size-4" />
+            </button>
+          ) : null}
+        </div>
+      ) : loading ? (
+        <span className="loading loading-spinner loading-sm text-primary" />
       ) : (
-        <p className="text-sm text-base-content/55">No minted policies yet. Create one to mint.</p>
+        <p className="text-sm text-base-content/55">No policies yet. Create one to mint.</p>
       )}
 
       {selected ? <p className="break-all font-mono text-xs text-base-content/45">{selected.policyId}</p> : null}
 
-      {creating ? (
-        <div className="flex flex-col gap-3 rounded-field border border-line bg-base-300 p-4 sm:flex-row sm:items-end">
-          <label className="flex flex-col gap-1 text-xs text-base-content/55">
-            Days until lock
-            <input className="input w-32 border-line bg-base-200" type="number" min="1" max="10000" value={days} onChange={(e) => setDays(e.target.value)} />
-          </label>
+      {mode === "create" ? (
+        <div className="flex flex-col gap-4 rounded-field border border-line bg-base-300 p-4">
+          <p className="text-xs text-base-content/55">
+            The policy is signed by your wallet key, nothing secret is stored. After the lock date nobody can mint or burn its tokens any more.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
+            <Field label="Name (optional)">
+              <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="My collection" />
+            </Field>
+            <Field label="Days until lock">
+              <input className={inputClass} type="number" min="1" max="10000" value={days} onChange={(e) => setDays(e.target.value)} />
+            </Field>
+          </div>
           <div className="flex gap-2">
-            <button type="button" className="btn btn-primary btn-sm" onClick={create} disabled={!(Number(days) >= 1)}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={create} disabled={!(Number(days) >= 1 && Number(days) <= 10000)}>
               Create
             </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCreating(false)}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={close}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {mode === "import" ? (
+        <div className="flex flex-col gap-4 rounded-field border border-line bg-base-300 p-4">
+          <p className="text-xs text-base-content/55">
+            Import a policy created elsewhere, e.g. with the previous Cardano Tools or cardano-cli. Script and signing key are kept only in this browser and are
+            used to sign next to your wallet.
+          </p>
+          <Field label="Name (optional)">
+            <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="My old policy" />
+          </Field>
+          <Field label="Policy script (JSON)">
+            <textarea className={`${textareaClass} font-mono text-xs`} rows={5} value={script} onChange={(e) => setScript(e.target.value)} placeholder='{"type": "all", "scripts": [{"type": "before", "slot": 1}, {"type": "sig", "keyHash": "…"}]}' />
+          </Field>
+          <Field label="Policy signing key (.skey file content or hex)" error={importError}>
+            <textarea className={`${textareaClass} font-mono text-xs`} rows={3} value={signingKey} onChange={(e) => setSigningKey(e.target.value)} placeholder='{"type": "PaymentSigningKeyShelley_ed25519", "cborHex": "5820…"}' />
+          </Field>
+          <div className="flex gap-2">
+            <button type="button" className="btn btn-primary btn-sm" onClick={doImport} disabled={!script.trim() || !signingKey.trim()}>
+              Import
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={close}>
               Cancel
             </button>
           </div>

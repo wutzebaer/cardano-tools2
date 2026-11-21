@@ -7,12 +7,14 @@
     "build": "next build",
     "start": "next start -p 3333",
     "lint": "eslint .",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"tests/*.test.mjs\"",
     "update-schema": "npx -y -p openapi-typescript openapi-typescript http://host.docker.internal:4444/cardanoDbSyncApi/v3/api-docs -o ./app/cardano/dbsync.schema.ts",
     "check-outdated": "npm outdated"
   },
   "dependencies": {
     "@emurgo/cardano-serialization-lib-browser": "^17",
     "@heroicons/react": "^2",
+    "@noble/hashes": "^2.4.0",
     "next": "^16",
     "openapi-fetch": "^0",
     "react": "^19",

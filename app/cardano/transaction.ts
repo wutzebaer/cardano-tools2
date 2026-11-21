@@ -1,5 +1,6 @@
 import { getStakeInfo } from "@cardano/dbsync";
-import { PolicyPrivate, SimpleScript, WalletConnection } from "@cardano/types";
+import { submitSignedTx } from "@cardano/submit";
+import { SimpleScript, WalletConnection } from "@cardano/types";
 import {
   Address,
   BigNum,
@@ -15,6 +16,7 @@ import {
   RewardAddress,
   ScriptAll,
   ScriptAny,
+  ScriptNOfK,
   ScriptPubkey,
   StakeDelegation,
   StakeRegistrationAndDelegation,
@@ -28,16 +30,27 @@ import {
   TransactionUnspentOutputs,
   TransactionWitnessSet,
   Value,
-  make_vkey_witness,
 } from "@emurgo/cardano-serialization-lib-browser";
 
-export const unixToSlot = (unixSeconds: number) => unixSeconds - 1591566291;
+/** Mainnet: slot = unix time - 1591566291 (since the Shelley hard fork, 1 slot = 1 second). */
+const SLOT_ZERO_UNIX = 1591566291;
+const EPOCH_ZERO_UNIX = 1506203091;
+const EPOCH_SECONDS = 432000;
+
+export const unixToSlot = (unixSeconds: number) => unixSeconds - SLOT_ZERO_UNIX;
 
 export const currentSlot = () => Math.floor(unixToSlot(Date.now() / 1000));
+
+export const currentEpoch = () => Math.floor((Date.now() / 1000 - EPOCH_ZERO_UNIX) / EPOCH_SECONDS);
 
 const KEY_DEPOSIT = BigNum.from_str("2000000");
 
 export const COINS_PER_UTXO_BYTE = BigNum.from_str("4310");
+
+export const MAX_TX_SIZE = 16384;
+
+/** Seconds a built transaction stays valid. */
+export const TTL_SECONDS = 60 * 10;
 
 const txBuilderConfig = TransactionBuilderConfigBuilder.new()
   .fee_algo(LinearFee.new(BigNum.from_str("44"), BigNum.from_str("155381")))
@@ -45,20 +58,107 @@ const txBuilderConfig = TransactionBuilderConfigBuilder.new()
   .pool_deposit(BigNum.from_str("500000000"))
   .key_deposit(KEY_DEPOSIT)
   .max_value_size(5000)
-  .max_tx_size(16384)
+  .max_tx_size(MAX_TX_SIZE)
   .build();
 
-export const sendTransaction = async (connection: WalletConnection, addOutputs: (txBuilder: TransactionBuilder) => void, policy?: PolicyPrivate) => {
-  const tx = await buildTransaction(connection, addOutputs);
-  return signAndSubmitTransaction(connection, tx, policy);
+export interface TxOptions {
+  /** Extra keys that have to sign, e.g. the key of an imported policy. Never leaves the browser. */
+  signingKeys?: PrivateKey[];
+  /** Spend from these instead of asking the wallet, used to chain transactions before they are confirmed. */
+  utxos?: TransactionUnspentOutput[];
+}
+
+export const hexToBytes = (hex: string) => Uint8Array.from(Buffer.from(hex, "hex"));
+
+export async function walletUtxos(connection: WalletConnection) {
+  const rawUtxos = (await connection.getUtxos()) ?? [];
+  return rawUtxos.map((raw) => TransactionUnspentOutput.from_bytes(hexToBytes(raw)));
+}
+
+export async function walletChangeAddress(connection: WalletConnection) {
+  return Address.from_bytes(hexToBytes(await connection.getChangeAddress()));
+}
+
+/**
+ * How inputs are picked, tried in this order. Random selection keeps the wallet's UTxO set healthy but can fail,
+ * e.g. when the picked inputs leave too little ADA for the change of their tokens. Spending everything always balances.
+ */
+const INPUT_STRATEGIES = [CoinSelectionStrategyCIP2.RandomImproveMultiAsset, CoinSelectionStrategyCIP2.LargestFirstMultiAsset, "all"] as const;
+
+export const buildTransaction = async (
+  connection: WalletConnection,
+  configure: (txBuilder: TransactionBuilder) => void,
+  utxos?: TransactionUnspentOutput[]
+): Promise<Transaction> => {
+  const changeAddress = await walletChangeAddress(connection);
+  const spendable = utxos ?? (await walletUtxos(connection));
+
+  let firstError: unknown;
+  for (const strategy of INPUT_STRATEGIES) {
+    try {
+      const txBuilder = TransactionBuilder.new(txBuilderConfig);
+      txBuilder.set_ttl(currentSlot() + TTL_SECONDS);
+
+      configure(txBuilder);
+
+      if (strategy === "all") {
+        for (const utxo of spendable) {
+          txBuilder.add_regular_input(utxo.output().address(), utxo.input(), utxo.output().amount());
+        }
+      } else {
+        const transactionUnspentOutputs = TransactionUnspentOutputs.new();
+        for (const utxo of spendable) {
+          transactionUnspentOutputs.add(utxo);
+        }
+        txBuilder.add_inputs_from(transactionUnspentOutputs, strategy);
+      }
+      txBuilder.add_change_if_needed(changeAddress);
+
+      return txBuilder.build_tx();
+    } catch (error) {
+      firstError ??= error;
+    }
+  }
+  throw firstError;
+};
+
+export const signAndSubmitTransaction = async (connection: WalletConnection, tx: Transaction, signingKeys: PrivateKey[] = []) => {
+  // FixedTransaction keeps the body bytes untouched, so the hash the wallet signs is the hash we submit
+  const fixedTransaction = FixedTransaction.from_bytes(tx.to_bytes());
+
+  const walletWitnesses = TransactionWitnessSet.from_hex(await connection.signTx(tx.to_hex(), true));
+  const vkeys = walletWitnesses.vkeys();
+  for (let i = 0; i < (vkeys?.len() ?? 0); i++) {
+    fixedTransaction.add_vkey_witness(vkeys!.get(i));
+  }
+  for (const signingKey of signingKeys) {
+    fixedTransaction.sign_and_add_vkey_signature(signingKey);
+  }
+
+  const signedTx = fixedTransaction.to_hex();
+  try {
+    await connection.submitTx(signedTx);
+  } catch (walletError) {
+    // some wallets cannot submit (e.g. no node connection), try a public submit endpoint before giving up
+    try {
+      await submitSignedTx(signedTx);
+    } catch {
+      throw walletError;
+    }
+  }
+
+  return fixedTransaction.transaction_hash().to_hex();
+};
+
+export const sendTransaction = async (connection: WalletConnection, configure: (txBuilder: TransactionBuilder) => void, options: TxOptions = {}) => {
+  const tx = await buildTransaction(connection, configure, options.utxos);
+  return signAndSubmitTransaction(connection, tx, options.signingKeys);
 };
 
 export const sendAda = async (connection: WalletConnection, targetAddress: Address, amount: BigNum) => {
-  const output = TransactionOutput.new(targetAddress, Value.new(amount));
-  const tx = await buildTransaction(connection, (txBuilder: TransactionBuilder) => {
-    txBuilder.add_output(output);
+  return sendTransaction(connection, (txBuilder) => {
+    txBuilder.add_output(TransactionOutput.new(targetAddress, Value.new(amount)));
   });
-  return await signAndSubmitTransaction(connection, tx);
 };
 
 export const delegateToPool = async (connection: WalletConnection, poolId: string) => {
@@ -66,7 +166,7 @@ export const delegateToPool = async (connection: WalletConnection, poolId: strin
 
   const rewardAddressHash = (await connection.getRewardAddresses())[0];
   const stakeAddress = rewardAddressHashToBech32(rewardAddressHash);
-  const address = Address.from_bytes(Buffer.from(rewardAddressHash, "hex"));
+  const address = Address.from_bytes(hexToBytes(rewardAddressHash));
   const rewardAddress = RewardAddress.from_address(address)!;
   const stakeCredential = rewardAddress.payment_cred();
 
@@ -86,118 +186,38 @@ export const delegateToPool = async (connection: WalletConnection, poolId: strin
     );
   }
 
-  await sendTransaction(connection, (txBuilder) => {
+  return sendTransaction(connection, (txBuilder) => {
     txBuilder.set_certs(certificates);
   });
 };
 
-const buildTransaction = async (connection: WalletConnection, addOutputs: (txBuilder: TransactionBuilder) => void): Promise<Transaction> => {
-  const changeAddress = Address.from_bytes(Buffer.from(await connection.getChangeAddress(), "hex"));
-
-  // keep one utxo as collateral
-  // const collateral = (connection.getCollateral && (await connection.getCollateral().catch(() => []))?.slice(0, 1)) ?? [];
-  const collateral: string[] = [];
-
-  // get all utxos, except collateral
-  const rawUtxos = (await connection.getUtxos()).filter((item) => !collateral.includes(item));
-
-  // parse utxos
-  const utxos = rawUtxos.map((ru) => {
-    return TransactionUnspentOutput.from_bytes(Buffer.from(ru, "hex"));
-  });
-
-  // create transaction unspent outputs
-  const transactionUnspentOutputs = TransactionUnspentOutputs.new();
-  for (const utxo of utxos) {
-    transactionUnspentOutputs.add(utxo);
-  }
-
-  const txBuilder = TransactionBuilder.new(txBuilderConfig);
-  txBuilder.set_ttl(currentSlot() + 60 * 10);
-
-  // add output
-  addOutputs(txBuilder);
-
-  // add inputs
-  txBuilder.add_inputs_from(transactionUnspentOutputs, CoinSelectionStrategyCIP2.RandomImproveMultiAsset);
-
-  // add change
-  txBuilder.add_change_if_needed(changeAddress);
-
-  const tx = txBuilder.build_tx();
-  console.log("built tx", tx.to_json());
-  return tx;
-};
-
-const signAndSubmitTransaction = async (connection: WalletConnection, tx: Transaction, policy?: PolicyPrivate) => {
-  const witnessCbor = await connection.signTx(tx.to_hex(), true);
-  const witnessSet = TransactionWitnessSet.from_hex(witnessCbor);
-
-  // keep the mint scripts the builder put into the witness set; wallets only return their vkeys
-  const builtNativeScripts = tx.witness_set().native_scripts();
-  if (builtNativeScripts) {
-    witnessSet.set_native_scripts(builtNativeScripts);
-  }
-
-  const fixedTransaction = FixedTransaction.from_bytes(tx.to_bytes());
-  const txHash = fixedTransaction.transaction_hash();
-
-  if (policy) {
-    const pkeyCbor = JSON.parse(policy.address.skey).cborHex;
-    const privateKey = PrivateKey.from_hex(pkeyCbor.substring(4)); // Remove the "5820" prefix
-    const witness = make_vkey_witness(txHash, privateKey);
-    const vkeys = witnessSet.vkeys()!;
-    vkeys.add(witness);
-    witnessSet.set_vkeys(vkeys);
-
-    const nativeScripts = NativeScripts.new();
-    nativeScripts.add(toNativeScript(JSON.parse(policy.policy)));
-    witnessSet.set_native_scripts(nativeScripts);
-  }
-
-  tx = Transaction.new(tx.body(), witnessSet, tx.auxiliary_data());
-
-  console.log("signed tx", tx.to_json());
-  try {
-    await connection.submitTx(tx.to_hex());
-  } catch (error) {
-    console.error("failed to submit tx", error);
-    console.log("failed to submit tx, submitting signed tx");
-    // await submitSignedTx(tx.to_hex());
-  }
-
-  return txHash.to_hex();
-};
-
 export const toNativeScript = (simpleScript: SimpleScript): NativeScript => {
-  if (simpleScript.type === "all") {
+  const children = () => {
     const scripts = NativeScripts.new();
-    simpleScript.scripts
-      ?.map((s) => toNativeScript(s))
-      .forEach((s) => {
-        scripts.add(s);
-      });
-    return NativeScript.new_script_all(ScriptAll.new(scripts));
-  } else if (simpleScript.type === "any") {
-    const scripts = NativeScripts.new();
-    simpleScript.scripts
-      ?.map((s) => toNativeScript(s))
-      .forEach((s) => {
-        scripts.add(s);
-      });
-    return NativeScript.new_script_any(ScriptAny.new(scripts));
-  } else if (simpleScript.type === "before") {
-    return NativeScript.new_timelock_expiry(TimelockExpiry.new(simpleScript.slot!));
-  } else if (simpleScript.type === "after") {
-    return NativeScript.new_timelock_start(TimelockStart.new_timelockstart(BigNum.from_str(`${simpleScript.slot}`)));
-  } else if (simpleScript.type === "sig") {
-    return NativeScript.new_script_pubkey(ScriptPubkey.new(Ed25519KeyHash.from_bytes(Buffer.from(`${simpleScript.keyHash}`, "hex"))));
-  } else {
-    throw new Error(`Cannot parse ${simpleScript}`);
+    for (const script of simpleScript.scripts ?? []) {
+      scripts.add(toNativeScript(script));
+    }
+    return scripts;
+  };
+  switch (simpleScript.type) {
+    case "all":
+      return NativeScript.new_script_all(ScriptAll.new(children()));
+    case "any":
+      return NativeScript.new_script_any(ScriptAny.new(children()));
+    case "atLeast":
+      return NativeScript.new_script_n_of_k(ScriptNOfK.new(simpleScript.required!, children()));
+    case "before":
+      return NativeScript.new_timelock_expiry(TimelockExpiry.new_timelockexpiry(BigNum.from_str(`${simpleScript.slot}`)));
+    case "after":
+      return NativeScript.new_timelock_start(TimelockStart.new_timelockstart(BigNum.from_str(`${simpleScript.slot}`)));
+    case "sig":
+      return NativeScript.new_script_pubkey(ScriptPubkey.new(Ed25519KeyHash.from_hex(`${simpleScript.keyHash}`)));
+    default:
+      throw new Error(`Cannot parse ${JSON.stringify(simpleScript)}`);
   }
 };
 
 export function rewardAddressHashToBech32(rewardAddressHash?: string) {
   if (!rewardAddressHash) return "";
-  return Address.from_bytes(Buffer.from(rewardAddressHash, "hex")).to_bech32();
+  return Address.from_bytes(hexToBytes(rewardAddressHash)).to_bech32();
 }

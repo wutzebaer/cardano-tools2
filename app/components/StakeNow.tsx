@@ -1,32 +1,30 @@
 "use client";
 
+import { CHIEN_POOL_ID } from "@cardano/pool";
 import { delegateToPool } from "@cardano/transaction";
 import { getSelectedWallet, SelectionMode } from "@cardano/wallet";
 import { ApplicationContext } from "@components/StateProvider";
 import Image from "next/image";
 import { useCallback, useContext } from "react";
 
-const StakeNow = () => {
-
+/** Delegates the connected wallet to the [CHIEN] pool. */
+export function useStakeNow() {
   const context = useContext(ApplicationContext);
 
-  const stake = useCallback(async () => {
-    const poolId = "pool180fejev4xgwe2y53ky0pxvgxr3wcvkweu6feq5mdljfzcsmtg6u";
+  return useCallback(async () => {
     const walletInfo = await getSelectedWallet(SelectionMode.ForceSelectIfNone);
     context.setState({ walletInfo: walletInfo });
-    delegateToPool(await walletInfo.enable(), poolId);
+    return delegateToPool(await walletInfo.enable(), CHIEN_POOL_ID);
   }, [context]);
+}
+
+const StakeNow = () => {
+  const stake = useStakeNow();
 
   return (
     <div className="surface flex flex-col gap-3 p-4">
       <div className="flex items-center gap-3">
-        <Image
-          className="rounded-full"
-          src="/images/charlien-t-sm.png"
-          alt="CHIEN logo"
-          width={36}
-          height={42}
-        />
+        <Image className="rounded-full" src="/images/charlien-t-sm.png" alt="CHIEN logo" width={36} height={42} />
         <div className="min-w-0">
           <p className="text-sm font-semibold">Stake with [CHIEN]</p>
           <p className="text-xs text-base-content/55">Support Cardano Tools</p>

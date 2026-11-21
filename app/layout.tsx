@@ -1,9 +1,11 @@
 import ErrorBoundary from "@components/ErrorBoundary";
 import ErrorToast from "@components/ErrorToast";
-import { SparklesIcon, Squares2X2Icon } from "@heroicons/react/24/outline";
+import { TELEGRAM_URL } from "@cardano/pool";
+import { BanknotesIcon, DocumentTextIcon, FireIcon, GiftIcon, IdentificationIcon, SparklesIcon, Squares2X2Icon, WalletIcon } from "@heroicons/react/24/outline";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Image from "next/image";
+import Link from "next/link";
 import Navbar from "./components/Navbar";
 import NavLink from "./components/NavLink";
 import SidebarHeader from "./components/SidebarHeader";
@@ -20,7 +22,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Cardano Tools",
-  description: "Browse, mint, and stake on Cardano",
+  description: "Browse, mint and burn tokens, reward your stakers and create wallet statements on Cardano, straight from your wallet",
 };
 
 export default function RootLayout({
@@ -53,8 +55,26 @@ export default function RootLayout({
                   <NavLink href="/browse" icon={<Squares2X2Icon className="size-5" />}>
                     Browse
                   </NavLink>
+                  <NavLink href="/my" icon={<WalletIcon className="size-5" />}>
+                    My tokens
+                  </NavLink>
                   <NavLink href="/mint" icon={<SparklesIcon className="size-5" />}>
                     Mint
+                  </NavLink>
+                  <NavLink href="/royalties" icon={<BanknotesIcon className="size-5" />}>
+                    Royalties
+                  </NavLink>
+                  <NavLink href="/burn" icon={<FireIcon className="size-5" />}>
+                    Burn
+                  </NavLink>
+                  <NavLink href="/register" icon={<IdentificationIcon className="size-5" />}>
+                    Register token
+                  </NavLink>
+                  <NavLink href="/rewards" icon={<GiftIcon className="size-5" />}>
+                    Reward stakers
+                  </NavLink>
+                  <NavLink href="/statement" icon={<DocumentTextIcon className="size-5" />}>
+                    Wallet statement
                   </NavLink>
                   <NavLink
                     href="/pool"
@@ -78,6 +98,20 @@ export default function RootLayout({
                 <div className="flex flex-col gap-3">
                   <StakeNow />
                   <WalletOverview />
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-[11px] text-base-content/45">
+                    <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:text-base-content">
+                      Contact
+                    </a>
+                    <a href="https://github.com/wutzebaer/cardano-tools2" target="_blank" rel="noopener noreferrer" className="hover:text-base-content">
+                      GitHub
+                    </a>
+                    <Link href="/legal/terms" className="hover:text-base-content">
+                      Terms
+                    </Link>
+                    <Link href="/legal/imprint" className="hover:text-base-content">
+                      Imprint
+                    </Link>
+                  </div>
                 </div>
               </aside>
             </div>

@@ -1,15 +1,17 @@
 "use client";
 
-import { assetNameFromName, labeledAssetNameHex, mintTokens, paymentKeyHash } from "@cardano/mint";
-import { rewardAddressHashToBech32 } from "@cardano/transaction";
+import { assetNameFromName, labeledAssetNameHex, mintTokens } from "@cardano/mint";
 import { MintPolicy, MintToken } from "@cardano/types";
-import { getSelectedWallet, SelectionMode } from "@cardano/wallet";
-import { ApplicationContext } from "@components/StateProvider";
-import { ArrowTopRightOnSquareIcon, PlusIcon } from "@heroicons/react/24/outline";
-import Link from "next/link";
-import { useCallback, useContext, useEffect, useState } from "react";
+import ConnectWallet from "@components/ConnectWallet";
+import TxResult from "@components/TxResult";
+import { ExternalLink, secondaryButtonClass } from "@components/ui";
+import { ConnectedWallet } from "@components/useWallet";
+import { ArrowUpTrayIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { ChangeEvent, useState } from "react";
 import PolicySelector from "./PolicySelector";
-import TokenForm, { tokenErrors } from "./TokenForm";
+import TokenForm, { MAX_FILE_BYTES, tokenErrors } from "./TokenForm";
+import { uploadToIpfs } from "./uploadToIpfs";
+import { usePolicies } from "./usePolicies";
 
 interface MintResult {
   txHash: string;
@@ -17,8 +19,7 @@ interface MintResult {
   tokens: MintToken[];
 }
 
-function newToken(index: number): MintToken {
-  const name = `Token${String(index).padStart(3, "0")}`;
+function newToken(name: string, patch: Partial<MintToken> = {}): MintToken {
   return {
     id: crypto.randomUUID(),
     standard: 222,
@@ -32,115 +33,79 @@ function newToken(index: number): MintToken {
     url: "",
     decimals: "",
     properties: [],
+    ...patch,
   };
 }
 
-export default function MintForm() {
-  const context = useContext(ApplicationContext);
-  const walletInfo = context.state.walletInfo;
-  const [walletKeys, setWalletKeys] = useState<{ keyHash: string; stakeAddress: string } | null>(null);
-  const [selection, setSelection] = useState<{ keyHash: string; policy: MintPolicy | null } | null>(null);
-  const [tokens, setTokens] = useState<MintToken[]>([newToken(1)]);
+const numberedName = (index: number) => `Token${String(index).padStart(3, "0")}`;
+
+function Mint({ wallet }: { wallet: ConnectedWallet }) {
+  const selection = usePolicies(wallet);
+  const policy = selection.selected;
+  const [tokens, setTokens] = useState<MintToken[]>(() => [newToken(numberedName(1))]);
   const [minting, setMinting] = useState(false);
+  const [uploading, setUploading] = useState<string | null>(null);
   const [result, setResult] = useState<MintResult | null>(null);
-
-  useEffect(() => {
-    if (!walletInfo) return;
-    let cancelled = false;
-    walletInfo.enable().then(async (connection) => {
-      const [changeAddress, rewardAddresses] = await Promise.all([connection.getChangeAddress(), connection.getRewardAddresses()]);
-      if (!cancelled) {
-        setWalletKeys({
-          keyHash: paymentKeyHash(changeAddress),
-          stakeAddress: rewardAddressHashToBech32(rewardAddresses[0]),
-        });
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [walletInfo]);
-
-  const keyHash = walletInfo ? walletKeys?.keyHash ?? null : null;
-  const stakeAddress = walletInfo ? walletKeys?.stakeAddress ?? "" : "";
-  const policy = keyHash && selection?.keyHash === keyHash ? selection.policy : null;
-
-  const connect = async () => {
-    const walletInfo = await getSelectedWallet(SelectionMode.ForceSelectIfNone);
-    context.setState({ walletInfo });
-  };
-
-  const selectPolicy = useCallback(
-    (selected: MintPolicy | null) => {
-      if (keyHash) setSelection({ keyHash, policy: selected });
-    },
-    [keyHash],
-  );
 
   const valid = tokens.length > 0 && tokens.every((token) => Object.keys(tokenErrors(token, tokens)).length === 0);
 
   const mint = async () => {
-    if (!context.state.walletInfo || !policy) return;
+    if (!policy) return;
     setMinting(true);
     try {
-      const connection = await context.state.walletInfo.enable();
-      const txHash = await mintTokens(connection, policy, tokens);
+      const txHash = await mintTokens(wallet.connection, policy, tokens, wallet.keyHashes);
       setResult({ txHash, policy, tokens });
-      setTokens([newToken(1)]);
+      setTokens([newToken(numberedName(1))]);
     } finally {
       setMinting(false);
     }
   };
 
-  if (!context.state.walletInfo || !keyHash) {
-    return (
-      <div className="surface flex flex-col items-center gap-4 px-6 py-16 text-center">
-        <p className="text-sm text-base-content/55">Connect a wallet to mint tokens. The policy is derived from your wallet key.</p>
-        <button className="btn btn-primary" onClick={connect}>
-          Connect wallet
-        </button>
-      </div>
-    );
-  }
+  /** One NFT per file, named after the file. */
+  const addFromFiles = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = [...(e.target.files ?? [])];
+    e.target.value = "";
+    if (files.some((file) => file.size > MAX_FILE_BYTES)) {
+      throw new Error("Max 100mb per file");
+    }
+    try {
+      const added: MintToken[] = [];
+      for (const [index, file] of files.entries()) {
+        setUploading(`Uploading ${index + 1} of ${files.length}`);
+        const cid = await uploadToIpfs(file);
+        const name = file.name.replace(/\.[^.]*$/, "").slice(0, 60) || numberedName(tokens.length + index + 1);
+        added.push(newToken(name, { image: `ipfs://${cid}`, mediaType: file.type }));
+      }
+      // an untouched placeholder token is replaced instead of minted along
+      const untouched = tokens.length === 1 && !tokens[0].image && tokens[0].name === numberedName(1);
+      setTokens([...(untouched ? [] : tokens), ...added]);
+    } finally {
+      setUploading(null);
+    }
+  };
 
   if (result) {
     return (
-      <div className="surface flex flex-col gap-5 p-6">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Transaction submitted</h2>
-          <p className="mt-1 text-sm text-base-content/55">Your tokens will show up once the transaction is on-chain.</p>
-        </div>
-        <p className="break-all font-mono text-[13px]">{result.txHash}</p>
+      <TxResult title="Mint submitted" txHashes={[result.txHash]} onReset={() => setResult(null)} resetLabel="Mint more">
         <ul className="flex flex-col gap-1 text-sm">
           {result.tokens.map((token) => (
             <li key={token.id}>
-              <Link
+              <ExternalLink
                 href={`https://pool.pm/${result.policy.policyId}.${labeledAssetNameHex(token.standard, token.assetName)}`}
-                target="_blank"
                 className="inline-flex items-center gap-1 text-primary hover:underline"
               >
                 {token.name || token.assetName}
-                <ArrowTopRightOnSquareIcon className="size-3.5" />
-              </Link>
+              </ExternalLink>
             </li>
           ))}
         </ul>
-        <div className="flex flex-wrap gap-2">
-          <Link href={`https://cexplorer.io/tx/${result.txHash}`} target="_blank" className="btn btn-sm gap-2 border-line bg-base-300 hover:border-line-strong">
-            cexplorer
-            <ArrowTopRightOnSquareIcon className="size-3.5 text-base-content/45" />
-          </Link>
-          <button className="btn btn-primary btn-sm" onClick={() => setResult(null)}>
-            Mint more
-          </button>
-        </div>
-      </div>
+      </TxResult>
     );
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <PolicySelector keyHash={keyHash} stakeAddress={stakeAddress} selected={policy} onSelect={selectPolicy} />
+      <PolicySelector keyHash={wallet.keyHash} selection={selection} />
 
       <div className="flex flex-col gap-4">
         <p className="section-label">Tokens</p>
@@ -150,13 +115,25 @@ export default function MintForm() {
             token={token}
             allTokens={tokens}
             onChange={(changed) => setTokens(tokens.map((t) => (t.id === changed.id ? changed : t)))}
+            onCopyToAll={
+              tokens.length > 1
+                ? (patch) => setTokens(tokens.map((t) => (t.id === token.id ? t : { ...t, ...patch })))
+                : undefined
+            }
             onRemove={tokens.length > 1 ? () => setTokens(tokens.filter((t) => t.id !== token.id)) : undefined}
           />
         ))}
-        <button type="button" className="btn btn-sm w-fit gap-1 border-line bg-base-200 hover:border-line-strong" onClick={() => setTokens([...tokens, newToken(tokens.length + 1)])}>
-          <PlusIcon className="size-4" />
-          Add token
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={`${secondaryButtonClass} w-fit`} onClick={() => setTokens([...tokens, newToken(numberedName(tokens.length + 1))])}>
+            <PlusIcon className="size-4" />
+            Add token
+          </button>
+          <label className={`${secondaryButtonClass} w-fit ${uploading ? "btn-disabled" : ""}`}>
+            {uploading ? <span className="loading loading-spinner loading-xs" /> : <ArrowUpTrayIcon className="size-4" />}
+            {uploading ?? "Add NFTs from files"}
+            <input type="file" multiple className="hidden" onChange={addFromFiles} disabled={Boolean(uploading)} />
+          </label>
+        </div>
       </div>
 
       <div className="surface flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -170,4 +147,8 @@ export default function MintForm() {
       </div>
     </div>
   );
+}
+
+export default function MintForm() {
+  return <ConnectWallet message="Connect a wallet to mint tokens. The policy is derived from your wallet key.">{(wallet) => <Mint wallet={wallet} />}</ConnectWallet>;
 }

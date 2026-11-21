@@ -1,4 +1,4 @@
-import { COINS_PER_UTXO_BYTE, currentSlot, sendTransaction, toNativeScript } from "@cardano/transaction";
+import { COINS_PER_UTXO_BYTE, currentSlot, hexToBytes, sendTransaction, toNativeScript, TTL_SECONDS, TxOptions, walletChangeAddress } from "@cardano/transaction";
 import { MintPolicy, MintToken, SimpleScript, TokenDetails, WalletConnection } from "@cardano/types";
 import { crc8 } from "@cardano/utils";
 import {
@@ -22,7 +22,9 @@ import {
   PlutusList,
   PlutusMap,
   PlutusMapValues,
+  PrivateKey,
   ScriptPubkey,
+  TransactionBuilder,
   TransactionOutputBuilder,
 } from "@emurgo/cardano-serialization-lib-browser";
 
@@ -37,8 +39,6 @@ export const utf8Bytes = (text: string) => new TextEncoder().encode(text);
 export function assetNameFromName(name: string) {
   return name.replace(/[^a-zA-Z0-9]/g, "").slice(0, ASSET_NAME_MAX_BYTES);
 }
-
-const hexToBytes = (hex: string) => Uint8Array.from(Buffer.from(hex, "hex"));
 
 // ---------------------------------------------------------------------------
 // Policy: derived from the wallet's payment key, nothing secret to store
@@ -63,19 +63,38 @@ export function createPolicy(keyHash: string, days: number): MintPolicy {
   return { policyId: toNativeScript(script).hash().to_hex(), script };
 }
 
-function scriptKeyHashes(script: SimpleScript): string[] {
+export function scriptKeyHashes(script: SimpleScript): string[] {
   if (script.type === "sig" && script.keyHash) {
     return [script.keyHash];
   }
   return script.scripts?.flatMap(scriptKeyHashes) ?? [];
 }
 
-export function policyKeyHash(policy: MintPolicy) {
-  const keyHash = scriptKeyHashes(policy.script)[0];
-  if (!keyHash) {
-    throw new Error("Policy has no signature key");
+/** The key of the policy script this wallet signs with, if it is one of the wallet's keys. */
+export function policyWalletKeyHash(policy: MintPolicy, keyHashes: string[]) {
+  return scriptKeyHashes(policy.script).find((keyHash) => keyHashes.includes(keyHash));
+}
+
+/** Wallet-key policies are signed by the wallet, imported policies by their stored key. */
+export function canSignPolicy(policy: MintPolicy, keyHashes: string[]) {
+  return Boolean(policy.skey) || policyWalletKeyHash(policy, keyHashes) != null;
+}
+
+/** Sets validity and required signer so the policy script validates. */
+export function applyPolicy(txBuilder: TransactionBuilder, policy: MintPolicy, keyHashes: string[]) {
+  const dueSlot = policyDueSlot(policy);
+  if (dueSlot != null) {
+    txBuilder.set_ttl(Math.min(currentSlot() + TTL_SECONDS, dueSlot));
   }
-  return keyHash;
+  const walletKeyHash = policyWalletKeyHash(policy, keyHashes);
+  if (walletKeyHash) {
+    txBuilder.add_required_signer(Ed25519KeyHash.from_hex(walletKeyHash));
+  }
+}
+
+/** Extra signing keys the policy needs besides the wallet. */
+export function policyTxOptions(policy: MintPolicy): TxOptions {
+  return policy.skey ? { signingKeys: [PrivateKey.from_hex(policy.skey)] } : {};
 }
 
 function scriptDueSlot(script: SimpleScript): number | undefined {
@@ -94,7 +113,7 @@ export function policySecondsLeft(policy: MintPolicy) {
   return dueSlot == null ? Number.POSITIVE_INFINITY : dueSlot - currentSlot();
 }
 
-export function policiesFromMints(mints: TokenDetails[], keyHash: string) {
+export function policiesFromMints(mints: TokenDetails[], keyHashes: string[]) {
   const byId = new Map<string, MintPolicy>();
   for (const mint of mints) {
     if (byId.has(mint.maPolicyId)) {
@@ -104,7 +123,7 @@ export function policiesFromMints(mints: TokenDetails[], keyHash: string) {
       const script = JSON.parse(mint.maPolicyScript) as SimpleScript;
       const policy = { policyId: mint.maPolicyId, script };
       toNativeScript(script);
-      if (scriptKeyHashes(script).includes(keyHash)) {
+      if (policyWalletKeyHash(policy, keyHashes)) {
         byId.set(mint.maPolicyId, policy);
       }
     } catch {
@@ -195,44 +214,53 @@ export function referenceAddress(changeAddress: Address, keyHash: string) {
   return stake ? BaseAddress.new(network, payment, stake).to_address() : EnterpriseAddress.new(network, payment).to_address();
 }
 
-export async function mintTokens(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[]) {
-  const changeAddress = Address.from_bytes(hexToBytes(await connection.getChangeAddress()));
+/** Key that locks the reference NFTs: the policy's wallet key, so the address stays stable if the wallet rotates change addresses. */
+export function referenceKeyHash(policy: MintPolicy, keyHashes: string[], changeAddress: Address) {
+  return policyWalletKeyHash(policy, keyHashes) ?? changeAddress.payment_cred()!.to_keyhash()!.to_hex();
+}
+
+export async function mintTokens(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[]) {
+  const changeAddress = await walletChangeAddress(connection);
   const script = policyScript(policy);
   const policyHash = script.hash();
-  const referenceOutputAddress = referenceAddress(changeAddress, policyKeyHash(policy));
+  const referenceOutputAddress = referenceAddress(changeAddress, referenceKeyHash(policy, keyHashes, changeAddress));
   const dataCost = DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE);
 
-  return sendTransaction(connection, (txBuilder) => {
-    const mintBuilder = MintBuilder.new();
-    const witness = MintWitness.new_native_script(NativeScriptSource.new(script));
-    const userAssets = MultiAsset.new();
+  return sendTransaction(
+    connection,
+    (txBuilder) => {
+      const mintBuilder = MintBuilder.new();
+      const witness = MintWitness.new_native_script(NativeScriptSource.new(script));
+      const userAssets = MultiAsset.new();
 
-    for (const token of tokens) {
-      const assetName = assetNameFromName(token.name);
-      const referenceName = labeledAssetName(REFERENCE_LABEL, assetName);
-      const userName = labeledAssetName(token.standard, assetName);
+      for (const token of tokens) {
+        const assetName = assetNameFromName(token.name);
+        const referenceName = labeledAssetName(REFERENCE_LABEL, assetName);
+        const userName = labeledAssetName(token.standard, assetName);
 
-      mintBuilder.add_asset(witness, referenceName, Int.new_i32(1));
-      mintBuilder.add_asset(witness, userName, Int.from_str(token.amount));
+        mintBuilder.add_asset(witness, referenceName, Int.new_i32(1));
+        mintBuilder.add_asset(witness, userName, Int.from_str(token.amount));
 
-      const referenceAsset = MultiAsset.new();
-      referenceAsset.set_asset(policyHash, referenceName, BigNum.one());
+        const referenceAsset = MultiAsset.new();
+        referenceAsset.set_asset(policyHash, referenceName, BigNum.one());
+        txBuilder.add_output(
+          TransactionOutputBuilder.new()
+            .with_address(referenceOutputAddress)
+            .with_plutus_data(tokenDatum(token))
+            .next()
+            .with_asset_and_min_required_coin_by_utxo_cost(referenceAsset, dataCost)
+            .build()
+        );
+
+        userAssets.set_asset(policyHash, userName, BigNum.from_str(token.amount));
+      }
+
       txBuilder.add_output(
-        TransactionOutputBuilder.new()
-          .with_address(referenceOutputAddress)
-          .with_plutus_data(tokenDatum(token))
-          .next()
-          .with_asset_and_min_required_coin_by_utxo_cost(referenceAsset, dataCost)
-          .build()
+        TransactionOutputBuilder.new().with_address(changeAddress).next().with_asset_and_min_required_coin_by_utxo_cost(userAssets, dataCost).build()
       );
-
-      userAssets.set_asset(policyHash, userName, BigNum.from_str(token.amount));
-    }
-
-    txBuilder.add_output(
-      TransactionOutputBuilder.new().with_address(changeAddress).next().with_asset_and_min_required_coin_by_utxo_cost(userAssets, dataCost).build()
-    );
-    txBuilder.set_mint_builder(mintBuilder);
-    txBuilder.add_required_signer(Ed25519KeyHash.from_hex(policyKeyHash(policy)));
-  });
+      txBuilder.set_mint_builder(mintBuilder);
+      applyPolicy(txBuilder, policy, keyHashes);
+    },
+    policyTxOptions(policy)
+  );
 }

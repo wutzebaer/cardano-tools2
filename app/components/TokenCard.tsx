@@ -5,8 +5,9 @@ import IpfsImage from '@components/IpfsImage';
 import TokenImagePlaceholder from '@components/TokenImagePlaceholder';
 import { Verified } from '@components/JpgStoreIcons';
 import Link from 'next/link';
+import { ReactNode } from 'react';
 
-function TokenCard({ item, collection }: { item: TokenListItem; collection?: CollectionInfo }) {
+function TokenCard({ item, collection, footer }: { item: TokenListItem; collection?: CollectionInfo; footer?: ReactNode }) {
     const href = `/browse/token/${item.maFingerprint}`;
     const name = item.name || assetNameFromHex(item.maName);
     const imageSrc = toIpfsUrl(item.image);
@@ -42,7 +43,7 @@ function TokenCard({ item, collection }: { item: TokenListItem; collection?: Col
                     </Link>
                 </h3>
                 <p className="mt-1 text-xs text-base-content/45">
-                    {item.slotNo != null ? slotToDate(item.slotNo) : null}
+                    {footer ?? (item.slotNo != null ? slotToDate(item.slotNo) : null)}
                 </p>
             </div>
         </article>
