@@ -1,3 +1,5 @@
+import { getStakeInfo } from "@cardano/dbsync";
+import { PolicyPrivate, SimpleScript, WalletConnection } from "@cardano/types";
 import {
   Address,
   BigNum,
@@ -15,6 +17,7 @@ import {
   ScriptAny,
   ScriptPubkey,
   StakeDelegation,
+  StakeRegistrationAndDelegation,
   TimelockExpiry,
   TimelockStart,
   Transaction,
@@ -27,11 +30,12 @@ import {
   Value,
   make_vkey_witness,
 } from "@emurgo/cardano-serialization-lib-browser";
-import { PolicyPrivate, SimpleScript, WalletConnection } from "@cardano/types";
 
 export const unixToSlot = (unixSeconds: number) => unixSeconds - 1591566291;
 
-export const currentSlot = () => unixToSlot(Date.now() / 1000);
+export const currentSlot = () => Math.floor(unixToSlot(Date.now() / 1000));
+
+const KEY_DEPOSIT = BigNum.from_str("2000000");
 
 export const COINS_PER_UTXO_BYTE = BigNum.from_str("4310");
 
@@ -39,7 +43,7 @@ const txBuilderConfig = TransactionBuilderConfigBuilder.new()
   .fee_algo(LinearFee.new(BigNum.from_str("44"), BigNum.from_str("155381")))
   .coins_per_utxo_byte(COINS_PER_UTXO_BYTE)
   .pool_deposit(BigNum.from_str("500000000"))
-  .key_deposit(BigNum.from_str("2000000"))
+  .key_deposit(KEY_DEPOSIT)
   .max_value_size(5000)
   .max_tx_size(16384)
   .build();
@@ -61,14 +65,26 @@ export const delegateToPool = async (connection: WalletConnection, poolId: strin
   const poolKeyHash = Ed25519KeyHash.from_bech32(poolId);
 
   const rewardAddressHash = (await connection.getRewardAddresses())[0];
+  const stakeAddress = rewardAddressHashToBech32(rewardAddressHash);
   const address = Address.from_bytes(Buffer.from(rewardAddressHash, "hex"));
   const rewardAddress = RewardAddress.from_address(address)!;
   const stakeCredential = rewardAddress.payment_cred();
 
-  const stakeDelegation = StakeDelegation.new(stakeCredential, poolKeyHash);
-  const delegationCert = Certificate.new_stake_delegation(stakeDelegation);
+  let registered = false;
+  try {
+    registered = Boolean((await getStakeInfo(stakeAddress)).poolHash);
+  } catch {
+    registered = false;
+  }
+
   const certificates = Certificates.new();
-  certificates.add(delegationCert);
+  if (registered) {
+    certificates.add(Certificate.new_stake_delegation(StakeDelegation.new(stakeCredential, poolKeyHash)));
+  } else {
+    certificates.add(
+      Certificate.new_stake_registration_and_delegation(StakeRegistrationAndDelegation.new(stakeCredential, poolKeyHash, KEY_DEPOSIT))
+    );
+  }
 
   await sendTransaction(connection, (txBuilder) => {
     txBuilder.set_certs(certificates);
@@ -79,7 +95,8 @@ const buildTransaction = async (connection: WalletConnection, addOutputs: (txBui
   const changeAddress = Address.from_bytes(Buffer.from(await connection.getChangeAddress(), "hex"));
 
   // keep one utxo as collateral
-  const collateral = (connection.getCollateral && (await connection.getCollateral().catch(() => []))?.slice(0, 1)) ?? [];
+  // const collateral = (connection.getCollateral && (await connection.getCollateral().catch(() => []))?.slice(0, 1)) ?? [];
+  const collateral: string[] = [];
 
   // get all utxos, except collateral
   const rawUtxos = (await connection.getUtxos()).filter((item) => !collateral.includes(item));
@@ -107,7 +124,9 @@ const buildTransaction = async (connection: WalletConnection, addOutputs: (txBui
   // add change
   txBuilder.add_change_if_needed(changeAddress);
 
-  return txBuilder.build_tx();
+  const tx = txBuilder.build_tx();
+  console.log("built tx", tx.to_json());
+  return tx;
 };
 
 const signAndSubmitTransaction = async (connection: WalletConnection, tx: Transaction, policy?: PolicyPrivate) => {
@@ -137,7 +156,15 @@ const signAndSubmitTransaction = async (connection: WalletConnection, tx: Transa
   }
 
   tx = Transaction.new(tx.body(), witnessSet, tx.auxiliary_data());
-  await connection.submitTx(tx.to_hex());
+
+  console.log("signed tx", tx.to_json());
+  try {
+    await connection.submitTx(tx.to_hex());
+  } catch (error) {
+    console.error("failed to submit tx", error);
+    console.log("failed to submit tx, submitting signed tx");
+    // await submitSignedTx(tx.to_hex());
+  }
 
   return txHash.to_hex();
 };

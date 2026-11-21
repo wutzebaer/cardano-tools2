@@ -18,6 +18,14 @@ export async function getTip() {
   return handleRequest(client.GET("/tip"));
 }
 
+export async function getStakeInfo(stakeAddress: string) {
+  return handleRequest(
+    client.GET("/{stakeAddress}/stakeInfo", {
+      params: { path: { stakeAddress } },
+    })
+  );
+}
+
 export async function getTokenFeed(beforeMintid?: number, afterMintid?: number) {
   return handleRequest(
     client.GET("/tokenFeed", {
