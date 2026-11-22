@@ -2,6 +2,7 @@
 
 import { getEpochStake, getReturnAddresses } from "@cardano/dbsync";
 import { TIP_STAKE_ADDRESS } from "@cardano/distribution";
+import { IS_MAINNET } from "@cardano/network";
 
 /** The API resolves at most this many stake addresses per request. */
 const RETURN_ADDRESS_CHUNK = 5000;
@@ -22,7 +23,8 @@ export interface LoadedStakers {
 /** Delegators of a pool in an epoch together with the payment address their reward goes to. */
 export async function loadStakers(poolHash: string, epoch: number): Promise<LoadedStakers> {
   const stakes = await getEpochStake(poolHash, epoch);
-  const stakeAddresses = [...new Set([...stakes.map((stake) => stake.stakeAddress), TIP_STAKE_ADDRESS])];
+  // the pool that receives the tip only exists on mainnet
+  const stakeAddresses = [...new Set([...stakes.map((stake) => stake.stakeAddress), ...(IS_MAINNET ? [TIP_STAKE_ADDRESS] : [])])];
 
   const returnAddresses = new Map<string, string>();
   for (let i = 0; i < stakeAddresses.length; i += RETURN_ADDRESS_CHUNK) {

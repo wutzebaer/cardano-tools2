@@ -1,3 +1,4 @@
+import { NETWORK } from "@cardano/network";
 import { applyPolicy, policyScript, policyTxOptions } from "@cardano/mint";
 import { COINS_PER_UTXO_BYTE, sendTransaction, walletChangeAddress } from "@cardano/transaction";
 import { MintPolicy, WalletConnection } from "@cardano/types";
@@ -21,8 +22,7 @@ const METADATA_STRING_LIMIT = 64;
 
 export function isValidAddress(address: string) {
   try {
-    Address.from_bech32(address.trim());
-    return true;
+    return Address.from_bech32(address.trim()).network_id() === NETWORK.id;
   } catch {
     return false;
   }

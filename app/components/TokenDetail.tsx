@@ -1,5 +1,6 @@
 import { getTokenDetailsByFingerprint } from '@cardano/dbsync';
-import { assetNameFromHex, currentSlotNo, formatTokenAmount, policyLockSlot, metadataDecimals, parseMetadata, shortenId, slotToDate, toDisplayMetadata, tokenFiles, tokenImage, toIpfsUrl } from '@cardano/utils';
+import { currentSlot, explorerAssetUrl, IS_MAINNET, slotToDate } from '@cardano/network';
+import { assetNameFromHex, formatTokenAmount, policyLockSlot, metadataDecimals, parseMetadata, shortenId, toDisplayMetadata, tokenFiles, tokenImage, toIpfsUrl } from '@cardano/utils';
 import { getCollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
 import TokenImagePlaceholder from '@components/TokenImagePlaceholder';
@@ -103,7 +104,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
     const files = tokenFiles(metadata, image);
     const propertyGroups = groupedProperties(Object.entries(displayMetadata));
     const lockSlot = policyLockSlot(tokenDetails.maPolicyScript);
-    const locked = lockSlot != null && lockSlot <= currentSlotNo();
+    const locked = lockSlot != null && lockSlot <= currentSlot();
     const isNft = locked && tokenDetails.totalSupply === 1;
 
     return (
@@ -142,24 +143,37 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                        <Link
-                            href={`https://pool.pm/${tokenDetails.fingerprint}`}
-                            target="_blank"
-                            className="btn btn-sm gap-2 border-line bg-base-200 hover:border-line-strong hover:bg-base-300"
-                        >
-                            <Image src="/images/poolpm.ico" alt="" width="16" height="16" />
-                            pool.pm
-                            <ArrowTopRightOnSquareIcon className="size-3.5 text-base-content/45" />
-                        </Link>
-                        <Link
-                            href={`https://www.wayup.io/collection/${collectionInfo.handle ?? tokenDetails.maPolicyId}`}
-                            target="_blank"
-                            className="btn btn-sm gap-2 border-line bg-base-200 hover:border-line-strong hover:bg-base-300"
-                        >
-                            <Image src="/images/wayup.svg" alt="" width="16" height="16" />
-                            Wayup
-                            <ArrowTopRightOnSquareIcon className="size-3.5 text-base-content/45" />
-                        </Link>
+                        {IS_MAINNET ? (
+                            <>
+                                <Link
+                                    href={`https://pool.pm/${tokenDetails.fingerprint}`}
+                                    target="_blank"
+                                    className="btn btn-sm gap-2 border-line bg-base-200 hover:border-line-strong hover:bg-base-300"
+                                >
+                                    <Image src="/images/poolpm.ico" alt="" width="16" height="16" />
+                                    pool.pm
+                                    <ArrowTopRightOnSquareIcon className="size-3.5 text-base-content/45" />
+                                </Link>
+                                <Link
+                                    href={`https://www.wayup.io/collection/${collectionInfo.handle ?? tokenDetails.maPolicyId}`}
+                                    target="_blank"
+                                    className="btn btn-sm gap-2 border-line bg-base-200 hover:border-line-strong hover:bg-base-300"
+                                >
+                                    <Image src="/images/wayup.svg" alt="" width="16" height="16" />
+                                    Wayup
+                                    <ArrowTopRightOnSquareIcon className="size-3.5 text-base-content/45" />
+                                </Link>
+                            </>
+                        ) : (
+                            <Link
+                                href={explorerAssetUrl(tokenDetails.fingerprint)}
+                                target="_blank"
+                                className="btn btn-sm gap-2 border-line bg-base-200 hover:border-line-strong hover:bg-base-300"
+                            >
+                                cexplorer
+                                <ArrowTopRightOnSquareIcon className="size-3.5 text-base-content/45" />
+                            </Link>
+                        )}
                         {tokenDetails.metadata ? <CopyButton text={JSON.stringify(JSON.parse(tokenDetails.metadata), null, 2)}>Copy metadata</CopyButton> : null}
                     </div>
 

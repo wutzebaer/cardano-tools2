@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#070b1d"/>
+      <stop offset="0.55" stop-color="#151a4a"/>
+      <stop offset="1" stop-color="#2a1458"/>
+    </linearGradient>
+    <radialGradient id="gA" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#4d7cfe" stop-opacity="0.5"/><stop offset="1" stop-color="#4d7cfe" stop-opacity="0"/></radialGradient>
+    <radialGradient id="gB" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#a78bfa" stop-opacity="0.45"/><stop offset="1" stop-color="#a78bfa" stop-opacity="0"/></radialGradient>
+    <radialGradient id="gC" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#22d3ee" stop-opacity="0.35"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="24" stdDeviation="30" flood-color="#000" flood-opacity="0.55"/></filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <circle cx="250" cy="150" r="450" fill="url(#gC)"/>
+  <circle cx="1400" cy="200" r="450" fill="url(#gB)"/>
+  <circle cx="900" cy="900" r="500" fill="url(#gA)"/>
+
+  <!-- Terminalfenster -->
+  <g filter="url(#shadow)">
+    <rect x="160" y="110" width="1280" height="680" rx="18" fill="#0a0e1f" fill-opacity="0.92" stroke="#ffffff" stroke-opacity="0.08"/>
+  </g>
+  <rect x="160" y="110" width="1280" height="56" rx="18" fill="#141a33"/>
+  <rect x="160" y="148" width="1280" height="18" fill="#141a33"/>
+  <circle cx="200" cy="138" r="9" fill="#ff5f57"/><circle cx="230" cy="138" r="9" fill="#febc2e"/><circle cx="260" cy="138" r="9" fill="#28c840"/>
+  <text x="800" y="146" font-family="DejaVu Sans Mono" font-size="22" fill="#64748b" text-anchor="middle">peter@tools-bp: ~/pool</text>
+
+  <g font-family="DejaVu Sans Mono" font-size="29">
+    <text x="210" y="235" fill="#94a3b8"><tspan fill="#22d3ee">$</tspan> bash bootstrap.sh</text>
+    <text x="210" y="285" fill="#e2e8f0"><tspan fill="#28c840">✔</tspan> fresh ubuntu, ssh hardened, firewall up</text>
+    <text x="210" y="345" fill="#94a3b8"><tspan fill="#22d3ee">$</tspan> mithril-client cardano-db download latest</text>
+    <text x="210" y="395" fill="#e2e8f0"><tspan fill="#28c840">✔</tspan> 222 GB chain, verified. took an hour, not 3 days</text>
+    <text x="210" y="455" fill="#94a3b8"><tspan fill="#22d3ee">$</tspan> cardano-cli conway node issue-op-cert ...</text>
+    <text x="210" y="505" fill="#e2e8f0"><tspan fill="#28c840">✔</tspan> new KES keys, opcert #31</text>
+    <text x="210" y="565" fill="#94a3b8"><tspan fill="#22d3ee">$</tspan> scripts/check.sh</text>
+    <text x="210" y="615" fill="#e2e8f0"><tspan fill="#28c840">✔</tspan> synced 100% · pool <tspan fill="#a78bfa" font-weight="bold">[TOOLS]</tspan> is forging</text>
+    <text x="210" y="690" fill="#94a3b8"><tspan fill="#22d3ee">$</tspan> <tspan fill="#e2e8f0">sleep</tspan><tspan fill="#e2e8f0" opacity="0.9">█</tspan></text>
+  </g>
+  <text x="1420" y="845" font-family="Inter" font-size="26" font-weight="600" fill="#94a3b8" text-anchor="end">cardano-tools.io</text>
+</svg>

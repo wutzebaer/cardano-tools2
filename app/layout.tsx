@@ -1,5 +1,6 @@
 import ErrorBoundary from "@components/ErrorBoundary";
 import ErrorToast from "@components/ErrorToast";
+import { IS_MAINNET, NETWORK } from "@cardano/network";
 import { TELEGRAM_URL } from "@cardano/pool";
 import { BanknotesIcon, DocumentTextIcon, FireIcon, GiftIcon, IdentificationIcon, SparklesIcon, Squares2X2Icon, WalletIcon } from "@heroicons/react/24/outline";
 import type { Metadata } from "next";
@@ -96,7 +97,11 @@ export default function RootLayout({
                 <div className="grow"></div>
 
                 <div className="flex flex-col gap-3">
-                  <StakeNow />
+                  {IS_MAINNET ? (
+                    <StakeNow />
+                  ) : (
+                    <p className="rounded-field border border-warning/40 px-3 py-2 text-center text-xs text-warning">{NETWORK.name} testnet</p>
+                  )}
                   <WalletOverview />
                   <div className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-[11px] text-base-content/45">
                     <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:text-base-content">

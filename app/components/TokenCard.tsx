@@ -1,5 +1,6 @@
 import { TokenListItem } from '@cardano/types';
-import { assetNameFromHex, shortenId, slotToDate, toIpfsUrl } from '@cardano/utils';
+import { slotToDate } from '@cardano/network';
+import { assetNameFromHex, shortenId, toIpfsUrl } from '@cardano/utils';
 import { CollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
 import TokenImagePlaceholder from '@components/TokenImagePlaceholder';

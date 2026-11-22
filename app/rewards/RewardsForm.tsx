@@ -2,6 +2,7 @@
 
 import { assetKey, assetsInUtxos, lovelaceInUtxos, WalletAsset } from "@cardano/assets";
 import { distribute, NotEnoughFundsError, RewardPosition, RewardToken } from "@cardano/distribution";
+import { IS_MAINNET } from "@cardano/network";
 import { CHIEN_POOL_ID } from "@cardano/pool";
 import { batchPositions, DistributionProgress, minLovelaceForOutput, sendRewards } from "@cardano/rewards";
 import { currentEpoch, walletUtxos } from "@cardano/transaction";
@@ -14,6 +15,8 @@ import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useState } from "react";
 import { LoadedStakers, loadStakers } from "./loadStakers";
 
+/** Mainnet has stake snapshots since Shelley started in epoch 208. */
+const FIRST_STAKE_EPOCH = IS_MAINNET ? 208 : 0;
 const MESSAGE_MAX_BYTES = 64;
 const VISIBLE_ROWS = 200;
 
@@ -43,7 +46,7 @@ function adaToLovelace(ada: string) {
 }
 
 function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) {
-  const [poolInput, setPoolInput] = useState(CHIEN_POOL_ID);
+  const [poolInput, setPoolInput] = useState(IS_MAINNET ? CHIEN_POOL_ID : "");
   const [epoch, setEpoch] = useState(() => `${currentEpoch()}`);
   const [minStake, setMinStake] = useState("1000");
   const [ada, setAda] = useState("");
@@ -172,13 +175,13 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
           </datalist>
         </Field>
         <Field label="Epoch" hint="Stake snapshot the shares are based on">
-          <input className={inputClass} type="number" min="208" max={currentEpoch()} value={epoch} onChange={(e) => setEpoch(e.target.value)} />
+          <input className={inputClass} type="number" min={FIRST_STAKE_EPOCH} max={currentEpoch()} value={epoch} onChange={(e) => setEpoch(e.target.value)} />
         </Field>
         <Field label="Minimum ₳ delegated">
           <input className={inputClass} type="number" min="0" value={minStake} onChange={(e) => setMinStake(e.target.value)} />
         </Field>
         <div className="sm:col-span-2 lg:col-span-4">
-          <button className="btn btn-primary btn-sm" onClick={load} disabled={!poolHash || !(epochNo >= 208) || loading}>
+          <button className="btn btn-primary btn-sm" onClick={load} disabled={!poolHash || !(epochNo >= FIRST_STAKE_EPOCH) || loading}>
             {loading ? <span className="loading loading-spinner loading-xs" /> : null}
             {stakersCurrent ? "Reload stakers" : "Load stakers"}
           </button>
@@ -234,10 +237,12 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
           Add token
         </button>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" className="checkbox checkbox-sm" checked={tip} onChange={(e) => setTip(e.target.checked)} />
-          Tip 1 ₳ plus the rounding remainder to the [CHIEN] pool, which runs Cardano Tools
-        </label>
+        {IS_MAINNET ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="checkbox checkbox-sm" checked={tip} onChange={(e) => setTip(e.target.checked)} />
+            Tip 1 ₳ plus the rounding remainder to the [CHIEN] pool, which runs Cardano Tools
+          </label>
+        ) : null}
       </div>
 
       {distribution.error ? <Notice tone="warning">{distribution.error}</Notice> : null}

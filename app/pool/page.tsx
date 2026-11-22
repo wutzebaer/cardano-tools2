@@ -1,5 +1,6 @@
 import { CHIEN_POOL_ID, TELEGRAM_URL } from "@cardano/pool";
-import { ExternalLink, PageHeader } from "@components/ui";
+import { IS_MAINNET, NETWORK } from "@cardano/network";
+import { ExternalLink, Notice, PageHeader } from "@components/ui";
 import PoolStake from "./PoolStake";
 
 const PARTNERS = [
@@ -14,7 +15,7 @@ export default function Page() {
       <PageHeader title="[CHIEN] Pool">The stake pool of the Charly &amp; Aliens alliance, which runs and finances Cardano Tools</PageHeader>
 
       <div className="flex flex-col gap-6">
-        <PoolStake />
+        {IS_MAINNET ? <PoolStake /> : <Notice>The [CHIEN] pool runs on mainnet. This instance works on the {NETWORK.name} testnet, delegation is not offered here.</Notice>}
 
         <div className="flex max-w-3xl flex-col gap-3 text-[15px] leading-relaxed text-base-content/65">
           <p>

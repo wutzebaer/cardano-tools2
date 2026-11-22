@@ -1,5 +1,6 @@
 "use client";
 
+import { explorerTxUrl } from "@cardano/network";
 import { formatAda, shortenId } from "@cardano/utils";
 import { ExternalLink, Field, Notice, secondaryButtonClass, textareaClass } from "@components/ui";
 import { useWallet } from "@components/useWallet";
@@ -151,7 +152,7 @@ export default function WalletStatement() {
                   <td className="text-right tabular-nums">{line.epoch}</td>
                   <td className="whitespace-nowrap font-mono text-xs">
                     {line.txHash ? (
-                      <ExternalLink href={`https://cexplorer.io/tx/${line.txHash}`} className="inline-flex items-center gap-1 hover:text-primary">
+                      <ExternalLink href={explorerTxUrl(line.txHash)} className="inline-flex items-center gap-1 hover:text-primary">
                         {shortenId(line.txHash, 8)}
                       </ExternalLink>
                     ) : null}

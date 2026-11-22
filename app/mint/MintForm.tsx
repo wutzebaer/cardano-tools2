@@ -2,6 +2,7 @@
 
 import { assetNameFor, tokensMetadata } from "@cardano/metadata";
 import { labeledAssetNameHex, mintTokens } from "@cardano/mint";
+import { explorerPolicyUrl, IS_MAINNET } from "@cardano/network";
 import { MintPolicy, MintToken } from "@cardano/types";
 import ConnectWallet from "@components/ConnectWallet";
 import TxResult from "@components/TxResult";
@@ -104,7 +105,7 @@ function Mint({ wallet }: { wallet: ConnectedWallet }) {
         <ul className="flex flex-col gap-1 text-sm">
           {result.tokens.map((token) => (
             <li key={token.id}>
-              <ExternalLink href={`https://pool.pm/${result.policy.policyId}.${labeledAssetNameHex(token.standard, token.assetName)}`} className="inline-flex items-center gap-1 text-primary hover:underline">
+              <ExternalLink href={IS_MAINNET ? `https://pool.pm/${result.policy.policyId}.${labeledAssetNameHex(token.standard, token.assetName)}` : explorerPolicyUrl(result.policy.policyId)} className="inline-flex items-center gap-1 text-primary hover:underline">
                 {token.name || token.assetName}
               </ExternalLink>
             </li>

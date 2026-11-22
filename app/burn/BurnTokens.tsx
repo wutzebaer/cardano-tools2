@@ -4,6 +4,7 @@ import { assetKey, assetsInUtxos, WalletAsset } from "@cardano/assets";
 import { BURN_ADDRESS, BurnItem, burnTokens, findReferenceUtxos, referenceNameFor } from "@cardano/burn";
 import { getTokenDetails } from "@cardano/dbsync";
 import { policySecondsLeft } from "@cardano/mint";
+import { explorerAddressUrl } from "@cardano/network";
 import { walletUtxos } from "@cardano/transaction";
 import { MintPolicy, TokenListItem } from "@cardano/types";
 import { assetNameFromHex, shortenId, toIpfsUrl } from "@cardano/utils";
@@ -207,10 +208,10 @@ function Burn({ wallet }: { wallet: ConnectedWallet }) {
           <p className="break-all font-mono text-xs">{BURN_ADDRESS}</p>
           <p>
             It is the address of the script <span className="font-mono text-xs">{LOCKED_SCRIPT}</span>, which is only valid before slot 0 and can therefore never spend
-            anything. Verify it with <span className="font-mono text-xs">cardano-cli address build --payment-script-file locked_script.json --mainnet</span>.
+            anything. Verify it with <span className="font-mono text-xs">cardano-cli address build --payment-script-file locked_script.json</span>.
           </p>
           <div>
-            <ExternalLink href={`https://cexplorer.io/address/${BURN_ADDRESS}`}>cexplorer</ExternalLink>
+            <ExternalLink href={explorerAddressUrl(BURN_ADDRESS)}>cexplorer</ExternalLink>
           </div>
         </div>
       </details>

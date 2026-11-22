@@ -1,3 +1,5 @@
+import { IS_MAINNET } from "@cardano/network";
+
 export type CollectionInfo = {
   name?: string | null;
   handle?: string | null;
@@ -5,6 +7,10 @@ export type CollectionInfo = {
 };
 
 export async function getCollectionInfo(policyId: string): Promise<CollectionInfo> {
+  // the marketplace only knows mainnet collections
+  if (!IS_MAINNET) {
+    return {};
+  }
   const input = encodeURIComponent(JSON.stringify({ "0": { identifier: policyId } }));
   const response = await fetch(
     `https://prod.api.ada-anvil.app/marketplace/trpc/getCollection?batch=1&input=${input}`,

@@ -1,13 +1,12 @@
 "use client";
 
+import { NETWORK } from "@cardano/network";
 import { hexToBytes, rewardAddressHashToBech32 } from "@cardano/transaction";
 import { WalletConnection, WalletInfo } from "@cardano/types";
 import { getSelectedWallet, SelectionMode } from "@cardano/wallet";
 import { ApplicationContext } from "@components/StateProvider";
 import { Address } from "@emurgo/cardano-serialization-lib-browser";
 import { useCallback, useContext, useEffect, useState } from "react";
-
-const MAINNET = 1;
 
 export interface ConnectedWallet {
   info: WalletInfo;
@@ -31,8 +30,8 @@ function paymentKeyHash(addressHex: string) {
 
 async function loadWallet(info: WalletInfo): Promise<ConnectedWallet> {
   const connection = await info.enable();
-  if ((await connection.getNetworkId()) !== MAINNET) {
-    throw new Error("Please switch your wallet to mainnet");
+  if ((await connection.getNetworkId()) !== NETWORK.id) {
+    throw new Error(`Please switch your wallet to ${NETWORK.name}`);
   }
   const [changeAddressHex, rewardAddresses, usedAddresses, unusedAddresses] = await Promise.all([
     connection.getChangeAddress(),

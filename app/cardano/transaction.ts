@@ -1,4 +1,5 @@
 import { getStakeInfo } from "@cardano/dbsync";
+import { currentSlot } from "@cardano/network";
 import { submitSignedTx } from "@cardano/submit";
 import { SimpleScript, WalletConnection } from "@cardano/types";
 import {
@@ -32,16 +33,7 @@ import {
   Value,
 } from "@emurgo/cardano-serialization-lib-browser";
 
-/** Mainnet: slot = unix time - 1591566291 (since the Shelley hard fork, 1 slot = 1 second). */
-const SLOT_ZERO_UNIX = 1591566291;
-const EPOCH_ZERO_UNIX = 1506203091;
-const EPOCH_SECONDS = 432000;
-
-export const unixToSlot = (unixSeconds: number) => unixSeconds - SLOT_ZERO_UNIX;
-
-export const currentSlot = () => Math.floor(unixToSlot(Date.now() / 1000));
-
-export const currentEpoch = () => Math.floor((Date.now() / 1000 - EPOCH_ZERO_UNIX) / EPOCH_SECONDS);
+export { currentEpoch, currentSlot, unixToSlot } from "@cardano/network";
 
 const KEY_DEPOSIT = BigNum.from_str("2000000");
 

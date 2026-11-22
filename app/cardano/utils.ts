@@ -1,5 +1,3 @@
-const SHELLEY_GENESIS_TIME = 1591566291; // Cardano mainnet genesis time in seconds (June 29, 2020, 21:44:51 UTC)
-
 const IPFS_PROVIDERS = [
   //"https://ipfs.io/ipfs/",
   //"https://ipfs.blockfrost.dev/ipfs/",
@@ -79,15 +77,6 @@ export function formatTokenAmount(value?: number, decimals = 0) {
     minimumFractionDigits: 0,
     maximumFractionDigits: decimals,
   }).format(amount);
-}
-
-export function slotToDate(slotNo: number) {
-  const timestamp = SHELLEY_GENESIS_TIME + slotNo;
-  return new Date(timestamp * 1000).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "UTC",
-  });
 }
 
 export function toIpfsUrl(ipfs?: string | string[] | null) {
@@ -254,8 +243,4 @@ export function policyLockSlot(policyScriptJson?: string | null): number | undef
     return undefined;
   }
   return slots.length > 0 ? Math.min(...slots) : undefined;
-}
-
-export function currentSlotNo() {
-  return Math.floor(Date.now() / 1000) - SHELLEY_GENESIS_TIME;
 }

@@ -1,5 +1,6 @@
 import { WalletAsset } from "@cardano/assets";
 import { getUtxos } from "@cardano/dbsync";
+import { IS_MAINNET, NETWORK } from "@cardano/network";
 import { applyPolicy, cip67LabelBytes, policyScript, policyTxOptions, referenceAddress, referenceKeyHash } from "@cardano/mint";
 import { hexToBytes, sendTransaction, walletChangeAddress, walletUtxos } from "@cardano/transaction";
 import { MintPolicy, WalletConnection } from "@cardano/types";
@@ -7,21 +8,34 @@ import { cip67Label } from "@cardano/utils";
 import {
   AssetName,
   BigNum,
+  Credential,
   Ed25519KeyHash,
+  EnterpriseAddress,
   Int,
   MintBuilder,
   MintWitness,
   MultiAsset,
   NativeScript,
   NativeScriptSource,
+  NativeScripts,
+  ScriptAll,
   ScriptPubkey,
+  TimelockExpiry,
   TransactionHash,
   TransactionInput,
   Value,
 } from "@emurgo/cardano-serialization-lib-browser";
 
 /** A burn address is not real burning but locking forever: `all [before slot 0]` can never validate. */
-export const BURN_ADDRESS = "addr1wxa7ec20249sqg87yu2aqkqp735qa02q6yd93u28gzul93ghspjnt";
+function burnAddress() {
+  const scripts = NativeScripts.new();
+  scripts.add(NativeScript.new_timelock_expiry(TimelockExpiry.new_timelockexpiry(BigNum.zero())));
+  const script = NativeScript.new_script_all(ScriptAll.new(scripts));
+  return EnterpriseAddress.new(NETWORK.id, Credential.from_scripthash(script.hash())).to_address().to_bech32();
+}
+
+/** On mainnet the well known address, on testnets the address of the same script. */
+export const BURN_ADDRESS = IS_MAINNET ? "addr1wxa7ec20249sqg87yu2aqkqp735qa02q6yd93u28gzul93ghspjnt" : burnAddress();
 
 export interface BurnItem {
   asset: WalletAsset;

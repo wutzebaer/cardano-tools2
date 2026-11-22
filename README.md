@@ -34,6 +34,7 @@ Configuration in `.env`:
 | Variable | Purpose |
 | --- | --- |
 | `CARDANO_DBSYNC_API_URL` | Base URL of cardano-db-sync-api, e.g. `http://localhost:8080/cardanoDbSyncApi` |
+| `NEXT_PUBLIC_CARDANO_NETWORK` | `mainnet` (default), `preprod` or `preview`. Sets slot and epoch arithmetic, the network the wallet has to be on and the explorer links. The API has to serve a db-sync of the same network |
 | `IPFS_API_URL` | IPFS node API used to upload and pin files while minting, e.g. `http://localhost:5001` |
 
 `npm run build` prerenders `/browse` and therefore needs the API to be reachable.

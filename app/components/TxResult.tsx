@@ -1,6 +1,7 @@
 "use client";
 
 import { isTransactionConfirmed } from "@cardano/dbsync";
+import { explorerTxUrl } from "@cardano/network";
 import { ExternalLink } from "@components/ui";
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
 import { ReactNode, useEffect, useState } from "react";
@@ -43,7 +44,7 @@ function TxRow({ txHash }: { txHash: string }) {
             waiting for confirmation
           </span>
         )}
-        <ExternalLink href={`https://cexplorer.io/tx/${txHash}`}>cexplorer</ExternalLink>
+        <ExternalLink href={explorerTxUrl(txHash)}>cexplorer</ExternalLink>
       </span>
     </li>
   );

@@ -5,6 +5,7 @@ import { test } from "node:test";
 import { attestationHash, cborEncode } from "../app/cardano/attestation.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
 import { assetNameFor, tokenMetadata, tokensFromMetadata, tokensMetadata } from "../app/cardano/metadata.ts";
+import { NETWORK, NETWORKS, unixToEpoch, unixToSlot } from "../app/cardano/network.ts";
 import { policyLockSlot } from "../app/cardano/utils.ts";
 import { priceAt, statementCsv, statementLines } from "../app/statement/statement.ts";
 
@@ -224,4 +225,32 @@ test("policy lock is the earliest before-slot of the script", () => {
   assert.equal(policyLockSlot('{"type":"all","scripts":[{"type":"sig","keyHash":"aa"},{"type":"before","slot":500},{"type":"any","scripts":[{"type":"before","slot":300}]}]}'), 300);
   assert.equal(policyLockSlot('{"type":"sig","keyHash":"aa"}'), undefined);
   assert.equal(policyLockSlot(null), undefined);
+});
+
+// ---------------------------------------------------------------------------
+// Networks
+// ---------------------------------------------------------------------------
+
+test("slots and epochs match the chains", () => {
+  const network = (name) => NETWORKS[name];
+  // preview node tip on 2026-11-22T10:36:45Z: epoch 1489, slot 128687805
+  const now = Date.parse("2026-11-22T10:36:45Z") / 1000;
+  assert.equal(unixToSlot(now, network("preview")), 128687805);
+  assert.equal(unixToEpoch(now, network("preview")), 1489);
+  // the same moment was epoch 327 on preprod and 669 on mainnet
+  assert.equal(unixToEpoch(now, network("preprod")), 327);
+  assert.equal(unixToEpoch(now, network("mainnet")), 669);
+  // first Shelley block of mainnet: slot 4492800 at 2020-07-29T21:44:51Z, start of epoch 208
+  const shelley = Date.parse("2020-07-29T21:44:51Z") / 1000;
+  assert.equal(unixToSlot(shelley, network("mainnet")), 4492800);
+  assert.equal(unixToEpoch(shelley, network("mainnet")), 208);
+  // preprod: Shelley started with epoch 4 at slot 86400 on 2022-06-21T00:00:00Z
+  const preprodShelley = Date.parse("2022-06-21T00:00:00Z") / 1000;
+  assert.equal(unixToSlot(preprodShelley, network("preprod")), 86400);
+  assert.equal(unixToEpoch(preprodShelley, network("preprod")), 4);
+});
+
+test("the app defaults to mainnet", () => {
+  assert.equal(NETWORK.name, "mainnet");
+  assert.equal(NETWORK.id, 1);
 });
