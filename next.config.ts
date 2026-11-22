@@ -19,6 +19,21 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  // addresses of the previous Cardano Tools, so old links and bookmarks keep working
+  async redirects() {
+    const moved: Record<string, string> = {
+      "/latest": "/browse",
+      "/chien": "/pool",
+      "/royaltiescip27": "/royalties",
+      "/reward-stakers": "/rewards",
+      "/wallet-statement": "/statement",
+      "/burn-address": "/burn",
+      "/mint-on-demand": "/mint",
+      "/drop/:prettyUrl": "/browse",
+    };
+    return Object.entries(moved).map(([source, destination]) => ({ source, destination, permanent: true }));
+  },
+
   cleanDistDir: false,
 
   images: {
