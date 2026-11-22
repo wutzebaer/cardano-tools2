@@ -2,7 +2,7 @@
 
 export const ONE_ADA = 1_000_000n;
 
-/** Stake address of the [CHIEN] pool pledge, receives the optional tip. */
+/** Stake address of the Cardano Tools pool pledge, receives the optional tip. */
 export const TIP_STAKE_ADDRESS = "stake1u9k8maputfwef7kjl6nvguupxcvllplpa967amss06fxwngzsj30w";
 
 export interface RewardToken {

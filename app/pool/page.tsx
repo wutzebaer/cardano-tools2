@@ -1,21 +1,15 @@
-import { CHIEN_POOL_ID, TELEGRAM_URL } from "@cardano/pool";
+import { POOL_ID, POOL_TICKER, TELEGRAM_URL } from "@cardano/pool";
 import { IS_MAINNET, NETWORK } from "@cardano/network";
 import { ExternalLink, Notice, PageHeader } from "@components/ui";
 import PoolStake from "./PoolStake";
 
-const PARTNERS = [
-  { name: "$Charly", href: "https://charly-token.io/" },
-  { name: "$WOLF", href: "https://wolfcardano.io/" },
-  { name: "$PTC", href: "https://pockettowne.io/" },
-];
-
 export default function Page() {
   return (
     <>
-      <PageHeader title="[CHIEN] Pool">The stake pool of the Charly &amp; Aliens alliance, which runs and finances Cardano Tools</PageHeader>
+      <PageHeader title={`[${POOL_TICKER}] Pool`}>Cardano Tools, the stake pool that runs and finances this site</PageHeader>
 
       <div className="flex flex-col gap-6">
-        {IS_MAINNET ? <PoolStake /> : <Notice>The [CHIEN] pool runs on mainnet. This instance works on the {NETWORK.name} testnet, delegation is not offered here.</Notice>}
+        {IS_MAINNET ? <PoolStake /> : <Notice>The [{POOL_TICKER}] pool runs on mainnet. This instance works on the {NETWORK.name} testnet, delegation is not offered here.</Notice>}
 
         <div className="flex max-w-3xl flex-col gap-3 text-[15px] leading-relaxed text-base-content/65">
           <p>
@@ -24,36 +18,29 @@ export default function Page() {
             community.
           </p>
           <p>
-            Later the community established the Charly project, which teamed up with the Aliens. Together they began supporting the pool and gave it a more fitting
-            name: the Charly &amp; Aliens alliance, ticker CHIEN. For the sake of decentralization the $WOLF and $Charly communities give delegators an incentive with their
-            tokens to switch from big pools to small pools like this one.
+            For some years the pool carried the name of the Charly &amp; Aliens alliance, ticker CHIEN. Since November 2026 it is named after what it stands for:
+            Cardano Tools, ticker {POOL_TICKER}. It is the same pool with the same operator and the same pool id, delegators do not have to do anything.
           </p>
           <p className="text-base-content">
-            Stake with the Charly &amp; Aliens alliance to support the further development of Cardano Tools and help cover its running costs, and earn $Charly, $Alien,
-            $WOLF and $PTC tokens along the way. They can be claimed on TosiDrop.
+            An independent single pool with 0% margin, the minimum fixed fee and more than 50,000 ADA pledge, on a dedicated server in Germany. Staking with [
+            {POOL_TICKER}] supports the further development of Cardano Tools and helps cover its running costs.
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
-            <ExternalLink href={`https://cexplorer.io/pool/${CHIEN_POOL_ID}`}>cexplorer</ExternalLink>
-            <ExternalLink href="https://app.tosidrop.io/cardano/claim">Claim on TosiDrop</ExternalLink>
+            <ExternalLink href={`https://cexplorer.io/pool/${POOL_ID}`}>cexplorer</ExternalLink>
             <ExternalLink href={TELEGRAM_URL}>Telegram</ExternalLink>
-            {PARTNERS.map((partner) => (
-              <ExternalLink key={partner.name} href={partner.href}>
-                {partner.name}
-              </ExternalLink>
-            ))}
           </div>
         </div>
 
         <div className="surface overflow-hidden">
-          <iframe title="[CHIEN] pool on cexplorer" className="h-80 w-full" loading="lazy" src={`https://img.cexplorer.io/w/widget.html?pool=${CHIEN_POOL_ID}&theme=dark`} />
+          <iframe title="Cardano Tools pool on cexplorer" className="h-80 w-full" loading="lazy" src={`https://img.cexplorer.io/w/widget.html?pool=${POOL_ID}&theme=dark`} />
         </div>
 
         <div className="surface overflow-hidden">
           <iframe
-            title="[CHIEN] pool dashboard"
+            title="Cardano Tools pool dashboard"
             className="h-[1000px] w-full"
             loading="lazy"
-            src="https://dashboard.cardano-tools.io/d/Tkk24NwMk/euro-dashboard?orgId=1&refresh=5s"
+            src="https://dashboard.cardano-tools.io/d/Tkk24NwMk/cardano-tools-pool?orgId=1&refresh=5s"
           />
         </div>
       </div>

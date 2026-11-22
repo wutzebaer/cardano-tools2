@@ -1,7 +1,7 @@
 import ErrorBoundary from "@components/ErrorBoundary";
 import ErrorToast from "@components/ErrorToast";
 import { IS_MAINNET, NETWORK } from "@cardano/network";
-import { TELEGRAM_URL } from "@cardano/pool";
+import { POOL_TICKER, TELEGRAM_URL } from "@cardano/pool";
 import { BanknotesIcon, DocumentTextIcon, FireIcon, GiftIcon, IdentificationIcon, SparklesIcon, Squares2X2Icon, WalletIcon } from "@heroicons/react/24/outline";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -82,15 +82,15 @@ export default function RootLayout({
                     icon={
                       <Image
                         className="size-5 rounded-full object-cover"
-                        src="/images/charlien-t-xs.png"
-                        alt="CHIEN logo"
+                        src="/images/cardano-tools-pool.png"
+                        alt=""
                         priority
                         width={20}
                         height={20}
                       />
                     }
                   >
-                    [CHIEN] Pool
+                    [{POOL_TICKER}] Pool
                   </NavLink>
                 </nav>
 

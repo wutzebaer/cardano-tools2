@@ -16,7 +16,7 @@ export interface LoadedStaker {
 
 export interface LoadedStakers {
   stakers: LoadedStaker[];
-  /** Payment address of the [CHIEN] pool pledge for the optional tip */
+  /** Payment address of the Cardano Tools pool pledge for the optional tip */
   tipAddress?: string;
 }
 

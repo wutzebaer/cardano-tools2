@@ -1,7 +1,7 @@
 "use client";
 
 import { getStakeInfo } from "@cardano/dbsync";
-import { CHIEN_POOL_ID } from "@cardano/pool";
+import { POOL_ID, POOL_TICKER } from "@cardano/pool";
 import { StakeInfo } from "@cardano/types";
 import { formatAda } from "@cardano/utils";
 import { useStakeNow } from "@components/StakeNow";
@@ -9,7 +9,7 @@ import TxResult from "@components/TxResult";
 import { useWallet } from "@components/useWallet";
 import { useEffect, useState } from "react";
 
-/** Shows where the connected wallet is delegated and lets it delegate to [CHIEN]. */
+/** Shows where the connected wallet is delegated and lets it delegate to the Cardano Tools pool. */
 export default function PoolStake() {
   const { wallet } = useWallet();
   const stake = useStakeNow();
@@ -33,7 +33,7 @@ export default function PoolStake() {
   }, [stakeAddress]);
 
   const info = loaded?.stakeAddress === stakeAddress ? loaded?.info : null;
-  const delegatedHere = info?.poolHash === CHIEN_POOL_ID;
+  const delegatedHere = info?.poolHash === POOL_ID;
 
   if (txHash) {
     return <TxResult title="Delegation submitted" txHashes={[txHash]} onReset={() => setTxHash(null)} resetLabel="Done" />;
@@ -43,14 +43,14 @@ export default function PoolStake() {
     <div className="surface flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-base-content/65">
         {delegatedHere
-          ? `Thank you! Your wallet stakes ${formatAda(info?.stake)} with [CHIEN].`
+          ? `Thank you! Your wallet stakes ${formatAda(info?.stake)} with [${POOL_TICKER}].`
           : info?.poolHash
             ? `Your wallet currently stakes ${formatAda(info.stake)} with [${info.tickerName ?? "another pool"}]. Delegating is one transaction, your ADA never leaves your wallet.`
             : "Delegating is one transaction, your ADA never leaves your wallet and stays spendable."}
       </p>
       {delegatedHere ? null : (
         <button className="btn btn-primary shrink-0" onClick={async () => setTxHash(await stake())}>
-          Delegate to [CHIEN]
+          Delegate to [{POOL_TICKER}]
         </button>
       )}
     </div>

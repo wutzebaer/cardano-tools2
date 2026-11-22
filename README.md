@@ -12,7 +12,7 @@ Cardano Tools is a [Next.js](https://nextjs.org) dApp: every transaction is buil
 | `/register` | Create a signed entry for the Cardano token registry |
 | `/rewards` | Distribute ADA and tokens to the delegators of a pool |
 | `/statement` | Wallet statement with fiat values and CSV export |
-| `/pool` | The [CHIEN] pool and delegation |
+| `/pool` | The Cardano Tools pool [TOOLS] and delegation |
 
 ## Policies
 
