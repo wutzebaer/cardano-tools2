@@ -1,5 +1,6 @@
 import { COINS_PER_UTXO_BYTE, currentSlot, hexToBytes, sendTransaction, toNativeScript, TTL_SECONDS, TxOptions, walletChangeAddress } from "@cardano/transaction";
 import { MintPolicy, MintToken, SimpleScript, TokenDetails, WalletConnection } from "@cardano/types";
+import { MetaValue, tokenMetadata } from "@cardano/metadata";
 import { crc8 } from "@cardano/utils";
 import {
   Address,
@@ -29,16 +30,8 @@ import {
 } from "@emurgo/cardano-serialization-lib-browser";
 
 const REFERENCE_LABEL = 100;
-const LABEL_BYTES = 4;
-/** Asset names are limited to 32 bytes, the CIP-67 label takes 4 of them. */
-export const ASSET_NAME_MAX_BYTES = 32 - LABEL_BYTES;
 
 export const utf8Bytes = (text: string) => new TextEncoder().encode(text);
-
-/** On-chain asset name from the display name: alphanumeric only, CIP-67 payload limit. */
-export function assetNameFromName(name: string) {
-  return name.replace(/[^a-zA-Z0-9]/g, "").slice(0, ASSET_NAME_MAX_BYTES);
-}
 
 // ---------------------------------------------------------------------------
 // Policy: derived from the wallet's payment key, nothing secret to store
@@ -160,39 +153,33 @@ function labeledAssetName(label: number, assetName: string) {
 // CIP-68 datum
 // ---------------------------------------------------------------------------
 
-export function tokenMetadataEntries(token: MintToken): [string, string | number][] {
-  const entries: [string, string | number][] = [["name", token.name]];
-  if (token.standard === 222) {
-    entries.push(["image", token.image]);
-    if (token.mediaType) entries.push(["mediaType", token.mediaType]);
+function toPlutusData(value: MetaValue): PlutusData {
+  if (typeof value === "number") {
+    return PlutusData.new_integer(CslBigInt.from_str(`${value}`));
   }
-  if (token.description) entries.push(["description", token.description]);
-  if (token.standard === 333) {
-    if (token.ticker) entries.push(["ticker", token.ticker]);
-    if (token.url) entries.push(["url", token.url]);
-    if (token.decimals) entries.push(["decimals", Number(token.decimals)]);
-    if (token.image) entries.push(["logo", token.image]);
+  if (typeof value === "string") {
+    return PlutusData.new_bytes(utf8Bytes(value));
   }
-  for (const { key, value } of token.properties) {
-    if (key) entries.push([key, value]);
+  if (Array.isArray(value)) {
+    const list = PlutusList.new();
+    for (const item of value) {
+      list.add(toPlutusData(item));
+    }
+    return PlutusData.new_list(list);
   }
-  return entries;
-}
-
-function metadataValue(value: string | number) {
-  return typeof value === "number" ? PlutusData.new_integer(CslBigInt.from_str(`${value}`)) : PlutusData.new_bytes(utf8Bytes(value));
+  const map = PlutusMap.new();
+  for (const [key, item] of Object.entries(value)) {
+    const values = PlutusMapValues.new();
+    values.add(toPlutusData(item));
+    map.insert(PlutusData.new_bytes(utf8Bytes(key)), values);
+  }
+  return PlutusData.new_map(map);
 }
 
 /** `Constr 0 [metadata, version = 1, extra = Constr 0 []]` */
 export function tokenDatum(token: MintToken): PlutusData {
-  const metadata = PlutusMap.new();
-  for (const [key, value] of tokenMetadataEntries(token)) {
-    const values = PlutusMapValues.new();
-    values.add(metadataValue(value));
-    metadata.insert(PlutusData.new_bytes(utf8Bytes(key)), values);
-  }
   const fields = PlutusList.new();
-  fields.add(PlutusData.new_map(metadata));
+  fields.add(toPlutusData(tokenMetadata(token)));
   fields.add(PlutusData.new_integer(CslBigInt.one()));
   fields.add(PlutusData.new_empty_constr_plutus_data(BigNum.zero()));
   return PlutusData.new_constr_plutus_data(ConstrPlutusData.new(BigNum.zero(), fields));
@@ -234,7 +221,7 @@ export async function mintTokens(connection: WalletConnection, policy: MintPolic
       const userAssets = MultiAsset.new();
 
       for (const token of tokens) {
-        const assetName = assetNameFromName(token.name);
+        const assetName = token.assetName;
         const referenceName = labeledAssetName(REFERENCE_LABEL, assetName);
         const userName = labeledAssetName(token.standard, assetName);
 

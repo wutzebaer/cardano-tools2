@@ -4,9 +4,9 @@ Cardano Tools is a [Next.js](https://nextjs.org) dApp: every transaction is buil
 
 | Route | What it does |
 | --- | --- |
-| `/browse` | Latest tokens, search by policy id, fingerprint or `$handle`, token details |
+| `/browse` | Latest tokens, search by policy id, fingerprint or `$handle`, token details with policy lock status |
 | `/my` | Tokens of the connected wallet or any address |
-| `/mint` | Mint CIP-68 NFTs and fungible tokens, one or many per transaction |
+| `/mint` | Mint CIP-68 NFTs and fungible tokens, one or many per transaction, with additional files and a JSON editor for the metadata |
 | `/royalties` | Mint the CIP-27 royalty token of a policy |
 | `/burn` | Burn tokens of own policies, including their CIP-68 reference NFT |
 | `/register` | Create a signed entry for the Cardano token registry |
@@ -48,7 +48,7 @@ npm run update-schema
 
 ```bash
 npm run lint
-npm test        # reward distribution, registry attestation, statement
+npm test        # reward distribution, registry attestation, statement, mint metadata
 npm run build
 ```
 

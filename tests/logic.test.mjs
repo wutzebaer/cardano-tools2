@@ -4,6 +4,8 @@ import crypto from "node:crypto";
 import { test } from "node:test";
 import { attestationHash, cborEncode } from "../app/cardano/attestation.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
+import { assetNameFor, tokenMetadata, tokensFromMetadata, tokensMetadata } from "../app/cardano/metadata.ts";
+import { policyLockSlot } from "../app/cardano/utils.ts";
 import { priceAt, statementCsv, statementLines } from "../app/statement/statement.ts";
 
 const hex = (bytes) => Buffer.from(bytes).toString("hex");
@@ -154,4 +156,72 @@ test("statement has a running balance, fiat values and is newest first", () => {
   assert.equal(csv[0], "Timestamp,Epoch,TxHash,Change ADA,Price EUR,Change EUR,Balance ADA,Operations");
   assert.equal(csv[1], "2024-01-03T00:00:00.000Z,459,bb,-4.000000,0.500000,-2.00,6.500000,OUT IN");
   assert.equal(csv[3], "2024-01-01T00:00:00.000Z,458,aa,10.000000,,,10.000000,IN");
+});
+
+// ---------------------------------------------------------------------------
+// Mint metadata
+// ---------------------------------------------------------------------------
+
+const token = (patch = {}) => ({
+  id: "1",
+  standard: 222,
+  assetName: "Token001",
+  amount: "1",
+  name: "Token 001",
+  description: "",
+  image: "ipfs://QmImage",
+  mediaType: "image/png",
+  ticker: "",
+  url: "",
+  decimals: "",
+  files: [],
+  properties: [],
+  extra: {},
+  ...patch,
+});
+
+test("asset names are alphanumeric and leave room for the CIP-67 label", () => {
+  assert.equal(assetNameFor("My Token #1"), "MyToken1");
+  assert.equal(assetNameFor("a".repeat(40)).length, 28);
+});
+
+test("token metadata contains only what is set", () => {
+  assert.deepEqual(tokenMetadata(token()), { name: "Token 001", image: "ipfs://QmImage", mediaType: "image/png" });
+  assert.deepEqual(tokenMetadata(token({ standard: 333, ticker: "TKN", decimals: "6", properties: [{ key: "artist", value: "me" }], extra: { traits: ["a", "b"] } })), {
+    name: "Token 001",
+    ticker: "TKN",
+    decimals: 6,
+    logo: "ipfs://QmImage",
+    artist: "me",
+    traits: ["a", "b"],
+  });
+});
+
+test("edited metadata becomes the token list again", () => {
+  const original = [
+    token({ amount: "5", description: "d".repeat(100), files: [{ name: "full", mediaType: "image/png", src: "ipfs://QmFull" }], properties: [{ key: "artist", value: "me" }], extra: { traits: ["a", "b"], rank: 3 } }),
+  ];
+  const edited = tokensMetadata(original);
+  assert.deepEqual(Object.keys(edited), ["Token001"]);
+  edited.Second = { name: "Second", image: ["ipfs://", "QmSecond"] };
+
+  const tokens = tokensFromMetadata(edited, original);
+  assert.equal(tokens.length, 2);
+  assert.equal(tokens[0].id, "1");
+  assert.equal(tokens[0].amount, "5");
+  assert.deepEqual(tokens[0].properties, [{ key: "artist", value: "me" }]);
+  assert.deepEqual(tokens[0].extra, { traits: ["a", "b"], rank: 3 });
+  assert.deepEqual(tokenMetadata(tokens[0]), tokenMetadata(original[0]));
+  assert.equal(tokens[1].assetName, "Second");
+  assert.equal(tokens[1].image, "ipfs://QmSecond");
+  assert.equal(tokens[1].amount, "1");
+
+  assert.throws(() => tokensFromMetadata([], []), /object/);
+  assert.throws(() => tokensFromMetadata({ ["x".repeat(29)]: { name: "x" } }, []), /bytes/);
+});
+
+test("policy lock is the earliest before-slot of the script", () => {
+  assert.equal(policyLockSlot('{"type":"all","scripts":[{"type":"sig","keyHash":"aa"},{"type":"before","slot":500},{"type":"any","scripts":[{"type":"before","slot":300}]}]}'), 300);
+  assert.equal(policyLockSlot('{"type":"sig","keyHash":"aa"}'), undefined);
+  assert.equal(policyLockSlot(null), undefined);
 });

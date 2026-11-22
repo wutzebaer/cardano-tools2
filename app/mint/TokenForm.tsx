@@ -1,5 +1,5 @@
-import { assetNameFromName } from "@cardano/mint";
-import { MintToken, TokenProperty } from "@cardano/types";
+import { assetNameFor } from "@cardano/metadata";
+import { MintToken, TokenFile, TokenProperty } from "@cardano/types";
 import { toIpfsUrl } from "@cardano/utils";
 import IpfsImage from "@components/IpfsImage";
 import { Field, inputClass, textareaClass } from "@components/ui";
@@ -13,12 +13,11 @@ const ONCHAIN_FILE_BYTES = 16_384;
 
 export function tokenErrors(token: MintToken, allTokens: MintToken[]) {
   const errors: Partial<Record<"amount" | "name" | "image" | "decimals", string>> = {};
-  const assetName = assetNameFromName(token.name);
   if (!token.name.trim()) {
     errors.name = "Required";
-  } else if (!assetName) {
+  } else if (!token.assetName) {
     errors.name = "Needs letters or numbers";
-  } else if (allTokens.some((other) => other.id !== token.id && assetNameFromName(other.name) === assetName)) {
+  } else if (allTokens.some((other) => other.id !== token.id && other.assetName === token.assetName)) {
     errors.name = "Duplicate asset name";
   }
   if (!/^\d+$/.test(token.amount) || Number(token.amount) < 1) {
@@ -32,6 +31,23 @@ export function tokenErrors(token: MintToken, allTokens: MintToken[]) {
   }
   return errors;
 }
+
+/** Small files can be stored on-chain as a data URI, everything else goes to IPFS. */
+async function storeFile(file: File): Promise<string> {
+  if (file.size > MAX_FILE_BYTES) {
+    throw new Error("Max 100mb");
+  }
+  if (file.size < ONCHAIN_FILE_BYTES && confirm(`Store file ${file.name} onchain?`)) {
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+  }
+  return `ipfs://${await uploadToIpfs(file)}`;
+}
+
+const displayUri = (uri: string) => (uri.startsWith("data:") ? "(on-chain file)" : uri);
 
 export default function TokenForm({
   token,
@@ -49,35 +65,40 @@ export default function TokenForm({
 }) {
   const errors = tokenErrors(token, allTokens);
   const isNft = token.standard === 222;
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState<"image" | "file" | null>(null);
   const update = (patch: Partial<MintToken>) => onChange({ ...token, ...patch });
   const updateProperty = (index: number, patch: Partial<TokenProperty>) =>
     update({ properties: token.properties.map((property, i) => (i === index ? { ...property, ...patch } : property)) });
+  const updateFile = (index: number, patch: Partial<TokenFile>) => update({ files: token.files.map((file, i) => (i === index ? { ...file, ...patch } : file)) });
 
-  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
+  const onImage = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (file.size > MAX_FILE_BYTES) {
-      throw new Error("Max 100mb");
-    }
-    if (file.size < ONCHAIN_FILE_BYTES && confirm(`Store file ${file.name} onchain?`)) {
-      const dataUri = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
-      update({ image: dataUri, mediaType: file.type });
-      return;
-    }
-    setUploading(true);
+    setUploading("image");
     try {
-      const cid = await uploadToIpfs(file);
-      update({ image: `ipfs://${cid}`, mediaType: file.type });
+      update({ image: await storeFile(file), mediaType: file.type });
     } finally {
-      setUploading(false);
+      setUploading(null);
     }
   };
+
+  const onFiles = async (e: ChangeEvent<HTMLInputElement>) => {
+    const selected = [...(e.target.files ?? [])];
+    e.target.value = "";
+    setUploading("file");
+    try {
+      const added: TokenFile[] = [];
+      for (const file of selected) {
+        added.push({ name: file.name.slice(0, 64), mediaType: file.type, src: await storeFile(file) });
+      }
+      update({ files: [...token.files, ...added] });
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const extraKeys = Object.keys(token.extra);
 
   return (
     <div className="surface flex flex-col gap-5 p-5">
@@ -104,7 +125,7 @@ export default function TokenForm({
       <div className="grid gap-5 lg:grid-cols-[10rem_minmax(0,1fr)]">
         <div className="flex flex-col gap-2">
           <div className="surface relative aspect-square overflow-hidden bg-base-300">
-            {uploading ? (
+            {uploading === "image" ? (
               <div className="flex h-full items-center justify-center">
                 <span className="loading loading-spinner loading-md" />
               </div>
@@ -113,7 +134,7 @@ export default function TokenForm({
             ) : (
               <label className="flex h-full cursor-pointer items-center justify-center p-3 text-center text-xs text-base-content/45 hover:text-base-content">
                 Upload file (IPFS, max 100 MB)
-                <input type="file" className="hidden" onChange={onFile} />
+                <input type="file" className="hidden" onChange={onImage} />
               </label>
             )}
             {token.image ? (
@@ -134,7 +155,7 @@ export default function TokenForm({
             <input
               className={inputClass}
               value={token.name}
-              onChange={(e) => update({ name: e.target.value, assetName: assetNameFromName(e.target.value) })}
+              onChange={(e) => update({ name: e.target.value, assetName: assetNameFor(e.target.value) })}
               placeholder="My token"
             />
             {token.assetName && token.assetName !== token.name.trim() ? (
@@ -147,7 +168,7 @@ export default function TokenForm({
           <Field label={isNft ? "Image URI" : "Logo URI"} error={errors.image}>
             <input
               className={inputClass}
-              value={token.image.startsWith("data:") ? "(on-chain file)" : token.image}
+              value={displayUri(token.image)}
               readOnly={token.image.startsWith("data:")}
               onChange={(e) => update({ image: e.target.value })}
               placeholder="ipfs://… or https://…"
@@ -174,6 +195,38 @@ export default function TokenForm({
             <textarea className={textareaClass} rows={2} value={token.description} onChange={(e) => update({ description: e.target.value })} />
           </Field>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-base-content/55">Additional files</span>
+          <label className={`btn btn-ghost btn-xs gap-1 ${uploading === "file" ? "btn-disabled" : ""}`}>
+            {uploading === "file" ? <span className="loading loading-spinner loading-xs" /> : <PlusIcon className="size-3.5" />}
+            Add
+            <input type="file" multiple className="hidden" onChange={onFiles} disabled={uploading === "file"} />
+          </label>
+        </div>
+        {token.files.map((file, index) => (
+          <div key={index} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_minmax(0,1.4fr)_auto]">
+            <input className="input input-sm w-full border-line bg-base-300" value={file.name} onChange={(e) => updateFile(index, { name: e.target.value })} placeholder="name" />
+            <input className="input input-sm w-full border-line bg-base-300" value={file.mediaType} onChange={(e) => updateFile(index, { mediaType: e.target.value })} placeholder="media type" />
+            <input
+              className="input input-sm w-full border-line bg-base-300"
+              value={displayUri(file.src)}
+              readOnly={file.src.startsWith("data:")}
+              onChange={(e) => updateFile(index, { src: e.target.value })}
+              placeholder="ipfs://… or https://…"
+            />
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm btn-square text-base-content/45 hover:text-error"
+              onClick={() => update({ files: token.files.filter((_, i) => i !== index) })}
+              aria-label="Remove file"
+            >
+              <XMarkIcon className="size-4" />
+            </button>
+          </div>
+        ))}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -213,6 +266,11 @@ export default function TokenForm({
             </button>
           </div>
         ))}
+        {extraKeys.length > 0 ? (
+          <p className="text-[11px] text-base-content/45">
+            Also set through the metadata editor: <span className="font-mono">{extraKeys.join(", ")}</span>
+          </p>
+        ) : null}
       </div>
     </div>
   );

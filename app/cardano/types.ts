@@ -1,4 +1,5 @@
 import { components } from "@cardano/dbsync.schema";
+import type { MetaValue } from "./metadata";
 
 export type Cardano = Map<string, WalletInfo>;
 
@@ -52,6 +53,13 @@ export interface TokenProperty {
   value: string;
 }
 
+export interface TokenFile {
+  name: string;
+  mediaType: string;
+  /** ipfs://, https://, ar:// or data: */
+  src: string;
+}
+
 export interface MintToken {
   id: string;
   standard: TokenStandard;
@@ -65,7 +73,11 @@ export interface MintToken {
   ticker: string;
   url: string;
   decimals: string;
+  /** Further files besides the image, e.g. the full resolution or a video */
+  files: TokenFile[];
   properties: TokenProperty[];
+  /** Metadata fields set through the JSON editor that the form has no input for */
+  extra: Record<string, MetaValue>;
 }
 
 export type TokenListItem = components["schemas"]["TokenListItem"];

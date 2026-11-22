@@ -1,10 +1,11 @@
 import { getTokenDetailsByFingerprint } from '@cardano/dbsync';
-import { assetNameFromHex, formatTokenAmount, metadataDecimals, parseMetadata, shortenId, slotToDate, toDisplayMetadata, tokenFiles, tokenImage, toIpfsUrl } from '@cardano/utils';
+import { assetNameFromHex, currentSlotNo, formatTokenAmount, policyLockSlot, metadataDecimals, parseMetadata, shortenId, slotToDate, toDisplayMetadata, tokenFiles, tokenImage, toIpfsUrl } from '@cardano/utils';
 import { getCollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
 import TokenImagePlaceholder from '@components/TokenImagePlaceholder';
 import { Verified } from '@components/JpgStoreIcons';
 import BackToBrowse from '@components/BackToBrowse';
+import CopyButton from '@components/CopyButton';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -101,6 +102,9 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
     const decimals = metadataDecimals(metadata);
     const files = tokenFiles(metadata, image);
     const propertyGroups = groupedProperties(Object.entries(displayMetadata));
+    const lockSlot = policyLockSlot(tokenDetails.maPolicyScript);
+    const locked = lockSlot != null && lockSlot <= currentSlotNo();
+    const isNft = locked && tokenDetails.totalSupply === 1;
 
     return (
         <div className="flex flex-col gap-8">
@@ -156,6 +160,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                             Wayup
                             <ArrowTopRightOnSquareIcon className="size-3.5 text-base-content/45" />
                         </Link>
+                        {tokenDetails.metadata ? <CopyButton text={JSON.stringify(JSON.parse(tokenDetails.metadata), null, 2)}>Copy metadata</CopyButton> : null}
                     </div>
 
                     {propertyGroups.map(({ title, items }) => (
@@ -184,7 +189,20 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                             </DetailRow>
                             <DetailRow label="Fingerprint">{tokenDetails.fingerprint}</DetailRow>
                             <DetailRow label="Asset name">{assetName}</DetailRow>
-                            <DetailRow label="Total supply">{formatTokenAmount(tokenDetails.totalSupply, decimals)}</DetailRow>
+                            <DetailRow label="Total supply">
+                                {formatTokenAmount(tokenDetails.totalSupply, decimals)}
+                                {isNft ? <span className="ml-2 font-sans text-xs text-success">unique, supply is final</span> : null}
+                            </DetailRow>
+                            <DetailRow label="Policy lock">
+                                {lockSlot == null ? (
+                                    <span className="font-sans">{tokenDetails.maPolicyScript ? 'no time lock, more can be minted or burned' : 'decided by a smart contract'}</span>
+                                ) : (
+                                    <>
+                                        {slotToDate(lockSlot)}
+                                        <span className={`ml-2 font-sans text-xs ${locked ? 'text-success' : 'text-warning'}`}>{locked ? 'locked' : 'still open'}</span>
+                                    </>
+                                )}
+                            </DetailRow>
                             <DetailRow label="Minted">{slotToDate(tokenDetails.slotNo)}</DetailRow>
                             <DetailRow label="Transaction">{tokenDetails.txHash}</DetailRow>
                         </dl>

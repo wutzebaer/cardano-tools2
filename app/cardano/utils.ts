@@ -235,3 +235,27 @@ export function toDisplayMetadata(metadata: ReturnType<typeof JSON.parse>): obje
   const RESERVED_METADATA_FIELDS = ["name", "description", "files", "image", "logo", "mediaType"];
   return Object.fromEntries(Object.entries(metadata).filter(([key, value]) => !RESERVED_METADATA_FIELDS.some((field) => key.startsWith(field)) && typeof value !== "object"));
 }
+
+/**
+ * Slot after which a native script policy can no longer mint or burn: the earliest `before` in the script.
+ * Undefined if the script has no time lock or cannot be read.
+ */
+export function policyLockSlot(policyScriptJson?: string | null): number | undefined {
+  const slots: number[] = [];
+  const collect = (script: unknown) => {
+    if (script == null || typeof script !== "object") return;
+    const { type, slot, scripts } = script as { type?: string; slot?: number; scripts?: unknown[] };
+    if (type === "before" && typeof slot === "number") slots.push(slot);
+    if (Array.isArray(scripts)) scripts.forEach(collect);
+  };
+  try {
+    collect(JSON.parse(policyScriptJson ?? ""));
+  } catch {
+    return undefined;
+  }
+  return slots.length > 0 ? Math.min(...slots) : undefined;
+}
+
+export function currentSlotNo() {
+  return Math.floor(Date.now() / 1000) - SHELLEY_GENESIS_TIME;
+}
