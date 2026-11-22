@@ -32,10 +32,6 @@ export default function Page() {
         </div>
 
         <div className="surface overflow-hidden">
-          <iframe title="Cardano Tools pool on cexplorer" className="h-80 w-full" loading="lazy" src={`https://img.cexplorer.io/w/widget.html?pool=${POOL_ID}&theme=dark`} />
-        </div>
-
-        <div className="surface overflow-hidden">
           <iframe
             title="Cardano Tools pool dashboard"
             className="h-[1000px] w-full"
