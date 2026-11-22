@@ -1,0 +1,9 @@
+.git
+.next
+node_modules
+media
+tests
+.devcontainer
+.vscode
+.env*
+*.tsbuildinfo

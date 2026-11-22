@@ -37,8 +37,6 @@ Configuration in `.env`:
 | `NEXT_PUBLIC_CARDANO_NETWORK` | `mainnet` (default), `preprod` or `preview`. Sets slot and epoch arithmetic, the network the wallet has to be on and the explorer links. The API has to serve a db-sync of the same network |
 | `IPFS_API_URL` | IPFS node API used to upload and pin files while minting, e.g. `http://localhost:5001` |
 
-`npm run build` prerenders `/browse` and therefore needs the API to be reachable.
-
 Refresh the OpenAPI types after API changes:
 
 ```bash
@@ -52,6 +50,15 @@ npm run lint
 npm test        # reward distribution, registry attestation, statement, mint metadata
 npm run build
 ```
+
+## Docker
+
+```bash
+docker build -t wutzebaer/cardano-tools2 .
+docker run -p 3000:3000 -e CARDANO_DBSYNC_API_URL=http://cardano-db-sync-api:8080/cardanoDbSyncApi -e IPFS_API_URL=http://ipfs:5001 wutzebaer/cardano-tools2
+```
+
+The network is compiled in, a testnet image needs `--build-arg NEXT_PUBLIC_CARDANO_NETWORK=preview`. The build does not need the API.
 
 ## External services
 
