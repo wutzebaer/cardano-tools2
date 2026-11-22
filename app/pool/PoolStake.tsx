@@ -7,6 +7,7 @@ import { formatAda } from "@cardano/utils";
 import { useStakeNow } from "@components/StakeNow";
 import TxResult from "@components/TxResult";
 import { useWallet } from "@components/useWallet";
+import { CheckBadgeIcon } from "@heroicons/react/24/solid";
 import { useEffect, useState } from "react";
 
 /** Shows where the connected wallet is delegated and lets it delegate to the Cardano Tools pool. */
@@ -40,18 +41,23 @@ export default function PoolStake() {
   }
 
   return (
-    <div className="surface flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-base-content/65">
-        {delegatedHere
-          ? `Thank you! Your wallet stakes ${formatAda(info?.stake)} with [${POOL_TICKER}].`
-          : info?.poolHash
-            ? `Your wallet currently stakes ${formatAda(info.stake)} with [${info.tickerName ?? "another pool"}]. Delegating is one transaction, your ADA never leaves your wallet.`
-            : "Delegating is one transaction, your ADA never leaves your wallet and stays spendable."}
-      </p>
-      {delegatedHere ? null : (
-        <button className="btn btn-primary shrink-0" onClick={async () => setTxHash(await stake())}>
-          Delegate to [{POOL_TICKER}]
-        </button>
+    <div className="flex flex-col items-start gap-3">
+      {delegatedHere ? (
+        <p className="flex items-center gap-2 rounded-field border border-success/40 bg-success/10 px-4 py-3 text-sm text-success">
+          <CheckBadgeIcon className="size-5 shrink-0" />
+          Thank you! Your wallet stakes {formatAda(info?.stake)} with [{POOL_TICKER}].
+        </p>
+      ) : (
+        <>
+          <button className="btn btn-primary btn-lg px-8 shadow-lg shadow-primary/30" onClick={async () => setTxHash(await stake())}>
+            Delegate to [{POOL_TICKER}]
+          </button>
+          <p className="text-xs text-white/55">
+            {info?.poolHash
+              ? `Your wallet currently stakes ${formatAda(info.stake)} with [${info.tickerName ?? "another pool"}]. Switching is one transaction.`
+              : "One transaction from your own wallet. Your ADA never leaves it."}
+          </p>
+        </>
       )}
     </div>
   );
