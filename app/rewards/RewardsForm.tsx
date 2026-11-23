@@ -12,6 +12,7 @@ import TxResult from "@components/TxResult";
 import { Field, inputClass, Notice, secondaryButtonClass } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { useHandles } from "@components/useHandles";
 import { useEffect, useMemo, useState } from "react";
 import { LoadedStakers, loadStakers } from "./loadStakers";
 
@@ -111,6 +112,7 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
     () => (stakersCurrent?.stakers ?? []).filter((staker) => BigInt(staker.amount) > minStakeLovelace).sort((a, b) => b.amount - a.amount),
     [stakersCurrent, minStakeLovelace]
   );
+  const handles = useHandles(eligible.slice(0, VISIBLE_ROWS).map((staker) => staker.stakeAddress));
 
   const distribution = useMemo((): { positions: RewardPosition[]; error?: string } => {
     const stakers = eligible.filter((staker) => !excluded.has(staker.stakeAddress)).map((staker) => ({ ...staker, amount: BigInt(staker.amount) }));
@@ -274,7 +276,7 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
               <table className="table table-sm">
                 <thead>
                   <tr className="text-xs text-base-content/55">
-                    <th>Stake address</th>
+                    <th>Staker</th>
                     <th className="text-right">Stake</th>
                     <th className="text-right">Share</th>
                     <th className="text-right">Receives</th>
@@ -286,8 +288,8 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
                     const position = positionByStake.get(staker.stakeAddress);
                     return (
                       <tr key={staker.stakeAddress} className={excluded.has(staker.stakeAddress) ? "opacity-40" : ""}>
-                        <td className="font-mono text-xs" title={staker.stakeAddress}>
-                          {shortenId(staker.stakeAddress, 10)}
+                        <td className={handles[staker.stakeAddress] ? "text-sm" : "font-mono text-xs"} title={staker.stakeAddress}>
+                          {handles[staker.stakeAddress] ? `$${handles[staker.stakeAddress]}` : shortenId(staker.stakeAddress, 10)}
                         </td>
                         <td className="text-right tabular-nums">{formatAda(staker.amount)}</td>
                         <td className="text-right tabular-nums">{position ? `${formatNumber(position.share * 100)} %` : ""}</td>

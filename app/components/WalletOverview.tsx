@@ -5,6 +5,7 @@ import { WalletInfo } from "@cardano/types";
 import { formatAda } from "@cardano/utils";
 import { enableWallet, getSelectedWallet, SelectionMode } from "@cardano/wallet";
 import { ApplicationContext } from "@components/StateProvider";
+import { useHandle } from "@components/useHandles";
 import { Value } from "@emurgo/cardano-serialization-lib-browser";
 import Image from "next/image";
 import { useContext, useEffect, useState } from "react";
@@ -68,6 +69,9 @@ function WalletOverview() {
     });
   }
 
+  const stakeAddress = walletStats ? rewardAddressHashToBech32(walletStats.rewardAddresses[0]) : undefined;
+  const handle = useHandle(stakeAddress);
+
   const [balanceInt, balanceFraction] = walletStats ? formatAda(walletStats.balance).split(".") : [];
 
   return (
@@ -92,8 +96,8 @@ function WalletOverview() {
             <span className="text-2xl font-semibold tracking-tight">{balanceInt}</span>
             <span className="align-top text-sm text-base-content/55">.{balanceFraction}</span>
           </div>
-          <p className="truncate font-mono text-[11px] text-base-content/45">
-            {rewardAddressHashToBech32(walletStats.rewardAddresses[0])}
+          <p className={`truncate ${handle ? "text-xs font-medium text-base-content/70" : "font-mono text-[11px] text-base-content/45"}`} title={stakeAddress}>
+            {handle ?? stakeAddress}
           </p>
         </div>
       ) : (

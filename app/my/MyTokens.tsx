@@ -4,6 +4,7 @@ import { formatNumber, shortenId } from "@cardano/utils";
 import { Verified } from "@components/JpgStoreIcons";
 import TokenCard from "@components/TokenCard";
 import { inputClass, Notice } from "@components/ui";
+import { useHandle } from "@components/useHandles";
 import { useWallet } from "@components/useWallet";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
@@ -18,6 +19,7 @@ export default function MyTokens() {
   // the searched address lives in the URL, so coming back from a token shows the same list again
   const query = useSearchParams().get("address") ?? "";
   const [input, setInput] = useState(query);
+  const walletHandle = useHandle(wallet?.stakeAddress);
   const [result, setResult] = useState<{ query: string; data?: AddressTokens; error?: string } | null>(null);
 
   // without an explicit search the connected wallet is shown
@@ -59,7 +61,7 @@ export default function MyTokens() {
       <form onSubmit={search} className="flex flex-col gap-2 sm:flex-row">
         <label className={`${inputClass} bg-base-200`}>
           <MagnifyingGlassIcon className="size-4 shrink-0 text-base-content/45" />
-          <input className="grow text-sm" value={input} onChange={(e) => setInput(e.target.value)} placeholder={wallet?.stakeAddress || "stake1…, addr1… or $handle"} />
+          <input className="grow text-sm" value={input} onChange={(e) => setInput(e.target.value)} placeholder={walletHandle || wallet?.stakeAddress || "stake1…, addr1… or $handle"} />
         </label>
         <button className="btn btn-primary" type="submit">
           Show

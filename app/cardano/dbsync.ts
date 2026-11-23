@@ -106,6 +106,11 @@ export async function getReturnAddresses(stakeAddresses: string[]) {
   return handleRequest(client.POST("/returnAddresses", { body: stakeAddresses }));
 }
 
+/** One handle per stake address, stake addresses without a handle are omitted. */
+export async function getStakeHandles(stakeAddresses: string[]) {
+  return handleRequest(client.POST("/handles", { body: stakeAddresses, next: { revalidate: 60 } }));
+}
+
 export async function isTransactionConfirmed(txId: string) {
   return handleRequest(
     client.GET("/transaction/{txId}/confirmed", {

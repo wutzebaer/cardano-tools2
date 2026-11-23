@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/returnAddresses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Find the first known address for many stake addresses at once, unknown stake addresses are omitted */
+        post: operations["getReturnAddresses"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/handles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Find one handle for many stake addresses at once, stake addresses without a handle are omitted */
+        post: operations["getHandlesOfStakeAddresses"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/{stakeAddress}/stakeInfo": {
         parameters: {
             query?: never;
@@ -32,23 +66,6 @@ export interface paths {
         get: operations["getReturnAddress"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/returnAddresses": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Find the first known address for many stake addresses at once, unknown stake addresses are omitted */
-        post: operations["getReturnAddresses"];
         delete?: never;
         options?: never;
         head?: never;
@@ -416,6 +433,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        StakeReturnAddress: {
+            stakeAddress: string;
+            address: string;
+        };
+        StakeHandle: {
+            stakeAddress: string;
+            handle: string;
+        };
         StakeInfo: {
             /** Format: int64 */
             stake: number;
@@ -426,10 +451,6 @@ export interface components {
         };
         ReturnAddress: {
             address?: string;
-        };
-        StakeReturnAddress: {
-            stakeAddress: string;
-            address: string;
         };
         TokenDetails: {
             /** Format: int64 */
@@ -533,29 +554,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    getStakeInfo: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @example stake1u9k8maputfwef7kjl6nvguupxcvllplpa967amss06fxwngzsj30w */
-                stakeAddress: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StakeInfo"];
-                };
-            };
-        };
-    };
     getReturnAddresses: {
         parameters: {
             query?: never;
@@ -576,6 +574,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StakeReturnAddress"][];
+                };
+            };
+        };
+    };
+    getHandlesOfStakeAddresses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StakeHandle"][];
+                };
+            };
+        };
+    };
+    getStakeInfo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example stake1u9k8maputfwef7kjl6nvguupxcvllplpa967amss06fxwngzsj30w */
+                stakeAddress: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StakeInfo"];
                 };
             };
         };
