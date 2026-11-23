@@ -3,7 +3,7 @@
 import { NETWORK } from "@cardano/network";
 import { hexToBytes, rewardAddressHashToBech32 } from "@cardano/transaction";
 import { WalletConnection, WalletInfo } from "@cardano/types";
-import { getSelectedWallet, SelectionMode } from "@cardano/wallet";
+import { enableWallet, getSelectedWallet, SelectionMode } from "@cardano/wallet";
 import { ApplicationContext } from "@components/StateProvider";
 import { Address } from "@emurgo/cardano-serialization-lib-browser";
 import { useCallback, useContext, useEffect, useState } from "react";
@@ -29,7 +29,7 @@ function paymentKeyHash(addressHex: string) {
 }
 
 async function loadWallet(info: WalletInfo): Promise<ConnectedWallet> {
-  const connection = await info.enable();
+  const connection = await enableWallet(info);
   if ((await connection.getNetworkId()) !== NETWORK.id) {
     throw new Error(`Please switch your wallet to ${NETWORK.name}`);
   }
@@ -67,9 +67,14 @@ export function useWallet() {
   useEffect(() => {
     if (!walletInfo) return;
     let cancelled = false;
-    loadWallet(walletInfo).then((wallet) => {
-      if (!cancelled) setLoaded(wallet);
-    });
+    // a refused connection is reported and reset by the wallet overview, which asks for the same connection
+    enableWallet(walletInfo).then(
+      () =>
+        loadWallet(walletInfo).then((wallet) => {
+          if (!cancelled) setLoaded(wallet);
+        }),
+      () => undefined
+    );
     return () => {
       cancelled = true;
     };

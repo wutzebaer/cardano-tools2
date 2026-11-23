@@ -3,7 +3,7 @@
 import { rewardAddressHashToBech32 } from "@cardano/transaction";
 import { WalletInfo } from "@cardano/types";
 import { formatAda } from "@cardano/utils";
-import { getSelectedWallet, SelectionMode } from "@cardano/wallet";
+import { enableWallet, getSelectedWallet, SelectionMode } from "@cardano/wallet";
 import { ApplicationContext } from "@components/StateProvider";
 import { Value } from "@emurgo/cardano-serialization-lib-browser";
 import Image from "next/image";
@@ -26,7 +26,12 @@ function WalletOverview() {
     if (!fetchedWalletInfo) {
       setWalletStats(null);
     } else {
-      const connection = await fetchedWalletInfo.enable();
+      const connection = await enableWallet(fetchedWalletInfo).catch((error) => {
+        // refused or closed: back to "Connect wallet" instead of waiting forever, and no new request on the next visit
+        localStorage.removeItem("walletKey");
+        context.setState({ walletInfo: null });
+        throw error;
+      });
       const name = fetchedWalletInfo.name;
       const icon = fetchedWalletInfo.icon;
       const balanceCBORHex = await connection.getBalance();

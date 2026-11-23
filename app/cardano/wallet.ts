@@ -1,4 +1,4 @@
-import { Cardano, WalletInfo } from "@cardano/types";
+import { Cardano, WalletConnection, WalletInfo } from "@cardano/types";
 import { showReturningModal } from "./dialog";
 
 export const EMPTY_WALLETS: Cardano = new Map();
@@ -48,4 +48,20 @@ export async function getSelectedWallet(selectionMode: SelectionMode = Selection
     }
   }
   return null;
+}
+
+const connections = new WeakMap<WalletInfo, Promise<WalletConnection>>();
+
+/**
+ * Asks the wallet for access once, however many parts of the page need the connection at the same time.
+ * Wallets such as Eternl cancel a pending request when a second one arrives. A refused request is asked again next time.
+ */
+export function enableWallet(info: WalletInfo): Promise<WalletConnection> {
+  let connection = connections.get(info);
+  if (!connection) {
+    connection = info.enable();
+    connections.set(info, connection);
+    connection.catch(() => connections.delete(info));
+  }
+  return connection;
 }

@@ -2,7 +2,7 @@
 
 import { POOL_ID, POOL_TICKER } from "@cardano/pool";
 import { delegateToPool } from "@cardano/transaction";
-import { getSelectedWallet, SelectionMode } from "@cardano/wallet";
+import { enableWallet, getSelectedWallet, SelectionMode } from "@cardano/wallet";
 import { ApplicationContext } from "@components/StateProvider";
 import Image from "next/image";
 import { useCallback, useContext } from "react";
@@ -14,7 +14,7 @@ export function useStakeNow() {
   return useCallback(async () => {
     const walletInfo = await getSelectedWallet(SelectionMode.ForceSelectIfNone);
     context.setState({ walletInfo: walletInfo });
-    return delegateToPool(await walletInfo.enable(), POOL_ID);
+    return delegateToPool(await enableWallet(walletInfo), POOL_ID);
   }, [context]);
 }
 
