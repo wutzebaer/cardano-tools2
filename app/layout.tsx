@@ -24,6 +24,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  // absolute addresses for preview images, which other sites fetch
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://cardano-tools.io"),
   title: "Cardano Tools",
   description: "Browse, mint and burn tokens, reward your stakers and create wallet statements on Cardano, straight from your wallet",
 };
