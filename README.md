@@ -13,6 +13,7 @@ Cardano Tools is a [Next.js](https://nextjs.org) dApp: every transaction is buil
 | `/timelock` | Lock ADA and tokens at a native script until a date and take them back afterwards |
 | `/rewards` | Distribute ADA and tokens to the delegators of a pool |
 | `/statement` | Wallet statement with fiat values and CSV export |
+| `/tax` | Staking rewards per epoch with their value on the payout day, totals per year, CSV and print view |
 | `/pool` | The Cardano Tools pool [TOOLS] and delegation |
 
 ## Policies
@@ -47,7 +48,7 @@ npm run update-schema
 
 ```bash
 npm run lint
-npm test        # reward distribution, statement, mint metadata, timelock script, staking check
+npm test        # reward distribution, statement, mint metadata, timelock script, staking check, rewards report
 npm run build
 ```
 

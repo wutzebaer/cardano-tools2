@@ -9,6 +9,7 @@ import { NETWORK, NETWORKS, unixToEpoch, unixToSlot } from "../app/cardano/netwo
 import { candidateUnlockTimes, DAY_SECONDS, FIRST_UNLOCK_UNIX, MAX_LOCK_DAYS, timelockMetadata, timeScriptHash, unlockSlotsFromMetadata, unlockTimeError } from "../app/cardano/timelockScript.ts";
 import { policyLockSlot } from "../app/cardano/utils.ts";
 import { priceAt, statementCsv, statementLines } from "../app/statement/statement.ts";
+import { isPaid, rewardCsv, rewardEntries, yearTotals } from "../app/tax/rewardReport.ts";
 
 // ---------------------------------------------------------------------------
 // Reward distribution
@@ -398,4 +399,61 @@ test("alternatives always include the given pool, never the current one, and sta
   // delegated to the given pool already: it is not suggested to itself
   assert.ok(!pickAlternatives(candidates, "pool5", tools, "stake1abc").some((pool) => pool.poolHash === "pool5"));
   assert.deepEqual(pickAlternatives([], null, tools, "x"), [tools]);
+});
+
+// ---------------------------------------------------------------------------
+// Staking rewards report
+// ---------------------------------------------------------------------------
+
+const EPOCH = 432000;
+const epochStart = (epoch) => new Date((1506203091 + epoch * EPOCH) * 1000).toISOString();
+const rewardRow = (epoch, rewards, operations = ["REWARD_member"]) => ({ timestamp: epochStart(epoch), epoch, rewards, operations });
+
+test("a reward counts when it is paid out, two epochs after it was earned, at that day's price", () => {
+  const payout = Date.parse(epochStart(602)) / 1000;
+  const prices = [
+    [payout - 86400, 0.4],
+    [payout, 0.5],
+    [payout + 86400, 0.6],
+  ];
+  const [entry] = rewardEntries([rewardRow(600, 10_000_000)], (unix) => priceAt(prices, unix), EPOCH);
+  assert.equal(entry.earnedEpoch, 600);
+  assert.equal(entry.payoutEpoch, 602);
+  assert.equal(entry.payoutTime, epochStart(602));
+  assert.equal(entry.price, 0.5);
+  assert.equal(entry.fiat, 5);
+  assert.equal(entry.operator, false);
+});
+
+test("only staking rewards are income: refunds, treasury payouts and transactions are left out", () => {
+  const rows = [
+    rewardRow(600, 10_000_000),
+    rewardRow(601, 500_000_000, ["REWARD_refund"]),
+    rewardRow(602, 7_000_000, ["REWARD_treasury"]),
+    rewardRow(603, 3_000_000, ["REWARD_leader"]),
+    { timestamp: epochStart(604), epoch: 604, rewards: 0, operations: ["IN", "OUT"] },
+  ];
+  const entries = rewardEntries(rows, () => undefined, EPOCH);
+  assert.deepEqual(entries.map((entry) => [entry.earnedEpoch, entry.operator]), [[600, false], [603, true]]);
+  assert.equal(entries[0].fiat, undefined);
+});
+
+test("the year of a reward is the year of its payout, and a year says how many values are missing", () => {
+  // epochs 529 and 530 are paid in epochs 531 (30 Dec 2024) and 532 (4 Jan 2025)
+  const entries = rewardEntries([rewardRow(529, 10_000_000), rewardRow(530, 20_000_000), rewardRow(531, 30_000_000)], (unix) => (unix < Date.UTC(2025, 0, 6) / 1000 ? 1 : undefined), EPOCH);
+  assert.deepEqual(entries.map((entry) => entry.payoutTime.slice(0, 10)), ["2024-12-30", "2025-01-04", "2025-01-09"]);
+  assert.deepEqual(yearTotals(entries), [
+    { year: 2025, rewards: 2, lovelace: 50_000_000, fiat: 20, unpriced: 1 },
+    { year: 2024, rewards: 1, lovelace: 10_000_000, fiat: 10, unpriced: 0 },
+  ]);
+  assert.equal(isPaid(entries[0], Date.UTC(2024, 11, 29) / 1000), false);
+  assert.equal(isPaid(entries[0], Date.UTC(2024, 11, 31) / 1000), true);
+});
+
+test("the rewards report exports one line per payout", () => {
+  const entries = rewardEntries([rewardRow(529, 12_345_678)], () => 0.9, EPOCH);
+  assert.equal(
+    rewardCsv(entries, "EUR"),
+    "Payout date (UTC),Payout epoch,Earned in epoch,Kind,Reward ADA,Price EUR,Value EUR\r\n2024-12-30,531,529,staking reward,12.345678,0.900000,11.11"
+  );
 });

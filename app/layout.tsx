@@ -3,7 +3,7 @@ import ErrorBoundary from "@components/ErrorBoundary";
 import ErrorToast from "@components/ErrorToast";
 import { IS_MAINNET, NETWORK } from "@cardano/network";
 import { POOL_TICKER, TELEGRAM_URL } from "@cardano/pool";
-import { BanknotesIcon, DocumentTextIcon, FireIcon, GiftIcon, LockClosedIcon, ShieldCheckIcon, SparklesIcon, Squares2X2Icon, WalletIcon } from "@heroicons/react/24/outline";
+import { BanknotesIcon, CalculatorIcon,DocumentTextIcon, FireIcon, GiftIcon, LockClosedIcon, ShieldCheckIcon, SparklesIcon, Squares2X2Icon, WalletIcon } from "@heroicons/react/24/outline";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Image from "next/image";
@@ -50,7 +50,7 @@ export default function RootLayout({
                 <ErrorBoundary>{children}</ErrorBoundary>
               </main>
             </div>
-            <div className="drawer-side z-40">
+            <div className="drawer-side z-40 print:hidden">
               <label htmlFor="my-drawer-2" aria-label="close sidebar" className="drawer-overlay"></label>
 
               <aside className="flex min-h-full w-72 flex-col gap-8 border-r border-line bg-base-100 p-4">
@@ -84,6 +84,9 @@ export default function RootLayout({
                   </NavLink>
                   <NavLink href="/statement" icon={<DocumentTextIcon className="size-5" />}>
                     Wallet statement
+                  </NavLink>
+                  <NavLink href="/tax" icon={<CalculatorIcon className="size-5" />}>
+                    Rewards report
                   </NavLink>
                   <NavLink
                     href="/pool"
