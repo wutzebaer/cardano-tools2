@@ -448,6 +448,8 @@ export interface components {
             tickerName: string;
             /** Format: int64 */
             totalStake: number;
+            /** Format: int64 */
+            poolRewards: number;
         };
         ReturnAddress: {
             address?: string;

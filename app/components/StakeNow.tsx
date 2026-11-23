@@ -2,6 +2,7 @@
 
 import { POOL_ID, POOL_TICKER } from "@cardano/pool";
 import { delegateToPool } from "@cardano/transaction";
+import { formatAda } from "@cardano/utils";
 import { enableWallet, getSelectedWallet, SelectionMode } from "@cardano/wallet";
 import { ApplicationContext } from "@components/StateProvider";
 import { useStakeInfo } from "@components/useStakeInfo";
@@ -23,7 +24,7 @@ export function useStakeNow() {
 
 const StakeNow = () => {
   const stake = useStakeNow();
-  const { delegatedHere } = useStakeInfo();
+  const { info, delegatedHere } = useStakeInfo();
 
   // a wallet that already stakes with the pool is thanked instead of asked again
   if (delegatedHere) {
@@ -35,7 +36,7 @@ const StakeNow = () => {
             <CheckBadgeIcon className="size-4 shrink-0" />
             Thank you!
           </p>
-          <p className="text-xs text-base-content/55">You stake with [{POOL_TICKER}]</p>
+          <p className="text-xs text-base-content/55">{info?.poolRewards ? `${formatAda(info.poolRewards)} earned with [${POOL_TICKER}]` : `You stake with [${POOL_TICKER}]`}</p>
         </div>
       </Link>
     );
