@@ -273,3 +273,13 @@ test("the feed collapses a policy with several tokens into one entry", () => {
   // below the threshold nothing is grouped
   assert.equal(groupFeed(feed.slice(0, 4)).every((entry) => entry.kind === "token"), true);
 });
+
+test("the feed shows a token that is minted repeatedly only once", () => {
+  const token = (policy, fingerprint, mintId) => ({ maPolicyId: policy, maFingerprint: fingerprint, maMintId: mintId, maName: "" });
+  const entries = groupFeed([token("a", "a1", 9), token("b", "b1", 8), token("a", "a1", 7), token("b", "b2", 6), token("a", "a1", 5), token("b", "b1", 4)]);
+
+  assert.deepEqual(
+    entries.map((entry) => entry.kind === "token" && `${entry.token.maFingerprint}@${entry.token.maMintId}`),
+    ["a1@9", "b1@8", "b2@6"]
+  );
+});

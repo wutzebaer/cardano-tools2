@@ -8,7 +8,7 @@ export type FeedEntry = { kind: "token"; token: TokenListItem } | { kind: "colle
 /**
  * Collapses the tokens of a policy into one entry, so a collection that mints hundreds of tokens does not
  * push everything else out of the feed. The entry takes the place of the policy's first token in the list.
- * Policies with only a few tokens keep their single entries.
+ * Policies with only a few tokens keep their single entries, one per token however often it is minted.
  */
 export function groupFeed(tokens: TokenListItem[], minSize = MIN_COLLECTION_SIZE): FeedEntry[] {
   // the same token can be minted more than once, it counts once per collection
@@ -26,7 +26,8 @@ export function groupFeed(tokens: TokenListItem[], minSize = MIN_COLLECTION_SIZE
   for (const token of tokens) {
     const ofPolicy = byPolicy.get(token.maPolicyId)!;
     if (ofPolicy.size < minSize) {
-      entries.push({ kind: "token", token });
+      // a token that is minted again and again shows up once, at its latest mint
+      if (ofPolicy.get(token.maFingerprint) === token) entries.push({ kind: "token", token });
     } else if (!collected.has(token.maPolicyId)) {
       collected.add(token.maPolicyId);
       entries.push({ kind: "collection", policyId: token.maPolicyId, tokens: [...ofPolicy.values()] });
