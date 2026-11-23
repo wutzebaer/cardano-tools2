@@ -5,6 +5,7 @@ import { groupFeed } from "../app/browse/groupTokens.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
 import { assetNameFor, tokenMetadata, tokensFromMetadata, tokensMetadata } from "../app/cardano/metadata.ts";
 import { NETWORK, NETWORKS, unixToEpoch, unixToSlot } from "../app/cardano/network.ts";
+import { candidateUnlockTimes, DAY_SECONDS, FIRST_UNLOCK_UNIX, MAX_LOCK_DAYS, timeScriptHash, unlockDateError, unlockUnixOfDate } from "../app/cardano/timelockScript.ts";
 import { policyLockSlot } from "../app/cardano/utils.ts";
 import { priceAt, statementCsv, statementLines } from "../app/statement/statement.ts";
 
@@ -248,4 +249,36 @@ test("the feed shows a token that is minted repeatedly only once", () => {
     entries.map((entry) => entry.kind === "token" && `${entry.token.maFingerprint}@${entry.token.maMintId}:${entry.minted}`),
     ["a1@9:3", "b1@8:25", "b2@6:undefined"]
   );
+});
+
+// ---------------------------------------------------------------------------
+// Timelock
+// ---------------------------------------------------------------------------
+
+test("the hash of a key-and-time script matches a policy id on mainnet", () => {
+  // policy 6733c80f… is `all [sig 406d6b77…, before 235435464]`
+  assert.equal(timeScriptHash("406d6b77e423ce1acb989ab000a42a04f82a2ddcdefbc2e6681cb276", "before", 235435464), "6733c80f1aff3eef2faec1f73207794911fc912cf3485cbc44fc1a54");
+  // hash of the same script with "after", from cardano-cli
+  assert.equal(timeScriptHash("406d6b77e423ce1acb989ab000a42a04f82a2ddcdefbc2e6681cb276", "after", 235435464), "7d4911eb74bf5b4181b549d54ed11029fd339e5a28fc96d87d8347f8");
+  assert.throws(() => timeScriptHash("406d", "after", 1));
+});
+
+test("a lock ends at midnight UTC of a real date", () => {
+  assert.equal(unlockUnixOfDate("2027-01-01"), 1798761600);
+  assert.equal(unlockUnixOfDate("2027-02-30"), undefined);
+  assert.equal(unlockUnixOfDate("1.1.2027"), undefined);
+});
+
+test("every date a lock can be made for is among the dates tried when looking for locks", () => {
+  const now = Date.UTC(2027, 5, 15, 13, 30) / 1000;
+  const candidates = new Set(candidateUnlockTimes(now));
+  const tomorrow = unlockUnixOfDate("2027-06-16");
+  const last = tomorrow + (MAX_LOCK_DAYS - 1) * DAY_SECONDS;
+  assert.ok(candidates.has(FIRST_UNLOCK_UNIX));
+  assert.ok(candidates.has(tomorrow));
+  assert.ok(candidates.has(last));
+  assert.equal(unlockDateError(new Date(last * 1000).toISOString().slice(0, 10), now), undefined);
+  assert.ok(unlockDateError(new Date((last + DAY_SECONDS) * 1000).toISOString().slice(0, 10), now));
+  assert.ok(unlockDateError("2027-06-15", now));
+  assert.equal(unlockDateError("2027-06-16", now), undefined);
 });

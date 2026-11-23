@@ -194,8 +194,12 @@ export function tokenDatum(token: MintToken): PlutusData {
  * so wallets never spend them accidentally, while the owner can still update the metadata later.
  */
 export function referenceAddress(changeAddress: Address, keyHash: string) {
-  const lockScript = NativeScript.new_script_pubkey(ScriptPubkey.new(Ed25519KeyHash.from_hex(keyHash)));
-  const payment = Credential.from_scripthash(lockScript.hash());
+  return scriptAddress(changeAddress, NativeScript.new_script_pubkey(ScriptPubkey.new(Ed25519KeyHash.from_hex(keyHash))));
+}
+
+/** Address of a native script that keeps the wallet's stake credential, so what is locked there still counts for its delegation. */
+export function scriptAddress(changeAddress: Address, script: NativeScript) {
+  const payment = Credential.from_scripthash(script.hash());
   const stake = BaseAddress.from_address(changeAddress)?.stake_cred();
   const network = changeAddress.network_id();
   return stake ? BaseAddress.new(network, payment, stake).to_address() : EnterpriseAddress.new(network, payment).to_address();

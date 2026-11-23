@@ -9,6 +9,7 @@ Cardano Tools is a [Next.js](https://nextjs.org) dApp: every transaction is buil
 | `/mint` | Mint CIP-68 NFTs and fungible tokens, one or many per transaction, with additional files and a JSON editor for the metadata |
 | `/royalties` | Mint the CIP-27 royalty token of a policy |
 | `/burn` | Burn tokens of own policies, including their CIP-68 reference NFT |
+| `/timelock` | Lock ADA and tokens at a native script until a date and take them back afterwards |
 | `/rewards` | Distribute ADA and tokens to the delegators of a pool |
 | `/statement` | Wallet statement with fiat values and CSV export |
 | `/pool` | The Cardano Tools pool [TOOLS] and delegation |
@@ -45,7 +46,7 @@ npm run update-schema
 
 ```bash
 npm run lint
-npm test        # reward distribution, statement, mint metadata
+npm test        # reward distribution, statement, mint metadata, timelock script
 npm run build
 ```
 
