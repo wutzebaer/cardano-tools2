@@ -132,7 +132,16 @@ export function WithdrawRewards({ stakeAddress, lovelace }: { stakeAddress: stri
 }
 
 /** Ends staking for good: takes the rewards out and deregisters the stake key, which pays its deposit back. */
-export function StopStaking({ stakeAddress, rewards }: { stakeAddress: string; rewards: number }) {
+export function StopStaking({ stakeAddress, rewards, voteDelegated }: { stakeAddress: string; rewards: number; voteDelegated: boolean }) {
+  // the chain deregisters no key with rewards left, and pays rewards out only to a key that has delegated its vote
+  if (rewards > 0 && !voteDelegated) {
+    return (
+      <p className="text-sm text-warning">
+        This address still has {formatAda(rewards)} of rewards, which have to be paid out with the deregistration. That needs a vote delegation first: choose &quot;Always
+        abstain&quot; above, wait for the confirmation and come back here.
+      </p>
+    );
+  }
   return (
     <OwnerAction stakeAddress={stakeAddress} done="Deregistration">
       {(run, busy) => (

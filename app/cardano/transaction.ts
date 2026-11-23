@@ -143,6 +143,15 @@ export function rejectionReason(nodeAnswer: string): string {
   if (missingKey) {
     return `Your wallet did not sign with a key this transaction needs (${missingKey.slice(0, 8)}…). Nothing was submitted. If this is the key of a policy, create a new policy and try again.`;
   }
+  if (/All inputs are spent|BadInputsUTxO/.test(nodeAnswer)) {
+    return "Your wallet offered coins that are already spent, so nothing was submitted. It has not caught up with your last transaction yet: wait until the wallet shows it, then try again.";
+  }
+  if (/WdrlNotDelegatedToDRep/.test(nodeAnswer)) {
+    return "Rewards can only be withdrawn once the stake key has delegated its vote. Delegate the vote first, wait for the confirmation and try again. Nothing was submitted.";
+  }
+  if (/StakeKeyHasNonZero\w*Balance/.test(nodeAnswer)) {
+    return "The stake key still holds rewards and cannot be deregistered with them. Reload the page so the current amount is paid out along, then try again. Nothing was submitted.";
+  }
   return `The network rejected the transaction: ${nodeAnswer.slice(0, 400)}`;
 }
 

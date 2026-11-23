@@ -242,7 +242,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
             taken when the key was registered. Many wallets have no button for this. Switching pools does not need it.
           </p>
           <div>
-            <StopStaking stakeAddress={stakeAddress} rewards={check.rewardsAvailable} />
+            <StopStaking stakeAddress={stakeAddress} rewards={check.rewardsAvailable} voteDelegated={vote !== "none"} />
           </div>
         </Card>
       ) : null}
