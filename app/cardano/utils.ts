@@ -99,13 +99,14 @@ export function toIpfsUrl(ipfs?: string | string[] | null) {
 }
 
 export function errorToMessage(e: unknown): string {
-  let error = e as Record<string, unknown>;
+  let error = e as Record<string, unknown> | null | undefined;
   const messages: string[] = [];
-  do {
+  // bounded, a cause chain may point back to itself
+  for (let depth = 0; error != null && depth < 5; depth++) {
     const message = String(error.digest || error.message || error.info || error.code || error);
     if (message) messages.push(message);
-    error = error.cause as Record<string, unknown>;
-  } while (error);
+    error = error.cause as Record<string, unknown> | null | undefined;
+  }
   return messages.length > 0 ? messages.join(", ") : "An unexpected error occurred.";
 }
 

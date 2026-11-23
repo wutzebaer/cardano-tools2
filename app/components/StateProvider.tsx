@@ -1,7 +1,7 @@
 "use client";
 
 import { WalletInfo } from "@cardano/types";
-import { createContext, ReactNode, useState } from "react";
+import { createContext, ReactNode, useMemo, useState } from "react";
 
 export interface ApplicationState {
   walletInfo: WalletInfo | null;
@@ -24,8 +24,11 @@ const StateProvider = ({ children }: { children: ReactNode }) => {
     walletInfo: null,
   });
 
+  // stable while the state is unchanged, so consumers only re-render on a real change
+  const value = useMemo(() => ({ state, setState }), [state]);
+
   return (
-    <ApplicationContext.Provider value={{ state, setState }}>
+    <ApplicationContext.Provider value={value}>
       {children}
     </ApplicationContext.Provider>
   );

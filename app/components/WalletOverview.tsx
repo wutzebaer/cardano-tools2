@@ -47,15 +47,14 @@ function WalletOverview() {
     })();
   }, [context.state.walletInfo]);
 
-  // Initial fetch
+  // Once on load: reconnect the wallet chosen on an earlier visit.
+  // Must not depend on the context and must not set state without a wallet, both would re-render in an endless loop.
+  const { setState } = context;
   useEffect(() => {
-    (async () => {
-      if (!context.state.walletInfo) {
-        const fetchedWalletInfo = await getSelectedWallet(SelectionMode.IfSelected);
-        context.setState({ walletInfo: fetchedWalletInfo });
-      }
-    })();
-  }, [context]);
+    getSelectedWallet(SelectionMode.IfSelected).then((fetchedWalletInfo) => {
+      if (fetchedWalletInfo) setState({ walletInfo: fetchedWalletInfo });
+    });
+  }, [setState]);
 
   const reconnect = async () => {
     context.setState({ walletInfo: null });
