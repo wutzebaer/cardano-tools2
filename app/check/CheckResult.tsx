@@ -5,7 +5,7 @@ import CopyButton from "@components/CopyButton";
 import { ExternalLink } from "@components/ui";
 import { CheckCircleIcon, ExclamationTriangleIcon, InformationCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import { ReactNode } from "react";
-import { DelegateToPool, VoteDelegation, WithdrawRewards } from "./CheckActions";
+import { DelegateToPool, StopStaking, VoteDelegation, WithdrawRewards } from "./CheckActions";
 import { drepKind, Finding, Level, marginCostPerYear, saturation } from "./checkLogic";
 import { CheckData, PoolCheck, PoolPerformance } from "./loadCheck";
 
@@ -232,6 +232,18 @@ export default function CheckResult({ data }: { data: CheckData }) {
               </li>
             ))}
           </ul>
+        </Card>
+      ) : null}
+
+      {check.registered ? (
+        <Card title="Stop staking">
+          <p className="text-sm text-base-content/65">
+            For closing a wallet: deregistering the stake key ends the delegation to the pool and the vote delegation, pays out the rewards and returns the 2 ₳ deposit that was
+            taken when the key was registered. Many wallets have no button for this. Switching pools does not need it.
+          </p>
+          <div>
+            <StopStaking stakeAddress={stakeAddress} rewards={check.rewardsAvailable} />
+          </div>
         </Card>
       ) : null}
 

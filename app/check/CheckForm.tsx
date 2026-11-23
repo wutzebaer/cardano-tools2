@@ -20,11 +20,14 @@ export default function CheckForm({ initial = "" }: { initial?: string }) {
   const input = typed ?? (initial || walletHandle || wallet?.stakeAddress || "");
   const [waitingForWallet, setWaitingForWallet] = useState(false);
 
-  // the wallet was asked for by "Check my wallet" and has arrived
+  // on the empty page a connected wallet is checked right away, whether it was connected before or just now by "Check my wallet".
+  // Another address can still be checked from the field of the result page.
   const walletAddress = wallet?.stakeAddress;
   useEffect(() => {
-    if (waitingForWallet && walletAddress) router.push(checkPath(walletAddress));
-  }, [waitingForWallet, walletAddress, router]);
+    if (!walletAddress) return;
+    if (waitingForWallet) router.push(checkPath(walletAddress));
+    else if (!initial) router.replace(checkPath(walletAddress));
+  }, [waitingForWallet, walletAddress, initial, router]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();

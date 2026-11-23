@@ -21,6 +21,7 @@ import {
   ScriptNOfK,
   ScriptPubkey,
   StakeDelegation,
+  StakeDeregistration,
   StakeRegistrationAndDelegation,
   TimelockExpiry,
   TimelockStart,
@@ -250,6 +251,24 @@ export const withdrawRewards = async (connection: WalletConnection, lovelace: bi
   withdrawals.insert(await walletRewardAddress(connection), BigNum.from_str(`${lovelace}`));
   return sendTransaction(connection, (txBuilder) => {
     txBuilder.set_withdrawals(withdrawals);
+  });
+};
+
+/**
+ * Deregisters the wallet's stake key: its delegations end and the deposit comes back. The chain refuses to deregister
+ * a key with rewards left, so the rewards that are available are withdrawn in the same transaction.
+ */
+export const deregisterStake = async (connection: WalletConnection, rewardsLovelace: bigint) => {
+  const rewardAddress = await walletRewardAddress(connection);
+  const certificates = Certificates.new();
+  certificates.add(Certificate.new_stake_deregistration(StakeDeregistration.new(rewardAddress.payment_cred())));
+  return sendTransaction(connection, (txBuilder) => {
+    txBuilder.set_certs(certificates);
+    if (rewardsLovelace > 0n) {
+      const withdrawals = Withdrawals.new();
+      withdrawals.insert(rewardAddress, BigNum.from_str(`${rewardsLovelace}`));
+      txBuilder.set_withdrawals(withdrawals);
+    }
   });
 };
 

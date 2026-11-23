@@ -3,7 +3,7 @@
 import { watchConfirmation } from "@cardano/confirmation";
 import { explorerTxUrl } from "@cardano/network";
 import { POOL_ID } from "@cardano/pool";
-import { delegateToPool, delegateVote, VoteTarget, withdrawRewards } from "@cardano/transaction";
+import { delegateToPool, delegateVote, deregisterStake, VoteTarget, withdrawRewards } from "@cardano/transaction";
 import { formatAda } from "@cardano/utils";
 import { ExternalLink, inputClass } from "@components/ui";
 import { watchDelegation } from "@components/useStakeInfo";
@@ -125,6 +125,27 @@ export function WithdrawRewards({ stakeAddress, lovelace }: { stakeAddress: stri
         <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => run((wallet) => withdrawRewards(wallet.connection, BigInt(lovelace)))}>
           {busy ? <span className="loading loading-spinner loading-xs" /> : null}
           Withdraw {formatAda(lovelace)}
+        </button>
+      )}
+    </OwnerAction>
+  );
+}
+
+/** Ends staking for good: takes the rewards out and deregisters the stake key, which pays its deposit back. */
+export function StopStaking({ stakeAddress, rewards }: { stakeAddress: string; rewards: number }) {
+  return (
+    <OwnerAction stakeAddress={stakeAddress} done="Deregistration">
+      {(run, busy) => (
+        <button
+          className="btn btn-sm border-error/50 bg-error/10 text-error hover:border-error hover:bg-error/20"
+          disabled={busy}
+          onClick={() => {
+            if (!confirm("Stop staking with this wallet?\n\nThe stake key is deregistered: the delegation to the pool and the vote delegation end, the rewards are paid out and the 2 ₳ deposit comes back. Staking again later means registering again.")) return;
+            run((wallet) => deregisterStake(wallet.connection, BigInt(rewards)));
+          }}
+        >
+          {busy ? <span className="loading loading-spinner loading-xs" /> : null}
+          Stop staking and get the deposit back
         </button>
       )}
     </OwnerAction>
