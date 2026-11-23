@@ -12,6 +12,7 @@ import { ArrowUpTrayIcon, CodeBracketIcon, PlusIcon } from "@heroicons/react/24/
 import { ChangeEvent, useState } from "react";
 import MetadataEditor from "./MetadataEditor";
 import PolicySelector from "./PolicySelector";
+import RoyaltyPrompt from "./RoyaltyPrompt";
 import TokenForm, { MAX_FILE_BYTES, tokenErrors } from "./TokenForm";
 import { uploadToIpfs } from "./uploadToIpfs";
 import { usePolicies } from "./usePolicies";
@@ -108,7 +109,10 @@ function Mint({ wallet }: { wallet: ConnectedWallet }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <PolicySelector keyHash={wallet.keyHash} selection={selection} royaltyHint />
+      <PolicySelector keyHash={wallet.keyHash} selection={selection} />
+
+      {/* imported policies were made elsewhere and have their tokens already */}
+      {policy && !policy.skey && !selection.loading && !selection.minted.has(policy.policyId) ? <RoyaltyPrompt key={policy.policyId} wallet={wallet} policy={policy} /> : null}
 
       {editing ? (
         <MetadataEditor tokens={tokens} onApply={setTokens} onClose={() => setEditing(false)} />

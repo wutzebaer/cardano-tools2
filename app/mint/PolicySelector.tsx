@@ -6,7 +6,6 @@ import { MintPolicy } from "@cardano/types";
 import { shortenId } from "@cardano/utils";
 import { Field, inputClass, secondaryButtonClass, textareaClass } from "@components/ui";
 import { ArrowDownTrayIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
-import Link from "next/link";
 import { useState } from "react";
 import { PolicySelection } from "./usePolicies";
 
@@ -27,21 +26,7 @@ function policyLabel(policy: MintPolicy, minted: boolean) {
 
 type Mode = "select" | "create" | "import";
 
-/** Royalties only count if their token is the first one of a policy, so the hint has to come before the first mint. */
-function RoyaltyHint() {
-  return (
-    <>
-      Should sales of its NFTs pay royalties? Then{" "}
-      <Link href="/royalties" className="text-primary hover:underline">
-        mint the royalty token
-      </Link>{" "}
-      first: marketplaces only honour it as the very first token of a policy.
-    </>
-  );
-}
-
-/** `royaltyHint` reminds of the royalty token while the selected policy has not minted anything, for pages that mint other tokens. */
-export default function PolicySelector({ keyHash, selection, royaltyHint = false }: { keyHash: string; selection: PolicySelection; royaltyHint?: boolean }) {
+export default function PolicySelector({ keyHash, selection }: { keyHash: string; selection: PolicySelection }) {
   const { policies, minted, stored, selected, loading, select, add, remove } = selection;
   const [mode, setMode] = useState<Mode>("select");
   const [name, setName] = useState("");
@@ -123,22 +108,11 @@ export default function PolicySelector({ keyHash, selection, royaltyHint = false
 
       {selected ? <p className="break-all font-mono text-xs text-base-content/45">{selected.policyId}</p> : null}
 
-      {royaltyHint && mode === "select" && selected && !selected.skey && !loading && !minted.has(selected.policyId) ? (
-        <p className="text-xs text-base-content/65">
-          This policy has not minted anything yet. <RoyaltyHint />
-        </p>
-      ) : null}
-
       {mode === "create" ? (
         <div className="flex flex-col gap-4 rounded-field border border-line bg-base-300 p-4">
           <p className="text-xs text-base-content/55">
             The policy is signed by your wallet key, nothing secret is stored. After the lock date nobody can mint or burn its tokens any more.
           </p>
-          {royaltyHint ? (
-            <p className="text-xs text-base-content/65">
-              <RoyaltyHint />
-            </p>
-          ) : null}
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
             <Field label="Name (optional)">
               <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="My collection" />
