@@ -115,6 +115,9 @@ export default function RootLayout({
                     <Link href="/legal/terms" className="hover:text-base-content">
                       Terms
                     </Link>
+                    <Link href="/legal/privacy" className="hover:text-base-content">
+                      Privacy
+                    </Link>
                     <Link href="/legal/imprint" className="hover:text-base-content">
                       Imprint
                     </Link>
