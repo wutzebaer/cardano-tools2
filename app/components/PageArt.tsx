@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 
-export type PageArtName = "mint" | "burn" | "timelock" | "rewards" | "statement" | "royalties" | "tokens";
+export type PageArtName = "mint" | "burn" | "timelock" | "rewards" | "statement" | "royalties" | "tokens" | "check";
 
 /** Four-pointed sparkle around a point. */
 const sparkle = (x: number, y: number, size: number) =>
@@ -128,6 +128,21 @@ const ART: Record<PageArtName, { from: string; to: string; drawing: (stroke: str
         <rect x="220" y="32" width="70" height="96" rx="12" stroke={stroke} strokeWidth="2.5" />
         <circle cx="255" cy="68" r="17" fill={fill} opacity="0.8" />
         <path d="M234 102h42M240 114h30" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
+      </>
+    ),
+  },
+  check: {
+    from: "#34d399",
+    to: "#4d7cfe",
+    drawing: (stroke, fill) => (
+      <>
+        <path d="M246 22l52 18v40c0 32-22 54-52 64-30-10-52-32-52-64V40l52-18Z" fill={fill} opacity="0.12" />
+        <path d="M246 22l52 18v40c0 32-22 54-52 64-30-10-52-32-52-64V40l52-18Z" stroke={stroke} strokeWidth="2.5" strokeLinejoin="round" />
+        <path d="M222 82l17 17 32-36" stroke={stroke} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="318" cy="118" r="15" stroke={stroke} strokeWidth="2.5" />
+        <path d="M329 129l13 13" stroke={stroke} strokeWidth="3" strokeLinecap="round" />
+        <path d={sparkle(172, 44, 8)} fill={fill} opacity="0.7" />
+        <path d={sparkle(332, 46, 10)} fill={fill} opacity="0.8" />
       </>
     ),
   },

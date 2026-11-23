@@ -8,6 +8,7 @@ import {
   Certificate,
   Certificates,
   CoinSelectionStrategyCIP2,
+  DRep,
   Ed25519KeyHash,
   FixedTransaction,
   LinearFee,
@@ -31,6 +32,8 @@ import {
   TransactionUnspentOutputs,
   TransactionWitnessSet,
   Value,
+  VoteDelegation,
+  Withdrawals,
 } from "@emurgo/cardano-serialization-lib-browser";
 
 export { currentEpoch, currentSlot, unixToSlot } from "@cardano/network";
@@ -207,6 +210,46 @@ export const delegateToPool = async (connection: WalletConnection, poolId: strin
 
   return sendTransaction(connection, (txBuilder) => {
     txBuilder.set_certs(certificates);
+  });
+};
+
+/** Who a stake key hands its vote to: one of the two automatic choices or the id of a DRep (`drep1…`). */
+export type VoteTarget = "abstain" | "no_confidence" | string;
+
+async function walletRewardAddress(connection: WalletConnection) {
+  const rewardAddress = RewardAddress.from_address(Address.from_bytes(hexToBytes((await connection.getRewardAddresses())[0])));
+  if (!rewardAddress) throw new Error("Your wallet reports no stake address");
+  return rewardAddress;
+}
+
+/** Delegates the voting power of the wallet's stake key. Since the Conway era rewards can only be withdrawn with a vote delegation. */
+export const delegateVote = async (connection: WalletConnection, target: VoteTarget) => {
+  const stakeCredential = (await walletRewardAddress(connection)).payment_cred();
+  let drep: DRep;
+  if (target === "abstain") {
+    drep = DRep.new_always_abstain();
+  } else if (target === "no_confidence") {
+    drep = DRep.new_always_no_confidence();
+  } else {
+    try {
+      drep = DRep.from_bech32(target.trim());
+    } catch {
+      throw new Error("This is not a DRep id. It starts with drep1.");
+    }
+  }
+  const certificates = Certificates.new();
+  certificates.add(Certificate.new_vote_delegation(VoteDelegation.new(stakeCredential, drep)));
+  return sendTransaction(connection, (txBuilder) => {
+    txBuilder.set_certs(certificates);
+  });
+};
+
+/** Moves the staking rewards of the wallet into its spendable balance. The chain only takes the exact amount that is available. */
+export const withdrawRewards = async (connection: WalletConnection, lovelace: bigint) => {
+  const withdrawals = Withdrawals.new();
+  withdrawals.insert(await walletRewardAddress(connection), BigNum.from_str(`${lovelace}`));
+  return sendTransaction(connection, (txBuilder) => {
+    txBuilder.set_withdrawals(withdrawals);
   });
 };
 

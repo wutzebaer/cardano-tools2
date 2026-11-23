@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/{stakeAddress}/stakeCheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Staking state of a stake address: registration, pool, DRep and withdrawable rewards. Empty for an unknown address */
+        get: operations["getStakeCheck"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/{stakeAddress}/returnAddress": {
         parameters: {
             query?: never;
@@ -361,6 +378,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/poolAlternatives": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pools that make blocks, are not retiring, take at most 1 % margin and the minimum fixed cost and hold 300 thousand to 30 million ADA */
+        get: operations["getPoolAlternatives"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pool/{poolHash}/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Blocks and delegator returns of a pool over the last epochs, next to the network average */
+        get: operations["getPoolPerformance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pool/{poolHash}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fees, retirement, stake and saturation of a pool. Empty for an unknown pool */
+        get: operations["getPoolCheck"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/policy/{policyId}/royalties": {
         parameters: {
             query?: never;
@@ -468,6 +536,42 @@ export interface components {
             /** Format: int64 */
             poolRewards: number;
         };
+        PoolCheck: {
+            poolHash: string;
+            ticker?: string;
+            name?: string;
+            homepage?: string;
+            /** Format: double */
+            margin: number;
+            /** Format: int64 */
+            fixedCost: number;
+            /** Format: int64 */
+            pledge: number;
+            /** Format: double */
+            nextMargin?: number;
+            /** Format: int64 */
+            nextFixedCost?: number;
+            /** Format: int32 */
+            retiringEpoch?: number;
+            /** Format: int64 */
+            activeStake: number;
+            /** Format: int32 */
+            delegators: number;
+            /** Format: int64 */
+            saturationStake: number;
+        };
+        StakeCheck: {
+            stakeAddress: string;
+            /** Format: int32 */
+            currentEpoch: number;
+            registered: boolean;
+            /** Format: int64 */
+            balance: number;
+            /** Format: int64 */
+            rewardsAvailable: number;
+            drepId?: string;
+            pool?: components["schemas"]["PoolCheck"];
+        };
         ReturnAddress: {
             address?: string;
         };
@@ -542,6 +646,26 @@ export interface components {
         PoolInfo: {
             tickerName: string;
             poolHash: string;
+        };
+        EpochBlocks: {
+            /** Format: int32 */
+            epoch: number;
+            /** Format: int32 */
+            blocks: number;
+        };
+        PoolPerformance: {
+            poolHash: string;
+            /** Format: int32 */
+            fromEpoch: number;
+            /** Format: int32 */
+            toEpoch: number;
+            /** Format: double */
+            roa?: number;
+            /** Format: double */
+            networkRoa: number;
+            blocks: components["schemas"]["EpochBlocks"][];
+            /** Format: int64 */
+            lifetimeBlocks: number;
         };
         PolicyRoyalties: {
             rate?: string;
@@ -645,6 +769,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StakeInfo"];
+                };
+            };
+        };
+    };
+    getStakeCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example stake1u9k8maputfwef7kjl6nvguupxcvllplpa967amss06fxwngzsj30w */
+                stakeAddress: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StakeCheck"];
                 };
             };
         };
@@ -1057,6 +1204,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PoolInfo"][];
+                };
+            };
+        };
+    };
+    getPoolAlternatives: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolCheck"][];
+                };
+            };
+        };
+    };
+    getPoolPerformance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example pool180fejev4xgwe2y53ky0pxvgxr3wcvkweu6feq5mdljfzcsmtg6u */
+                poolHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolPerformance"];
+                };
+            };
+        };
+    };
+    getPoolCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example pool180fejev4xgwe2y53ky0pxvgxr3wcvkweu6feq5mdljfzcsmtg6u */
+                poolHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolCheck"];
                 };
             };
         };

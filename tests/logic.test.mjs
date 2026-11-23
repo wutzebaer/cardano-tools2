@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { groupFeed } from "../app/browse/groupTokens.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
+import { drepKind, marginCostPerYear, pickAlternatives, poolFindings, suggestsAlternatives } from "../app/check/checkLogic.ts";
 import { assetNameFor, tokenMetadata, tokensFromMetadata, tokensMetadata } from "../app/cardano/metadata.ts";
 import { NETWORK, NETWORKS, unixToEpoch, unixToSlot } from "../app/cardano/network.ts";
 import { candidateUnlockTimes, DAY_SECONDS, FIRST_UNLOCK_UNIX, MAX_LOCK_DAYS, timelockMetadata, timeScriptHash, unlockSlotsFromMetadata, unlockTimeError } from "../app/cardano/timelockScript.ts";
@@ -318,4 +319,83 @@ test("locks without metadata are looked for at every midnight a lock of the firs
   assert.ok(candidates.has(FIRST_UNLOCK_UNIX));
   assert.ok(candidates.has(tomorrow));
   assert.ok(candidates.has(tomorrow + (MAX_LOCK_DAYS - 1) * DAY_SECONDS));
+});
+
+// ---------------------------------------------------------------------------
+// Staking check
+// ---------------------------------------------------------------------------
+
+const ADA = 1_000_000;
+const healthyPool = { poolHash: "pool1a", margin: 0.01, fixedCost: 170 * ADA, pledge: 0, activeStake: 5_000_000 * ADA, delegators: 100, saturationStake: 78_000_000 * ADA };
+const steadyResults = { fromEpoch: 658, toEpoch: 667, roa: 2.2, networkRoa: 2.1, lifetimeBlocks: 500, blocks: Array.from({ length: 12 }, (_, i) => ({ epoch: 658 + i, blocks: 3 })) };
+const levels = (findings) => findings.map((finding) => finding.level);
+
+test("a healthy pool has nothing to report and needs no alternatives", () => {
+  const findings = poolFindings(healthyPool, steadyResults, 669);
+  assert.deepEqual(levels(findings), ["ok"]);
+  assert.equal(suggestsAlternatives(findings), false);
+});
+
+test("a retired pool is the only thing said about it, a retiring one comes with the time left", () => {
+  const retired = poolFindings({ ...healthyPool, retiringEpoch: 669, margin: 0.5 }, steadyResults, 669);
+  assert.deepEqual(levels(retired), ["problem"]);
+  assert.match(retired[0].title, /retired/);
+
+  const retiring = poolFindings({ ...healthyPool, retiringEpoch: 672 }, steadyResults, 669);
+  assert.deepEqual(levels(retiring), ["warning"]);
+  assert.match(retiring[0].text, /3 epochs, about 15 days/);
+  assert.equal(suggestsAlternatives(retiring), true);
+});
+
+test("saturation is a warning above the limit and a note close to it", () => {
+  assert.deepEqual(levels(poolFindings({ ...healthyPool, activeStake: 80_000_000 * ADA }, steadyResults, 669)), ["warning"]);
+  const close = poolFindings({ ...healthyPool, activeStake: 76_000_000 * ADA }, steadyResults, 669);
+  assert.deepEqual(levels(close), ["info"]);
+  assert.equal(suggestsAlternatives(close), false);
+});
+
+test("no blocks is a problem for a large pool and a matter of luck for a small one", () => {
+  const none = { ...steadyResults, roa: null, blocks: steadyResults.blocks.map((epoch) => ({ ...epoch, blocks: 0 })) };
+  assert.deepEqual(levels(poolFindings(healthyPool, none, 669)), ["problem"]);
+  assert.deepEqual(levels(poolFindings({ ...healthyPool, activeStake: 200_000 * ADA }, none, 669)), ["warning"]);
+  // a small pool with few blocks and a low return is not blamed for its luck
+  const unlucky = { ...steadyResults, roa: 0.9 };
+  assert.deepEqual(levels(poolFindings({ ...healthyPool, activeStake: 200_000 * ADA }, unlucky, 669)), ["ok"]);
+  assert.deepEqual(levels(poolFindings(healthyPool, unlucky, 669)), ["warning"]);
+});
+
+test("high and rising fees are reported, the most serious finding first", () => {
+  const findings = poolFindings({ ...healthyPool, margin: 0.08, nextMargin: 0.15, nextFixedCost: 340 * ADA, activeStake: 76_000_000 * ADA }, steadyResults, 669);
+  assert.deepEqual(levels(findings), ["warning", "warning", "info", "info"]);
+  assert.match(findings[0].title, /8 %/);
+  assert.match(findings[1].title, /15 %/);
+});
+
+test("the margin costs what the pool keeps of the return before it reaches the delegator", () => {
+  // 100 000 ₳ at 2 % net with a 5 % margin: 2000 ₳ are 95 % of what was shared, the margin took 105.26 ₳
+  assert.equal(marginCostPerYear(100_000 * ADA, 0.05, 2), 105_263_158);
+  assert.equal(marginCostPerYear(100_000 * ADA, 0, 2), 0);
+  assert.equal(marginCostPerYear(0, 0.05, 2), 0);
+  assert.equal(marginCostPerYear(100_000 * ADA, 1, 2), 0);
+});
+
+test("a vote delegation is told apart from none", () => {
+  assert.equal(drepKind(null), "none");
+  assert.equal(drepKind("drep_always_abstain"), "abstain");
+  assert.equal(drepKind("drep_always_no_confidence"), "no_confidence");
+  assert.equal(drepKind("drep13d6sxkyz6st9h65qqrzd8ukpywhr8swe9f6357qntgjqye0gttd"), "drep");
+});
+
+test("alternatives always include the given pool, never the current one, and stay the same for an address", () => {
+  const candidates = Array.from({ length: 20 }, (_, i) => ({ poolHash: `pool${i}` }));
+  const tools = { poolHash: "pool5" };
+  const picked = pickAlternatives(candidates, "pool7", tools, "stake1abc");
+  assert.equal(picked.length, 3);
+  assert.equal(picked[0].poolHash, "pool5");
+  assert.ok(!picked.some((pool) => pool.poolHash === "pool7"));
+  assert.equal(new Set(picked.map((pool) => pool.poolHash)).size, 3);
+  assert.deepEqual(pickAlternatives(candidates, "pool7", tools, "stake1abc"), picked);
+  // delegated to the given pool already: it is not suggested to itself
+  assert.ok(!pickAlternatives(candidates, "pool5", tools, "stake1abc").some((pool) => pool.poolHash === "pool5"));
+  assert.deepEqual(pickAlternatives([], null, tools, "x"), [tools]);
 });

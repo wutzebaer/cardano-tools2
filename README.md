@@ -4,6 +4,7 @@ Cardano Tools is a [Next.js](https://nextjs.org) dApp: every transaction is buil
 
 | Route | What it does |
 | --- | --- |
+| `/check` | Staking check of any address: pool status and fees, governance vote, rewards, with a shareable page per address |
 | `/browse` | Latest tokens, search by policy id, fingerprint or `$handle`, token details with policy lock status |
 | `/my` | Tokens of the connected wallet or any address |
 | `/mint` | Mint CIP-68 NFTs and fungible tokens, one or many per transaction, with additional files and a JSON editor for the metadata |
@@ -46,7 +47,7 @@ npm run update-schema
 
 ```bash
 npm run lint
-npm test        # reward distribution, statement, mint metadata, timelock script
+npm test        # reward distribution, statement, mint metadata, timelock script, staking check
 npm run build
 ```
 

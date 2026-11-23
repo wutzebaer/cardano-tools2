@@ -162,3 +162,40 @@ export async function getAddressByHandle(handle: string) {
     })
   );
 }
+
+/** The API answers an unknown address or pool with an empty body, which reads as nothing here. */
+async function optional<T>(request: Promise<{ data?: T; error?: unknown }>): Promise<T | null> {
+  try {
+    const data = await handleRequest(request);
+    return data && typeof data === "object" ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Stake address of a payment address, null if it has none or is unknown. */
+export async function getStakeAddress(address: string) {
+  return (await optional(client.GET("/{address}/stakeAddress", { params: { path: { address } } })))?.address ?? null;
+}
+
+/** Registration, pool, DRep and withdrawable rewards of a stake address, null if the chain does not know it. */
+export async function getStakeCheck(stakeAddress: string) {
+  return optional(client.GET("/{stakeAddress}/stakeCheck", { params: { path: { stakeAddress } }, cache: "no-store" }));
+}
+
+export async function getPoolCheck(poolHash: string) {
+  return optional(client.GET("/pool/{poolHash}/check", { params: { path: { poolHash } }, next: { revalidate: 300 } }));
+}
+
+/** Blocks and returns of a pool over the last epochs. Slow for very large pools on the first call of an hour. */
+export async function getPoolPerformance(poolHash: string) {
+  return optional(client.GET("/pool/{poolHash}/performance", { params: { path: { poolHash } }, next: { revalidate: 3600 } }));
+}
+
+export async function getPoolAlternatives() {
+  try {
+    return await handleRequest(client.GET("/poolAlternatives", { next: { revalidate: 3600 } }));
+  } catch {
+    return [];
+  }
+}
