@@ -223,9 +223,9 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
         </div>
 
         {tokenRows.map((row, index) => (
-          <div key={index} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
+          <div key={index} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-start">
             <TokenSelect assets={walletTokens} value={row.key} onChange={(key) => setTokenRows(tokenRows.map((other, i) => (i === index ? { ...other, key } : other)))} />
-            <Field label="" error={tokenErrors[index]}>
+            <div className="flex flex-col gap-1">
               <input
                 className={inputClass}
                 type="number"
@@ -234,7 +234,8 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
                 value={row.amount}
                 onChange={(e) => setTokenRows(tokenRows.map((other, i) => (i === index ? { ...other, amount: e.target.value } : other)))}
               />
-            </Field>
+              {tokenErrors[index] ? <span className="text-[11px] text-error">{tokenErrors[index]}</span> : null}
+            </div>
             <button type="button" className="btn btn-ghost btn-square text-base-content/45 hover:text-error" onClick={() => setTokenRows(tokenRows.filter((_, i) => i !== index))} aria-label="Remove token">
               <XMarkIcon className="size-4" />
             </button>
