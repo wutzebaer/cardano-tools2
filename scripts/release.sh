@@ -22,7 +22,8 @@ version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' package.json)
 
 git add package.json package-lock.json
 git commit -q -m "release: v$version"
-git tag "v$version"
+# annotated, because "git push --follow-tags" leaves lightweight tags behind
+git tag -a "v$version" -m "v$version"
 
 image="wutzebaer/cardano-tools2:$version"
 docker build -q --build-arg NEXT_PUBLIC_CARDANO_NETWORK=mainnet -t "$image" .
