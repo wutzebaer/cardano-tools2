@@ -1,13 +1,12 @@
 "use client";
 
-import { getStakeInfo, isTransactionConfirmed } from "@cardano/dbsync";
+import { watchConfirmation } from "@cardano/confirmation";
+import { getStakeInfo } from "@cardano/dbsync";
 import { POOL_ID } from "@cardano/pool";
 import { StakeInfo } from "@cardano/types";
 import { useWallet } from "@components/useWallet";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-const POLL_MS = 5000;
-const MAX_POLLS = 240;
 /** The API keeps stake info for a minute, so the answer right after the confirmation may still be the old one. */
 const RELOAD_AFTER_MS = [0, 20_000, 40_000, 65_000];
 
@@ -28,13 +27,7 @@ function reloadStakeInfo() {
 
 /** Follows a submitted delegation and makes every part of the page load the stake info again once it is on-chain. */
 export function watchDelegation(txHash: string) {
-  let polls = 0;
-  const interval = setInterval(async () => {
-    polls++;
-    const confirmed = await isTransactionConfirmed(txHash).catch(() => false);
-    if (confirmed) RELOAD_AFTER_MS.forEach((delay) => setTimeout(reloadStakeInfo, delay));
-    if (confirmed || polls >= MAX_POLLS) clearInterval(interval);
-  }, POLL_MS);
+  watchConfirmation(txHash, () => RELOAD_AFTER_MS.forEach((delay) => setTimeout(reloadStakeInfo, delay)));
 }
 
 /** Where the connected wallet is delegated, null while unknown or without a wallet. */

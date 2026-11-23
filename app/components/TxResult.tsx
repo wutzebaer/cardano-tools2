@@ -1,29 +1,14 @@
 "use client";
 
-import { isTransactionConfirmed } from "@cardano/dbsync";
+import { watchConfirmation } from "@cardano/confirmation";
 import { explorerTxUrl } from "@cardano/network";
 import { ExternalLink } from "@components/ui";
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
 import { ReactNode, useEffect, useState } from "react";
 
-const POLL_MS = 5000;
-const MAX_POLLS = 240;
-
 function useConfirmed(txHash: string) {
   const [confirmed, setConfirmed] = useState(false);
-
-  useEffect(() => {
-    let polls = 0;
-    const interval = setInterval(async () => {
-      polls++;
-      // the chain index may be behind or unavailable, the transaction is submitted either way
-      const isConfirmed = await isTransactionConfirmed(txHash).catch(() => false);
-      if (isConfirmed) setConfirmed(true);
-      if (isConfirmed || polls >= MAX_POLLS) clearInterval(interval);
-    }, POLL_MS);
-    return () => clearInterval(interval);
-  }, [txHash]);
-
+  useEffect(() => watchConfirmation(txHash, () => setConfirmed(true)), [txHash]);
   return confirmed;
 }
 
