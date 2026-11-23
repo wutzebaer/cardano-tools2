@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { test } from "node:test";
+import { groupFeed } from "../app/browse/groupTokens.ts";
 import { attestationHash, cborEncode } from "../app/cardano/attestation.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
 import { assetNameFor, tokenMetadata, tokensFromMetadata, tokensMetadata } from "../app/cardano/metadata.ts";
@@ -253,4 +254,22 @@ test("slots and epochs match the chains", () => {
 test("the app defaults to mainnet", () => {
   assert.equal(NETWORK.name, "mainnet");
   assert.equal(NETWORK.id, 1);
+});
+
+// ---------------------------------------------------------------------------
+// Browse feed
+// ---------------------------------------------------------------------------
+
+test("the feed collapses a policy with several tokens into one entry", () => {
+  const token = (policy, fingerprint, mintId) => ({ maPolicyId: policy, maFingerprint: fingerprint, maMintId: mintId, maName: "" });
+  const feed = [token("a", "a1", 9), token("b", "b1", 8), token("a", "a2", 7), token("c", "c1", 6), token("a", "a3", 5), token("b", "b2", 4), token("a", "a1", 3)];
+  const entries = groupFeed(feed);
+
+  // policy a has three different tokens and takes the place of its first one, b and c stay single
+  assert.deepEqual(
+    entries.map((entry) => (entry.kind === "collection" ? `${entry.policyId}:${entry.tokens.map((t) => t.maFingerprint).join("+")}` : entry.token.maFingerprint)),
+    ["a:a1+a2+a3", "b1", "c1", "b2"]
+  );
+  // below the threshold nothing is grouped
+  assert.equal(groupFeed(feed.slice(0, 4)).every((entry) => entry.kind === "token"), true);
 });

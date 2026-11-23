@@ -1,8 +1,10 @@
 "use client";
 
 import { loadFeedPage, loadSearchPage, TokenPage } from "@/app/browse/loadTokens";
+import CollectionCard from "@/app/browse/CollectionCard";
+import { FeedEntry, groupFeed } from "@/app/browse/groupTokens";
 import TokenCard from "@components/TokenCard";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export default function TokenGrid({ query, initial }: { query?: string; initial: TokenPage }) {
   const [tokens, setTokens] = useState(initial.tokens);
@@ -77,6 +79,9 @@ export default function TokenGrid({ query, initial }: { query?: string; initial:
     return () => observer.disconnect();
   }, [hasMore, cursor, query]);
 
+  // a search already shows one policy or one token, only the feed mixes collections
+  const entries = useMemo((): FeedEntry[] => (query ? tokens.map((token) => ({ kind: "token", token })) : groupFeed(tokens)), [query, tokens]);
+
   if (tokens.length === 0 && !hasMore) {
     return <div className="surface px-6 py-16 text-center text-sm text-base-content/55">No tokens found.</div>;
   }
@@ -85,9 +90,13 @@ export default function TokenGrid({ query, initial }: { query?: string; initial:
     <>
       {tokens.length > 0 ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-5">
-          {tokens.map((token) => (
-            <TokenCard key={`${token.maFingerprint}-${token.maMintId}`} item={token} collection={collections[token.maPolicyId]} />
-          ))}
+          {entries.map((entry) =>
+            entry.kind === "collection" ? (
+              <CollectionCard key={entry.policyId} policyId={entry.policyId} tokens={entry.tokens} collection={collections[entry.policyId]} />
+            ) : (
+              <TokenCard key={`${entry.token.maFingerprint}-${entry.token.maMintId}`} item={entry.token} collection={collections[entry.token.maPolicyId]} />
+            )
+          )}
         </div>
       ) : null}
       {hasMore ? <div ref={sentinelRef} className="flex justify-center py-8">{loading ? <span className="loading loading-spinner loading-md text-primary" /> : null}</div> : null}
