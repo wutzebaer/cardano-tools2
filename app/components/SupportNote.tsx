@@ -42,7 +42,7 @@ export default function SupportNote() {
           <Link href="/pool" className="text-xs text-primary hover:underline">
             About the pool
           </Link>
-          <button className="btn btn-sm border-line bg-base-300 hover:border-line-strong" onClick={stake}>
+          <button className="btn btn-brand btn-sm" onClick={stake}>
             Delegate to [{POOL_TICKER}]
           </button>
         </div>

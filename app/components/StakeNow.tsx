@@ -60,7 +60,7 @@ const StakeNow = () => {
           Delegation submitted, waiting for confirmation
         </p>
       ) : (
-        <button className="btn btn-sm w-full border-line bg-base-300 hover:border-line-strong hover:bg-base-300" onClick={stake}>
+        <button className="btn btn-brand btn-sm w-full" onClick={stake}>
           Delegate
         </button>
       )}

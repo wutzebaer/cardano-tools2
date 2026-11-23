@@ -76,3 +76,24 @@
   /* the gradient is as wide as the text, not as the line */
   width: fit-content;
 }
+
+/* A button in the colours of the logo, for the one action the site asks for: delegating to its pool. */
+@utility btn-brand {
+  background-image:
+    radial-gradient(circle at 10% 20%, rgb(34 211 238 / 0.9) 0, transparent 42%),
+    radial-gradient(circle at 62% 110%, rgb(167 139 250 / 0.95) 0, transparent 48%),
+    radial-gradient(circle at 94% 0%, rgb(34 211 238 / 0.75) 0, transparent 38%),
+    linear-gradient(90deg, #4d7cfe, #8b5cf6);
+  /* the button's own style sizes every second background layer to nothing */
+  background-size: 100% 100%;
+  border-color: transparent;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  transition: filter 0.15s;
+  &:hover {
+    filter: brightness(1.12);
+  }
+  &:disabled {
+    filter: grayscale(0.6) brightness(0.7);
+  }
+}

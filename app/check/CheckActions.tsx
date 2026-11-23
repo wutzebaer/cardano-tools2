@@ -133,7 +133,7 @@ export function WithdrawRewards({ stakeAddress, lovelace }: { stakeAddress: stri
 
 /** `prominent` is the filled button, the others are outlined in the same colour so every pool can be picked at a glance. */
 export function DelegateToPool({ stakeAddress, poolHash, ticker, prominent = false }: { stakeAddress: string; poolHash: string; ticker: string; prominent?: boolean }) {
-  const buttonClass = prominent ? "btn btn-primary btn-sm" : "btn btn-sm border-primary/60 bg-primary/10 text-primary hover:border-primary hover:bg-primary/20";
+  const buttonClass = prominent ? "btn btn-brand btn-sm" : "btn btn-sm border-primary/60 bg-primary/10 text-primary hover:border-primary hover:bg-primary/20";
   return (
     <OwnerAction stakeAddress={stakeAddress} done="Delegation" connectLabel={`Delegate to [${ticker}]`} connectClass={buttonClass}>
       {(run, busy) => (

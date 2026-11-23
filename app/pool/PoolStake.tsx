@@ -32,7 +32,7 @@ export default function PoolStake() {
         </p>
       ) : (
         <>
-          <button className="btn btn-primary btn-lg px-8 shadow-lg shadow-primary/30" onClick={async () => setTxHash(await stake())}>
+          <button className="btn btn-brand btn-lg px-8 shadow-lg shadow-primary/30" onClick={async () => setTxHash(await stake())}>
             Delegate to [{POOL_TICKER}]
           </button>
           <p className="text-xs text-white/55">
