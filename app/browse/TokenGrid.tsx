@@ -6,6 +6,9 @@ import { FeedEntry, groupFeed } from "@/app/browse/groupTokens";
 import TokenCard from "@components/TokenCard";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+/** Fungible tokens are minted by the million, the badge stays short. */
+const COMPACT = Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+
 export default function TokenGrid({ query, initial }: { query?: string; initial: TokenPage }) {
   const [tokens, setTokens] = useState(initial.tokens);
   const [collections, setCollections] = useState(initial.collections);
@@ -94,7 +97,7 @@ export default function TokenGrid({ query, initial }: { query?: string; initial:
             entry.kind === "collection" ? (
               <CollectionCard key={entry.policyId} policyId={entry.policyId} tokens={entry.tokens} collection={collections[entry.policyId]} />
             ) : (
-              <TokenCard key={`${entry.token.maFingerprint}-${entry.token.maMintId}`} item={entry.token} collection={collections[entry.token.maPolicyId]} />
+              <TokenCard key={`${entry.token.maFingerprint}-${entry.token.maMintId}`} item={entry.token} collection={collections[entry.token.maPolicyId]} badge={entry.minted != null ? `${COMPACT.format(entry.minted)} tokens` : undefined} />
             )
           )}
         </div>

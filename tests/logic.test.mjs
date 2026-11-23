@@ -275,11 +275,12 @@ test("the feed collapses a policy with several tokens into one entry", () => {
 });
 
 test("the feed shows a token that is minted repeatedly only once", () => {
-  const token = (policy, fingerprint, mintId) => ({ maPolicyId: policy, maFingerprint: fingerprint, maMintId: mintId, maName: "" });
-  const entries = groupFeed([token("a", "a1", 9), token("b", "b1", 8), token("a", "a1", 7), token("b", "b2", 6), token("a", "a1", 5), token("b", "b1", 4)]);
+  const token = (policy, fingerprint, mintId, quantity = 1) => ({ maPolicyId: policy, maFingerprint: fingerprint, maMintId: mintId, maName: "", quantity });
+  const entries = groupFeed([token("a", "a1", 9), token("b", "b1", 8, 5), token("a", "a1", 7), token("b", "b2", 6, 50), token("a", "a1", 5), token("b", "b1", 4, 20)]);
 
+  // the single entry tells how many tokens its mints created, a token minted once does not
   assert.deepEqual(
-    entries.map((entry) => entry.kind === "token" && `${entry.token.maFingerprint}@${entry.token.maMintId}`),
-    ["a1@9", "b1@8", "b2@6"]
+    entries.map((entry) => entry.kind === "token" && `${entry.token.maFingerprint}@${entry.token.maMintId}:${entry.minted}`),
+    ["a1@9:3", "b1@8:25", "b2@6:undefined"]
   );
 });

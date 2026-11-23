@@ -8,7 +8,7 @@ import { Verified } from '@components/JpgStoreIcons';
 import Link from 'next/link';
 import { ReactNode } from 'react';
 
-function TokenCard({ item, collection, footer }: { item: TokenListItem; collection?: CollectionInfo; footer?: ReactNode }) {
+function TokenCard({ item, collection, footer, badge }: { item: TokenListItem; collection?: CollectionInfo; footer?: ReactNode; badge?: string }) {
     const href = `/browse/token/${item.maFingerprint}`;
     const name = item.name || assetNameFromHex(item.maName);
     const imageSrc = toIpfsUrl(item.image);
@@ -28,6 +28,7 @@ function TokenCard({ item, collection, footer }: { item: TokenListItem; collecti
                 ) : (
                     <TokenImagePlaceholder />
                 )}
+                {badge ? <span className="absolute right-2 top-2 rounded-full bg-base-100/85 px-2.5 py-1 text-xs font-semibold tabular-nums backdrop-blur">{badge}</span> : null}
             </Link>
             <div className="flex flex-col gap-1 p-4">
                 <Link
