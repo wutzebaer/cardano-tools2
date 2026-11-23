@@ -1,7 +1,7 @@
 "use client";
 
 import { assetKey, assetsInUtxos, WalletAsset } from "@cardano/assets";
-import { BURN_ADDRESS, BurnItem, burnTokens, findReferenceUtxos, referenceNameFor } from "@cardano/burn";
+import { BLACK_HOLE_ADDRESS, BurnItem, burnTokens, findReferenceUtxos, referenceNameFor } from "@cardano/burn";
 import { getTokenDetails } from "@cardano/dbsync";
 import { policySecondsLeft } from "@cardano/mint";
 import { explorerAddressUrl } from "@cardano/network";
@@ -202,16 +202,16 @@ function Burn({ wallet }: { wallet: ConnectedWallet }) {
       ) : null}
 
       <details className="surface p-5 text-sm">
-        <summary className="cursor-pointer font-medium">Tokens of a locked or foreign policy: the burn address</summary>
+        <summary className="cursor-pointer font-medium">Tokens of a locked or foreign policy: the black hole address</summary>
         <div className="mt-3 flex flex-col gap-3 text-base-content/65">
-          <p>Tokens of a policy you cannot sign for can only be locked away forever. A burn address is not real burning, the tokens stay in the total supply.</p>
-          <p className="break-all font-mono text-xs">{BURN_ADDRESS}</p>
+          <p>Tokens of a policy you cannot sign for cannot be burned, only locked away forever. Whatever is sent to this address never comes out again, but the tokens stay in the total supply.</p>
+          <p className="break-all font-mono text-xs">{BLACK_HOLE_ADDRESS}</p>
           <p>
             It is the address of the script <span className="font-mono text-xs">{LOCKED_SCRIPT}</span>, which is only valid before slot 0 and can therefore never spend
             anything. Verify it with <span className="font-mono text-xs">cardano-cli address build --payment-script-file locked_script.json</span>.
           </p>
           <div>
-            <ExternalLink href={explorerAddressUrl(BURN_ADDRESS)}>cexplorer</ExternalLink>
+            <ExternalLink href={explorerAddressUrl(BLACK_HOLE_ADDRESS)}>cexplorer</ExternalLink>
           </div>
         </div>
       </details>

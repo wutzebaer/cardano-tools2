@@ -108,7 +108,7 @@ function Mint({ wallet }: { wallet: ConnectedWallet }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <PolicySelector keyHash={wallet.keyHash} selection={selection} />
+      <PolicySelector keyHash={wallet.keyHash} selection={selection} royaltyHint />
 
       {editing ? (
         <MetadataEditor tokens={tokens} onApply={setTokens} onClose={() => setEditing(false)} />
