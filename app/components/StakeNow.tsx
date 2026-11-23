@@ -5,7 +5,7 @@ import { delegateToPool } from "@cardano/transaction";
 import { formatAda } from "@cardano/utils";
 import { enableWallet, getSelectedWallet, SelectionMode } from "@cardano/wallet";
 import { ApplicationContext } from "@components/StateProvider";
-import { useStakeInfo } from "@components/useStakeInfo";
+import { useStakeInfo, watchDelegation } from "@components/useStakeInfo";
 import { CheckBadgeIcon } from "@heroicons/react/24/solid";
 import Image from "next/image";
 import Link from "next/link";
@@ -18,7 +18,10 @@ export function useStakeNow() {
   return useCallback(async () => {
     const walletInfo = await getSelectedWallet(SelectionMode.ForceSelectIfNone);
     context.setState({ walletInfo: walletInfo });
-    return delegateToPool(await enableWallet(walletInfo), POOL_ID);
+    const txHash = await delegateToPool(await enableWallet(walletInfo), POOL_ID);
+    // the delegate box turns into the thank-you once the delegation is on-chain, without a reload
+    watchDelegation(txHash);
+    return txHash;
   }, [context]);
 }
 
