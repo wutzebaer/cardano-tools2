@@ -6,8 +6,9 @@ import { IS_MAINNET } from "@cardano/network";
 import { POOL_TICKER } from "@cardano/pool";
 import { batchPositions, DistributionProgress, minLovelaceForOutput, sendRewards } from "@cardano/rewards";
 import { currentEpoch, walletUtxos } from "@cardano/transaction";
-import { assetNameFromHex, formatAda, formatNumber, shortenId } from "@cardano/utils";
+import { formatAda, formatNumber, shortenId } from "@cardano/utils";
 import ConnectWallet from "@components/ConnectWallet";
+import TokenSelect from "@components/TokenSelect";
 import TxResult from "@components/TxResult";
 import { Field, inputClass, Notice, secondaryButtonClass } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
@@ -72,7 +73,8 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
   }, [wallet]);
 
   const walletFunds = funds?.wallet === wallet ? funds : null;
-  const walletAssets = useMemo(() => new Map((walletFunds?.assets ?? []).map((asset) => [assetKey(asset.policyId, asset.name), asset])), [walletFunds]);
+  const walletTokens = useMemo(() => walletFunds?.assets ?? [], [walletFunds]);
+  const walletAssets = useMemo(() => new Map(walletTokens.map((asset) => [assetKey(asset.policyId, asset.name), asset])), [walletTokens]);
 
   // the browser shows an option's value large and its label small: the ticker goes first where it names exactly one pool,
   // a ticker several pools share cannot be resolved and keeps the pool id as value
@@ -222,18 +224,7 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
 
         {tokenRows.map((row, index) => (
           <div key={index} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
-            <select
-              className="select w-full border-line bg-base-300"
-              value={row.key}
-              onChange={(e) => setTokenRows(tokenRows.map((other, i) => (i === index ? { ...other, key: e.target.value } : other)))}
-            >
-              <option value="">Select a token…</option>
-              {[...walletAssets].map(([key, asset]) => (
-                <option key={key} value={key}>
-                  {assetNameFromHex(asset.name) || "(no name)"} · {shortenId(asset.policyId)} · {`${asset.quantity}`}
-                </option>
-              ))}
-            </select>
+            <TokenSelect assets={walletTokens} value={row.key} onChange={(key) => setTokenRows(tokenRows.map((other, i) => (i === index ? { ...other, key } : other)))} />
             <Field label="" error={tokenErrors[index]}>
               <input
                 className={inputClass}

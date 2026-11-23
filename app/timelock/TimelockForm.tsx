@@ -7,6 +7,7 @@ import { DAY_SECONDS, MAX_LOCK_DAYS, unlockTimeError } from "@cardano/timelockSc
 import { walletChangeAddress, walletUtxos } from "@cardano/transaction";
 import { assetNameFromHex, formatAda, shortenId } from "@cardano/utils";
 import ConnectWallet from "@components/ConnectWallet";
+import TokenSelect from "@components/TokenSelect";
 import TxResult from "@components/TxResult";
 import { Field, inputClass, Notice, secondaryButtonClass } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
@@ -70,7 +71,8 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
 
   const walletFunds = funds?.wallet === wallet ? funds : null;
   const locks = loaded?.wallet === wallet ? loaded.locks : null;
-  const walletAssets = useMemo(() => new Map((walletFunds?.assets ?? []).map((asset) => [assetKey(asset.policyId, asset.name), asset])), [walletFunds]);
+  const walletTokens = useMemo(() => walletFunds?.assets ?? [], [walletFunds]);
+  const walletAssets = useMemo(() => new Map(walletTokens.map((asset) => [assetKey(asset.policyId, asset.name), asset])), [walletTokens]);
 
   // a datetime-local value has no time zone, Date reads it in the browser's
   const pickedUnix = when ? Math.floor(new Date(when).getTime() / 1000) : undefined;
@@ -188,18 +190,7 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
 
         {tokenRows.map((row, index) => (
           <div key={index} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
-            <select
-              className="select w-full border-line bg-base-300"
-              value={row.key}
-              onChange={(e) => setTokenRows(tokenRows.map((other, i) => (i === index ? { ...other, key: e.target.value } : other)))}
-            >
-              <option value="">Select a token…</option>
-              {[...walletAssets].map(([key, asset]) => (
-                <option key={key} value={key}>
-                  {assetNameFromHex(asset.name) || "(no name)"} · {shortenId(asset.policyId)} · {`${asset.quantity}`}
-                </option>
-              ))}
-            </select>
+            <TokenSelect assets={walletTokens} value={row.key} onChange={(key) => setTokenRows(tokenRows.map((other, i) => (i === index ? { ...other, key } : other)))} />
             <Field label="" error={tokenErrors[index]}>
               <input
                 className={inputClass}
