@@ -2,14 +2,17 @@ import { getTransactionMetadata, getUtxos } from "@cardano/dbsync";
 import { scriptAddress } from "@cardano/mint";
 import { currentSlot, slotToUnix, unixToSlot } from "@cardano/network";
 import { candidateUnlockTimes, TIMELOCK_LABEL, timelockMetadata, timeScriptHash, unlockSlotsFromMetadata } from "@cardano/timelockScript";
-import { COINS_PER_UTXO_BYTE, hexToBytes, sendTransaction, walletChangeAddress } from "@cardano/transaction";
+import { COINS_PER_UTXO_BYTE, hexToBytes, sendAda, sendTransaction, utxoOfKey, walletChangeAddress, walletUtxos } from "@cardano/transaction";
 import { WalletConnection } from "@cardano/types";
 import {
   Address,
   AssetName,
+  BaseAddress,
   BigNum,
+  Credential,
   DataCost,
   Ed25519KeyHash,
+  EnterpriseAddress,
   MetadataJsonSchema,
   min_ada_for_output,
   MultiAsset,
@@ -91,11 +94,55 @@ export function minLockLovelace(changeAddress: Address, keyHash: string, unlockS
 /** Sends ADA and tokens to the timelock address of the key. Until the slot nobody can move them, the owner included. */
 export async function lockFunds(connection: WalletConnection, keyHash: string, unlockSlot: number, lovelace: bigint, tokens: LockedToken[]) {
   const address = timelockAddress(await walletChangeAddress(connection), keyHash, unlockSlot);
-  return sendTransaction(connection, (txBuilder) => {
-    txBuilder.add_output(TransactionOutput.new(address, lockValue(lovelace, tokens)));
-    // the slot is all it takes to rebuild the script, the lock is found again by it
-    txBuilder.add_json_metadatum_with_schema(BigNum.from_str(`${TIMELOCK_LABEL}`), JSON.stringify(timelockMetadata(unlockSlot)), MetadataJsonSchema.NoConversions);
-  });
+  return sendTransaction(
+    connection,
+    (txBuilder) => {
+      txBuilder.add_output(TransactionOutput.new(address, lockValue(lovelace, tokens)));
+      // the slot is all it takes to rebuild the script, the lock is found again by it
+      txBuilder.add_json_metadatum_with_schema(BigNum.from_str(`${TIMELOCK_LABEL}`), JSON.stringify(timelockMetadata(unlockSlot)), MetadataJsonSchema.NoConversions);
+    },
+    // the change goes back to the address of the key, so there is something to spend from it when the lock is taken back
+    { signerKeyHash: keyHash }
+  );
+}
+
+/** ADA sent to the address of a lock's key when it holds nothing, enough to stay above the minimum after the fee of the take back. */
+export const KEY_FUNDING_LOVELACE = 2_000_000n;
+
+/**
+ * Whether the wallet holds a UTxO at the address of the key. Wallets with many addresses (Yoroi) sign only with the
+ * keys of the inputs, so a lock can only be taken back together with an input from that address.
+ */
+export async function hasKeyUtxo(connection: WalletConnection, keyHash: string) {
+  return utxoOfKey(await walletUtxos(connection), keyHash) != null;
+}
+
+/** The wallet's own address with this payment key. */
+async function keyAddress(connection: WalletConnection, keyHash: string) {
+  const changeAddress = await walletChangeAddress(connection);
+  const known = [...((await connection.getUsedAddresses().catch(() => [])) ?? []), ...((await connection.getUnusedAddresses().catch(() => [])) ?? [])];
+  for (const hex of known) {
+    const address = Address.from_bytes(hexToBytes(hex));
+    if (address.payment_cred()?.to_keyhash()?.to_hex() === keyHash) return address;
+  }
+  // not listed by the wallet: the same key with the wallet's stake key is still its address
+  const stake = BaseAddress.from_address(changeAddress)?.stake_cred();
+  const payment = Credential.from_keyhash(Ed25519KeyHash.from_hex(keyHash));
+  return stake ? BaseAddress.new(changeAddress.network_id(), payment, stake).to_address() : EnterpriseAddress.new(changeAddress.network_id(), payment).to_address();
+}
+
+/** Moves a little ADA to the wallet's own address of the key, so the take back has an input the wallet signs for with it. */
+export async function fundKeyAddress(connection: WalletConnection, keyHash: string) {
+  return sendAda(connection, await keyAddress(connection, keyHash), BigNum.from_str(`${KEY_FUNDING_LOVELACE}`));
+}
+
+/** Resolves once the wallet itself lists a UTxO at the address of the key: only then does it sign for it. */
+export async function waitForKeyUtxo(connection: WalletConnection, keyHash: string, timeoutSeconds = 600) {
+  for (let waited = 0; waited < timeoutSeconds; waited += 5) {
+    if (await hasKeyUtxo(connection, keyHash).catch(() => false)) return;
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+  throw new Error("Your wallet does not show the transfer yet. Wait a little and press Take back again, the first step is done.");
 }
 
 /** Unlock slots the transactions name in their metadata. A failed lookup only means the lock is searched by date. */

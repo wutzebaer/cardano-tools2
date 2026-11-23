@@ -2,7 +2,23 @@
 
 import { assetKey, assetsInUtxos, lovelaceInUtxos, WalletAsset } from "@cardano/assets";
 import { unixToSlot } from "@cardano/network";
-import { findTimelocks, isUnlockable, lockFunds, LockedToken, minLockLovelace, Timelock, timelockAddress, timelockKey, timelockScriptJson, unlockDate, unlockFunds } from "@cardano/timelock";
+import {
+  findTimelocks,
+  fundKeyAddress,
+  hasKeyUtxo,
+  isUnlockable,
+  KEY_FUNDING_LOVELACE,
+  lockFunds,
+  LockedToken,
+  minLockLovelace,
+  Timelock,
+  timelockAddress,
+  timelockKey,
+  timelockScriptJson,
+  unlockDate,
+  unlockFunds,
+  waitForKeyUtxo,
+} from "@cardano/timelock";
 import { DAY_SECONDS, MAX_LOCK_DAYS, unlockTimeError } from "@cardano/timelockScript";
 import { walletChangeAddress, walletUtxos } from "@cardano/transaction";
 import { assetNameFromHex, formatAda, shortenId } from "@cardano/utils";
@@ -48,6 +64,7 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
   const [loaded, setLoaded] = useState<{ wallet: ConnectedWallet; locks: Timelock[] } | null>(null);
   const [reload, setReload] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const [step, setStep] = useState<string | null>(null);
   const [result, setResult] = useState<{ title: string; txHash: string } | null>(null);
 
   useEffect(() => {
@@ -128,10 +145,28 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
   const unlock = async (lock: Timelock) => {
     setBusy(timelockKey(lock));
     try {
+      // a wallet with many addresses signs only with the keys of the inputs: without ADA at the address of the lock's key
+      // it would leave out the signature the script asks for
+      if (!(await hasKeyUtxo(wallet.connection, lock.keyHash))) {
+        const funding = formatAda(Number(KEY_FUNDING_LOVELACE));
+        if (
+          !confirm(
+            `Your wallet holds no ADA at the address this lock belongs to, and would not sign for it.\n\nTaking it back takes two steps: first ${funding} move to that address of your own wallet, then the lock is taken back. Everything stays in your wallet, each step asks for a signature.`
+          )
+        ) {
+          return;
+        }
+        setStep(`Step 1 of 2: sign the transfer of ${funding} to your own address`);
+        await fundKeyAddress(wallet.connection, lock.keyHash);
+        setStep("Step 1 of 2 is sent. Waiting until your wallet shows it, which can take a few minutes");
+        await waitForKeyUtxo(wallet.connection, lock.keyHash);
+        setStep("Step 2 of 2: sign the take back");
+      }
       const txHash = await unlockFunds(wallet.connection, [lock]);
       setResult({ title: "Unlock submitted", txHash });
     } finally {
       setBusy(null);
+      setStep(null);
     }
   };
 
@@ -255,6 +290,7 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
                     <p className="truncate font-mono text-[11px] text-base-content/45" title={lock.address}>
                       {shortenId(lock.address, 14)}
                     </p>
+                    {busy === key && step ? <p className="mt-1 text-xs text-warning">{step}</p> : null}
                   </div>
                   {open ? (
                     <button className="btn btn-primary btn-sm shrink-0" disabled={busy != null} onClick={() => unlock(lock)}>
