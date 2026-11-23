@@ -60,6 +60,10 @@ docker run -p 3000:3000 -e CARDANO_DBSYNC_API_URL=http://cardano-db-sync-api:808
 
 The network is compiled in, a testnet image needs `--build-arg NEXT_PUBLIC_CARDANO_NETWORK=preview`. The build does not need the API.
 
+## Releases
+
+Images are tagged with the version from `package.json`, which the sidebar also shows. `scripts/release.sh` raises it (`patch` by default, or `minor` / `major`), tags the commit as `v1.2.3`, then builds and pushes `wutzebaer/cardano-tools2:1.2.3`.
+
 ## External services
 
 Besides cardano-db-sync-api the app talks to the wallet, the IPFS node, Kraken's public market data (prices for the wallet statement), the Anvil API (collection names) and, only if the wallet fails to submit, Koios to submit a signed transaction.

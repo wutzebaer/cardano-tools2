@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
+import packageJson from "../package.json";
 import Navbar from "./components/Navbar";
 import NavLink from "./components/NavLink";
 import SidebarHeader from "./components/SidebarHeader";
@@ -121,6 +122,7 @@ export default function RootLayout({
                     <Link href="/legal/imprint" className="hover:text-base-content">
                       Imprint
                     </Link>
+                    <span title="Version">v{packageJson.version}</span>
                   </div>
                 </div>
               </aside>
