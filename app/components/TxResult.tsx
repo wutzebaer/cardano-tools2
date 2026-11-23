@@ -40,7 +40,7 @@ export default function TxResult({ title, txHashes, children, onReset, resetLabe
   return (
     <div className="surface flex flex-col gap-5 p-6">
       <div>
-        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+        <h2 className="text-brand text-xl font-semibold tracking-tight">{title}</h2>
         <p className="mt-1 text-sm text-base-content/55">It can take a minute until the transaction is on-chain.</p>
       </div>
       <ul className="flex flex-col gap-3">

@@ -245,7 +245,7 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
               return (
                 <li key={key} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium tabular-nums">
+                    <p className="text-brand text-sm font-semibold tabular-nums">
                       {formatAda(Number(lock.lovelace))}
                       {lock.tokens.length > 0 ? <span className="font-normal text-base-content/65"> + {lock.tokens.map(tokenLabel).join(", ")}</span> : null}
                     </p>

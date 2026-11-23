@@ -4,7 +4,7 @@ import TimelockForm from "./TimelockForm";
 export default function Page() {
   return (
     <>
-      <PageHeader title="Timelock">Lock ADA and tokens away until a date, and take them back when it has passed</PageHeader>
+      <PageHeader title="Timelock" art="timelock">Lock ADA and tokens away until a date, and take them back when it has passed</PageHeader>
       <TimelockForm />
     </>
   );

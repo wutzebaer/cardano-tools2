@@ -11,7 +11,7 @@ export default async function BrowseTokens({ query }: { query?: string }) {
     <>
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Browse</h1>
+          <h1 className="text-brand text-2xl font-semibold tracking-tight">Browse</h1>
           <p className="mt-1 text-sm text-base-content/55">
             {query ? (
               <>

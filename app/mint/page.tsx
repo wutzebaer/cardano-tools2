@@ -1,12 +1,12 @@
+import { PageHeader } from "@components/ui";
 import MintForm from "./MintForm";
 
 export default function Page() {
   return (
     <>
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Mint</h1>
-        <p className="mt-1 text-sm text-base-content/55">Mint CIP-68 NFTs and fungible tokens directly from your wallet</p>
-      </div>
+      <PageHeader title="Mint" art="mint">
+        Mint CIP-68 NFTs and fungible tokens directly from your wallet
+      </PageHeader>
       <MintForm />
     </>
   );

@@ -9,7 +9,7 @@ export default async function Page() {
   const pools = await getPoolList().catch(() => []);
   return (
     <>
-      <PageHeader title="Reward stakers">Distribute ADA and tokens from your wallet to the delegators of a pool, proportional to their stake</PageHeader>
+      <PageHeader title="Reward stakers" art="rewards">Distribute ADA and tokens from your wallet to the delegators of a pool, proportional to their stake</PageHeader>
       <RewardsForm pools={pools} />
     </>
   );

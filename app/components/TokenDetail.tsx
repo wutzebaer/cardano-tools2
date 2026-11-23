@@ -139,7 +139,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                             <span className="truncate">{collectionInfo.name ?? shortenId(tokenDetails.maPolicyId, 8)}</span>
                             {collectionInfo.verified ? <Verified /> : null}
                         </Link>
-                        <h1 className="break-words text-3xl font-semibold tracking-tight sm:text-4xl">{name}</h1>
+                        <h1 className="text-brand break-words text-3xl font-semibold tracking-tight sm:text-4xl">{name}</h1>
                         {description ? <p className="text-[15px] leading-relaxed text-base-content/65">{description}</p> : null}
                     </div>
 

@@ -79,7 +79,7 @@ export default function Page() {
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {FACTS.map((fact) => (
           <div key={fact.label} className="surface flex flex-col gap-1 p-5">
-            <p className="text-2xl font-semibold tracking-tight sm:text-3xl">{fact.value}</p>
+            <p className="text-brand text-2xl font-semibold tracking-tight sm:text-3xl">{fact.value}</p>
             <p className="text-sm font-medium">{fact.label}</p>
             <p className="text-xs text-base-content/50">{fact.detail}</p>
           </div>
@@ -87,7 +87,7 @@ export default function Page() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-xl font-semibold tracking-tight">Why stake with [{POOL_TICKER}]</h2>
+        <h2 className="text-brand text-xl font-semibold tracking-tight">Why stake with [{POOL_TICKER}]</h2>
         <div className="grid gap-3 md:grid-cols-3">
           {REASONS.map((reason) => (
             <div key={reason.title} className="surface flex flex-col gap-3 p-5">
@@ -100,7 +100,7 @@ export default function Page() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-xl font-semibold tracking-tight">How staking works</h2>
+        <h2 className="text-brand text-xl font-semibold tracking-tight">How staking works</h2>
         <ol className="grid gap-3 md:grid-cols-3">
           {STEPS.map((step, index) => (
             <li key={step.title} className="surface flex gap-4 p-5">
@@ -129,7 +129,7 @@ export default function Page() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-xl font-semibold tracking-tight">The story</h2>
+        <h2 className="text-brand text-xl font-semibold tracking-tight">The story</h2>
         <div className="flex max-w-3xl flex-col gap-3 text-[15px] leading-relaxed text-base-content/65">
           <p>
             The pool started in 2020 as EURO pool, out of curiosity for the Cardano blockchain. After getting more and more excited about the tech, cardano-tools.io was
@@ -145,7 +145,7 @@ export default function Page() {
 
       <section className="flex flex-col gap-4">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Live from the server</h2>
+          <h2 className="text-brand text-xl font-semibold tracking-tight">Live from the server</h2>
           <p className="mt-1 text-sm text-base-content/55">Nothing to hide: this is the monitoring dashboard of the block producer.</p>
         </div>
         <div className="surface overflow-hidden">

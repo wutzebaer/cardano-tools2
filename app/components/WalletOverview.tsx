@@ -99,7 +99,7 @@ function WalletOverview() {
             <button className="text-xs text-primary hover:underline" onClick={reconnect}>Switch</button>
           </div>
           <div className="tabular-nums">
-            <span className="text-2xl font-semibold tracking-tight">{balanceInt}</span>
+            <span className="text-brand inline-block text-2xl font-semibold tracking-tight">{balanceInt}</span>
             <span className="align-top text-sm text-base-content/55">.{balanceFraction}</span>
           </div>
           <p className={`truncate ${handle ? "text-xs font-medium text-base-content/70" : "font-mono text-[11px] text-base-content/45"}`} title={stakeAddress}>

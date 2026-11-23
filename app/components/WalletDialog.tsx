@@ -16,7 +16,7 @@ function WalletDialog() {
   return (
     <dialog id="wallet_dialog" className="modal">
       <div className="modal-box surface">
-        <h2 className="text-xl font-semibold tracking-tight">Select your wallet</h2>
+        <h2 className="text-brand text-xl font-semibold tracking-tight">Select your wallet</h2>
         <p className="mt-1 text-sm text-base-content/55">Connect a CIP-30 compatible browser wallet.</p>
         <form method="dialog">
           <div className="flex flex-col gap-2 py-5">
