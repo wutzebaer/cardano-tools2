@@ -1,6 +1,6 @@
-import { getTokenDetailsByFingerprint } from '@cardano/dbsync';
-import { currentSlot, explorerAssetUrl, IS_MAINNET, slotToDate } from '@cardano/network';
-import { assetNameFromHex, formatTokenAmount, policyLockSlot, metadataDecimals, parseMetadata, shortenId, toDisplayMetadata, tokenFiles, tokenImage, toIpfsUrl } from '@cardano/utils';
+import { getPolicyRoyalties, getTokenDetailsByFingerprint } from '@cardano/dbsync';
+import { currentSlot, explorerAddressUrl, explorerAssetUrl, IS_MAINNET, slotToDate } from '@cardano/network';
+import { assetNameFromHex, formatNumber, formatTokenAmount, policyLockSlot, metadataDecimals, parseMetadata, shortenId, toDisplayMetadata, tokenFiles, tokenImage, toIpfsUrl } from '@cardano/utils';
 import { getCollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
 import TokenImagePlaceholder from '@components/TokenImagePlaceholder';
@@ -94,7 +94,8 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
     const tokenDetails = await getTokenDetailsByFingerprint(fingerprint);
     const metadata = parseMetadata(tokenDetails.metadata, tokenDetails.maPolicyId, tokenDetails.maName);
     const displayMetadata = toDisplayMetadata(metadata);
-    const collectionInfo = await getCollectionInfo(tokenDetails.maPolicyId);
+    const [collectionInfo, royalties] = await Promise.all([getCollectionInfo(tokenDetails.maPolicyId), getPolicyRoyalties(tokenDetails.maPolicyId)]);
+    const royaltyRate = Number(royalties?.rate);
     const assetName = assetNameFromHex(tokenDetails.maName);
     const name = (typeof metadata.name === 'string' ? metadata.name : undefined) ?? assetName;
     const image = tokenImage(metadata);
@@ -217,6 +218,24 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                                     </>
                                 )}
                             </DetailRow>
+                            {royalties ? (
+                                <DetailRow label="Royalties">
+                                    <span className="font-sans">{Number.isFinite(royaltyRate) ? `${formatNumber(royaltyRate * 100)} %` : royalties.rate}</span>
+                                    {royalties.address ? (
+                                        <>
+                                            <span className="font-sans text-base-content/55"> to </span>
+                                            <Link href={explorerAddressUrl(royalties.address)} target="_blank" className="hover:text-primary" title={royalties.address}>
+                                                {shortenId(royalties.address, 12)}
+                                            </Link>
+                                        </>
+                                    ) : null}
+                                    {royalties.firstMint ? null : (
+                                        <span className="ml-2 font-sans text-xs text-warning" title="CIP-27 only counts a royalty token minted before any other token of the policy">
+                                            not the policy&apos;s first token, marketplaces may ignore it
+                                        </span>
+                                    )}
+                                </DetailRow>
+                            ) : null}
                             <DetailRow label="Minted">{slotToDate(tokenDetails.slotNo)}</DetailRow>
                             <DetailRow label="Transaction">{tokenDetails.txHash}</DetailRow>
                         </dl>

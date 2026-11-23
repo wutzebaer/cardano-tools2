@@ -74,6 +74,21 @@ export async function getTokenDetails(policyId: string, assetName: string) {
   );
 }
 
+/** The CIP-27 royalties of a policy, or null if it defines none (the API answers with an empty body then). */
+export async function getPolicyRoyalties(policyId: string) {
+  try {
+    const royalties = await handleRequest(
+      client.GET("/policy/{policyId}/royalties", {
+        params: { path: { policyId } },
+        next: { revalidate: 60 },
+      })
+    );
+    return royalties?.rate ? royalties : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getAddressTokens(address: string) {
   return handleRequest(
     client.GET("/{address}/token", {

@@ -361,6 +361,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/policy/{policyId}/royalties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the CIP-27 royalties of a policy, empty if it defines none */
+        get: operations["getPolicyRoyalties"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/policy/{policyId}/owners": {
         parameters: {
             query?: never;
@@ -525,6 +542,11 @@ export interface components {
         PoolInfo: {
             tickerName: string;
             poolHash: string;
+        };
+        PolicyRoyalties: {
+            rate?: string;
+            address?: string;
+            firstMint: boolean;
         };
         OwnerInfo: {
             address: string;
@@ -1035,6 +1057,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PoolInfo"][];
+                };
+            };
+        };
+    };
+    getPolicyRoyalties: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982 */
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyRoyalties"];
                 };
             };
         };
