@@ -3,7 +3,7 @@
 import { assetKey, assetsInUtxos, lovelaceInUtxos, WalletAsset } from "@cardano/assets";
 import { distribute, NotEnoughFundsError, RewardPosition, RewardToken } from "@cardano/distribution";
 import { IS_MAINNET } from "@cardano/network";
-import { POOL_ID, POOL_TICKER } from "@cardano/pool";
+import { POOL_TICKER } from "@cardano/pool";
 import { batchPositions, DistributionProgress, minLovelaceForOutput, sendRewards } from "@cardano/rewards";
 import { currentEpoch, walletUtxos } from "@cardano/transaction";
 import { assetNameFromHex, formatAda, formatNumber, shortenId } from "@cardano/utils";
@@ -47,7 +47,7 @@ function adaToLovelace(ada: string) {
 }
 
 function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) {
-  const [poolInput, setPoolInput] = useState(IS_MAINNET ? POOL_ID : "");
+  const [poolInput, setPoolInput] = useState("");
   const [epoch, setEpoch] = useState(() => `${currentEpoch()}`);
   const [minStake, setMinStake] = useState("1000");
   const [ada, setAda] = useState("");
@@ -166,8 +166,8 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
   return (
     <div className="flex flex-col gap-6">
       <div className="surface grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Pool id or ticker" error={poolHash ? undefined : "Unknown pool"} className="sm:col-span-2">
-          <input className={`${inputClass} font-mono text-xs`} value={poolInput} onChange={(e) => setPoolInput(e.target.value)} list="pool-tickers" placeholder={`${POOL_TICKER} or pool1…`} />
+        <Field label="Pool id or ticker" error={poolHash || !poolInput.trim() ? undefined : "Unknown pool"} className="sm:col-span-2">
+          <input className={`${inputClass} font-mono text-xs`} value={poolInput} onChange={(e) => setPoolInput(e.target.value)} list="pool-tickers" placeholder="Ticker or pool1…" />
           <datalist id="pool-tickers">
             {pools.map((pool) => (
               <option key={pool.poolHash} value={pool.poolHash}>
