@@ -1,3 +1,4 @@
+import { NavigationTracker } from "@components/BackToBrowse";
 import ErrorBoundary from "@components/ErrorBoundary";
 import ErrorToast from "@components/ErrorToast";
 import { IS_MAINNET, NETWORK } from "@cardano/network";
@@ -34,6 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="antialiased">
+        <NavigationTracker />
         <ErrorToast />
         <WalletDialog />
         <StateProvider>

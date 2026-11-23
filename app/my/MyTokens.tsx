@@ -7,13 +7,17 @@ import { inputClass, Notice } from "@components/ui";
 import { useWallet } from "@components/useWallet";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AddressTokens, loadAddressTokens } from "./loadTokens";
 
 export default function MyTokens() {
   const { wallet, connect } = useWallet();
-  const [input, setInput] = useState("");
-  const [query, setQuery] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
+  // the searched address lives in the URL, so coming back from a token shows the same list again
+  const query = useSearchParams().get("address") ?? "";
+  const [input, setInput] = useState(query);
   const [result, setResult] = useState<{ query: string; data?: AddressTokens; error?: string } | null>(null);
 
   // without an explicit search the connected wallet is shown
@@ -46,7 +50,8 @@ export default function MyTokens() {
 
   const search = (e: FormEvent) => {
     e.preventDefault();
-    setQuery(input.trim());
+    const address = input.trim();
+    router.replace(address ? `${pathname}?address=${encodeURIComponent(address)}` : pathname, { scroll: false });
   };
 
   return (
