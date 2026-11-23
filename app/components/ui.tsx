@@ -18,11 +18,10 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
 export function Field({ label, error, hint, children, className = "" }: { label: string; error?: string; hint?: string; children: ReactNode; className?: string }) {
   return (
     <label className={`flex flex-col gap-1 ${className}`}>
-      <span className="flex justify-between gap-2 text-xs text-base-content/55">
-        {label}
-        {error ? <span className="text-error">{error}</span> : null}
-      </span>
+      {label ? <span className="text-xs text-base-content/55">{label}</span> : null}
       {children}
+      {/* an error always shows below its field, where it cannot push the field out of its row */}
+      {error ? <span className="text-[11px] text-error">{error}</span> : null}
       {hint ? <span className="text-[11px] text-base-content/45">{hint}</span> : null}
     </label>
   );
