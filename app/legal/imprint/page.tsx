@@ -14,8 +14,6 @@ export default function Page() {
         <p>
           Peter Großmann
           <br />
-          <br />
-          <br />
           Germany
         </p>
 

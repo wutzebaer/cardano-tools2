@@ -1,5 +1,4 @@
 import { PageHeader } from "@components/ui";
-import Link from "next/link";
 import { CONTACT_EMAIL, LegalHeading, LegalText } from "../Legal";
 
 export const metadata = { title: "Privacy · Cardano Tools" };
@@ -13,11 +12,7 @@ export default function Page() {
 
         <LegalHeading>Controller</LegalHeading>
         <p>
-          Peter Großmann, postal address in the{" "}
-          <Link className="link" href="/legal/imprint">
-            imprint
-          </Link>
-          , email{" "}
+          Peter Großmann, email{" "}
           <a className="link" href={`mailto:${CONTACT_EMAIL}`}>
             {CONTACT_EMAIL}
           </a>
