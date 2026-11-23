@@ -3,8 +3,9 @@
 import { assetsInUtxos, WalletAsset } from "@cardano/assets";
 import { createRegistryEntry, REGISTRY_LIMITS, REGISTRY_REPOSITORY, RegistryEntry } from "@cardano/registry";
 import { walletUtxos } from "@cardano/transaction";
-import { MintPolicy } from "@cardano/types";
-import { assetNameFromHex, shortenId } from "@cardano/utils";
+import { getTokenDetails, getTokenSearch } from "@cardano/dbsync";
+import { MintPolicy, TokenListItem } from "@cardano/types";
+import { assetNameFromHex, cip67Label, shortenId } from "@cardano/utils";
 import ConnectWallet from "@components/ConnectWallet";
 import { ExternalLink, Field, inputClass, Notice, secondaryButtonClass, textareaClass } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
@@ -58,6 +59,8 @@ function Register({ wallet }: { wallet: ConnectedWallet }) {
   const [logo, setLogo] = useState<Uint8Array | null>(null);
   const [entry, setEntry] = useState<RegistryEntry | null>(null);
 
+  const [minted, setMinted] = useState<{ policyId: string; tokens: TokenListItem[] } | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     walletUtxos(wallet.connection).then((utxos) => {
@@ -68,7 +71,54 @@ function Register({ wallet }: { wallet: ConnectedWallet }) {
     };
   }, [wallet]);
 
-  const policyAssets = useMemo(() => assets.filter((asset) => asset.policyId === policy?.policyId), [assets, policy]);
+  const policyId = policy?.policyId;
+  useEffect(() => {
+    if (!policyId) return;
+    let cancelled = false;
+    // the list is a help for filling the form, the asset name can always be typed
+    getTokenSearch(policyId).then(
+      (tokens) => {
+        if (!cancelled) setMinted({ policyId, tokens });
+      },
+      () => undefined
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [policyId]);
+
+  /** Tokens minted with the policy according to the chain index, plus those in the wallet it does not list yet. */
+  const policyTokens = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const token of minted && minted.policyId === policyId ? minted.tokens : []) {
+      if (token.maPolicyId === policyId) names.set(token.maName, token.name);
+    }
+    for (const asset of assets) {
+      if (asset.policyId === policyId && !names.has(asset.name)) names.set(asset.name, "");
+    }
+    // a token with an empty asset name is the one the empty field already stands for
+    return [...names].filter(([hex]) => hex !== "" && cip67Label(hex) !== 100).map(([hex, tokenName]) => ({ hex, label: tokenName || assetNameFromHex(hex) || "(no name)" }));
+  }, [minted, assets, policyId]);
+
+  /** Takes over the asset name and what the token's on-chain metadata says, the rest of the form stays as typed. */
+  const chooseToken = async (hex: string) => {
+    setAssetName(hex);
+    if (!policyId) return;
+    const details = await getTokenDetails(policyId, hex).catch(() => null);
+    let metadata: Record<string, unknown> = {};
+    try {
+      metadata = JSON.parse(details?.metadata ?? "{}") ?? {};
+    } catch {
+      // metadata that is not JSON fills nothing
+    }
+    const text = (value: unknown) => (typeof value === "string" ? value : Array.isArray(value) && value.every((part) => typeof part === "string") ? value.join("") : undefined);
+    const listed = policyTokens.find((token) => token.hex === hex)?.label;
+    setName(text(metadata.name) ?? listed ?? "");
+    setDescription(text(metadata.description) ?? "");
+    setTicker(text(metadata.ticker) ?? "");
+    setUrl(text(metadata.url) ?? "");
+    setDecimals(typeof metadata.decimals === "number" ? `${metadata.decimals}` : "");
+  };
 
   const errors = {
     assetName: /^([0-9a-f]{2}){0,32}$/.test(assetName) ? undefined : "Hex, at most 32 bytes",
@@ -122,15 +172,24 @@ function Register({ wallet }: { wallet: ConnectedWallet }) {
       {policy && !policy.skey ? <Notice tone="warning">This policy is signed by your wallet key. Select or import a policy with its own signing key.</Notice> : null}
 
       <div className="surface grid gap-4 p-5 sm:grid-cols-2">
+        {policyTokens.length > 0 ? (
+          <Field label="Token of this policy" hint="Fills the form with the token's on-chain metadata" className="sm:col-span-2">
+            <select
+              className="select w-full border-line bg-base-300"
+              value={policyTokens.some((token) => token.hex === assetName) ? assetName : ""}
+              onChange={(e) => (e.target.value ? chooseToken(e.target.value) : undefined)}
+            >
+              <option value="">Choose a token…</option>
+              {policyTokens.map((token) => (
+                <option key={token.hex} value={token.hex}>
+                  {token.label} · {shortenId(token.hex, 8)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
         <Field label="Asset name (hex)" error={errors.assetName} hint={assetName ? `Text: ${assetNameFromHex(assetName)}` : undefined} className="sm:col-span-2">
-          <input className={`${inputClass} font-mono text-xs`} value={assetName} onChange={(e) => setAssetName(e.target.value.trim().toLowerCase())} list="policy-assets" placeholder="4d79546f6b656e" />
-          <datalist id="policy-assets">
-            {policyAssets.map((asset) => (
-              <option key={asset.name} value={asset.name}>
-                {assetNameFromHex(asset.name)}
-              </option>
-            ))}
-          </datalist>
+          <input className={`${inputClass} font-mono text-xs`} value={assetName} onChange={(e) => setAssetName(e.target.value.trim().toLowerCase())} placeholder="4d79546f6b656e" />
         </Field>
         <Field label="Name" error={errors.name}>
           <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="My Token" />
