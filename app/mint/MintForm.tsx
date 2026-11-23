@@ -1,6 +1,6 @@
 "use client";
 
-import { assetNameFor, tokensMetadata } from "@cardano/metadata";
+import { assetNameFor } from "@cardano/metadata";
 import { labeledAssetNameHex, mintTokens } from "@cardano/mint";
 import { explorerPolicyUrl, IS_MAINNET } from "@cardano/network";
 import { MintPolicy, MintToken } from "@cardano/types";
@@ -40,15 +40,6 @@ function newToken(name: string, patch: Partial<MintToken> = {}): MintToken {
     extra: {},
     ...patch,
   };
-}
-
-/**
- * pool.pm previews metadata in the classic 721 layout. The metadata of a CIP-68 token is the same JSON,
- * so it is wrapped below a placeholder policy id; pool.pm expects the JSON encoded twice.
- */
-function previewUrl(tokens: MintToken[]) {
-  const metadata = { "721": { ["0".repeat(56)]: tokensMetadata(tokens) } };
-  return `https://pool.pm/test/metadata?metadata=${encodeURIComponent(encodeURIComponent(JSON.stringify(metadata)))}`;
 }
 
 const numberedName = (index: number) => `Token${String(index).padStart(3, "0")}`;
@@ -147,9 +138,7 @@ function Mint({ wallet }: { wallet: ConnectedWallet }) {
             <button type="button" className={`${secondaryButtonClass} w-fit`} onClick={() => setEditing(true)}>
               <CodeBracketIcon className="size-4" />
               Edit metadata JSON
-            </button>
-            <ExternalLink href={previewUrl(tokens)}>Preview on pool.pm</ExternalLink>
-          </div>
+            </button>          </div>
         </div>
       )}
 
