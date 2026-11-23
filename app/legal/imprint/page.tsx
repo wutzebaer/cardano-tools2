@@ -3,23 +3,25 @@ import { PageHeader } from "@components/ui";
 import Link from "next/link";
 import { CONTACT_EMAIL, LegalHeading, LegalText } from "../Legal";
 
-export const metadata = { title: "Impressum · Cardano Tools" };
+export const metadata = { title: "Imprint · Cardano Tools" };
 
 export default function Page() {
   return (
     <>
-      <PageHeader title="Impressum" />
-      <LegalText lang="de">
-        <p>Angaben gemäß § 5 DDG</p>
+      <PageHeader title="Imprint" />
+      <LegalText lang="en">
+        <p>Information pursuant to § 5 DDG (German Digital Services Act)</p>
         <p>
           Peter Großmann
           <br />
           <br />
+          <br />
+          Germany
         </p>
 
-        <LegalHeading>Kontakt</LegalHeading>
+        <LegalHeading>Contact</LegalHeading>
         <p>
-          E-Mail:{" "}
+          Email:{" "}
           <a className="link" href={`mailto:${CONTACT_EMAIL}`}>
             {CONTACT_EMAIL}
           </a>
@@ -30,34 +32,34 @@ export default function Page() {
           </a>
         </p>
 
-        <LegalHeading>Haftung für Inhalte</LegalHeading>
+        <LegalHeading>Liability for content</LegalHeading>
         <p>
-          Die Inhalte dieser Seiten wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Inhalte kann jedoch keine Gewähr übernommen werden. Als Diensteanbieter bin ich gemäß § 7 Abs. 1 DDG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 DDG bin ich als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon unberührt. Eine diesbezügliche Haftung ist jedoch erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. Bei Bekanntwerden von entsprechenden Rechtsverletzungen werden diese Inhalte umgehend entfernt.
+          The content of these pages was created with great care. However, no guarantee can be given that it is correct, complete and up to date. As a service provider I am responsible for my own content on these pages under the general laws (§ 7 (1) DDG). Under §§ 8 to 10 DDG I am not obliged, however, to monitor transmitted or stored third-party information or to investigate circumstances that indicate illegal activity. Obligations to remove or block the use of information under the general laws remain unaffected. Liability in this respect is only possible from the moment a specific infringement becomes known. Once such an infringement becomes known, the content concerned is removed immediately.
         </p>
         <p>
-          Token, Bilder und Metadaten, die diese Seite anzeigt, stammen von der öffentlichen Cardano-Blockchain und aus dem IPFS-Netzwerk. Sie werden von Dritten erstellt und lassen sich dort nicht löschen; rechtswidrige Inhalte werden nach einem Hinweis auf dieser Seite ausgeblendet.
-        </p>
-
-        <LegalHeading>Haftung für Links</LegalHeading>
-        <p>
-          Dieses Angebot enthält Links zu externen Webseiten Dritter, auf deren Inhalte ich keinen Einfluss habe. Deshalb kann für diese fremden Inhalte auch keine Gewähr übernommen werden. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich. Die verlinkten Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft. Rechtswidrige Inhalte waren zum Zeitpunkt der Verlinkung nicht erkennbar. Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist jedoch ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar. Bei Bekanntwerden von Rechtsverletzungen werden derartige Links umgehend entfernt.
+          Tokens, images and metadata shown on this site come from the public Cardano blockchain and from the IPFS network. They are created by third parties and cannot be deleted there; unlawful content is hidden on this site after it has been reported.
         </p>
 
-        <LegalHeading>Urheberrecht</LegalHeading>
+        <LegalHeading>Liability for links</LegalHeading>
         <p>
-          Die durch den Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem deutschen Urheberrecht. Soweit die Inhalte auf dieser Seite nicht vom Betreiber erstellt wurden, werden die Urheberrechte Dritter beachtet. Sollten Sie trotzdem auf eine Urheberrechtsverletzung aufmerksam werden, bitte ich um einen entsprechenden Hinweis. Bei Bekanntwerden von Rechtsverletzungen werden derartige Inhalte umgehend entfernt.
+          This site contains links to external websites of third parties whose content I cannot influence. Therefore no guarantee can be given for that content. The provider or operator of a linked site is always responsible for its content. The linked sites were checked for possible legal violations when the links were set, and no unlawful content was apparent at that time. Permanent monitoring of the linked sites is not reasonable without specific indications of an infringement. Once an infringement becomes known, such links are removed immediately.
         </p>
 
-        <LegalHeading>Datenschutz</LegalHeading>
+        <LegalHeading>Copyright</LegalHeading>
         <p>
-          Welche Daten diese Seite verarbeitet, steht in der{" "}
+          The content and works created by the operator on these pages are subject to German copyright law. Where content on this site was not created by the operator, the copyrights of third parties are respected. Should you nevertheless become aware of a copyright infringement, please let me know. Once an infringement becomes known, such content is removed immediately.
+        </p>
+
+        <LegalHeading>Privacy</LegalHeading>
+        <p>
+          Which data this site processes is described in the{" "}
           <Link className="link" href="/legal/privacy">
-            Datenschutzerklärung
+            privacy policy
           </Link>
           .
         </p>
-        <p>Der Nutzung der im Rahmen der Impressumspflicht veröffentlichten Kontaktdaten durch Dritte zur Übersendung von nicht ausdrücklich angeforderter Werbung und Informationsmaterialien wird hiermit ausdrücklich widersprochen.</p>
-        <p>Impressum auf Grundlage des Impressum Generators der Kanzlei Hasselbach, Frankfurt</p>
+        <p>The use of the contact details published here by third parties to send advertising and information material that was not expressly requested is hereby expressly rejected.</p>
+        <p>Imprint based on the imprint generator of the law firm Hasselbach, Frankfurt</p>
       </LegalText>
     </>
   );
