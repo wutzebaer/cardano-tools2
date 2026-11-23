@@ -74,13 +74,6 @@ function Royalties({ wallet }: { wallet: ConnectedWallet }) {
 
       <PolicySelector keyHash={wallet.keyHash} selection={selection} />
 
-      {hasTokens ? (
-        <Notice tone="warning">
-          This policy has already minted tokens. Marketplaces that follow CIP-27 strictly ignore a royalty token that is not the first token of its policy. You can mint
-          it anyway, for royalties that count everywhere create a new policy.
-        </Notice>
-      ) : null}
-
       <div className="surface grid gap-4 p-5 sm:grid-cols-[10rem_minmax(0,1fr)]">
         <Field label="Royalties in %" error={rateValid ? undefined : "0 to 100"}>
           <input className={inputClass} type="number" min="0" max="100" step="0.5" value={percent} onChange={(e) => setPercent(e.target.value)} />
@@ -94,6 +87,13 @@ function Royalties({ wallet }: { wallet: ConnectedWallet }) {
           </pre>
         ) : null}
       </div>
+
+      {hasTokens ? (
+        <Notice tone="warning">
+          This policy has already minted tokens. Marketplaces that follow CIP-27 strictly ignore a royalty token that is not the first token of its policy. You can mint
+          it anyway, for royalties that count everywhere create a new policy.
+        </Notice>
+      ) : null}
 
       <div className="surface flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-base-content/55">Mints one royalty token into your wallet. Your wallet shows the fee before signing.</p>
