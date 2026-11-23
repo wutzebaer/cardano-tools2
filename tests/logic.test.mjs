@@ -1,47 +1,12 @@
 // Tests for the logic that needs neither a wallet nor the chain. Run with `npm test`.
 import assert from "node:assert/strict";
-import crypto from "node:crypto";
 import { test } from "node:test";
 import { groupFeed } from "../app/browse/groupTokens.ts";
-import { attestationHash, cborEncode } from "../app/cardano/attestation.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
 import { assetNameFor, tokenMetadata, tokensFromMetadata, tokensMetadata } from "../app/cardano/metadata.ts";
 import { NETWORK, NETWORKS, unixToEpoch, unixToSlot } from "../app/cardano/network.ts";
 import { policyLockSlot } from "../app/cardano/utils.ts";
 import { priceAt, statementCsv, statementLines } from "../app/statement/statement.ts";
-
-const hex = (bytes) => Buffer.from(bytes).toString("hex");
-
-function verifyEd25519(publicKeyHex, signatureHex, message) {
-  const spki = Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), Buffer.from(publicKeyHex, "hex")]);
-  return crypto.verify(null, message, crypto.createPublicKey({ key: spki, format: "der", type: "spki" }), Buffer.from(signatureHex, "hex"));
-}
-
-// ---------------------------------------------------------------------------
-// Token registry attestation
-// ---------------------------------------------------------------------------
-
-test("cbor encodes text, unsigned ints and bytes", () => {
-  assert.equal(hex(cborEncode("a")), "6161");
-  assert.equal(hex(cborEncode("x".repeat(24))), "7818" + "78".repeat(24));
-  assert.equal(hex(cborEncode(0)), "00");
-  assert.equal(hex(cborEncode(23)), "17");
-  assert.equal(hex(cborEncode(24)), "1818");
-  assert.equal(hex(cborEncode(1000)), "1903e8");
-  assert.equal(hex(cborEncode(Uint8Array.of(1, 2, 3))), "43010203");
-});
-
-test("attestation hash matches signatures of a real registry entry", () => {
-  // mappings/00109530…436f696e.json of cardano-foundation/cardano-token-registry
-  const subject = "00109530994ea381c0bfe0936c85ea01bfe2765c24ef6dad5740c33e486f646c657220436f616c6974696f6e20436f696e";
-  const publicKey = "f75868749da4890c2ef70d55d6d4c2f387a1d3f3e83639c23c60f12657da81c7";
-  const nameSignature = "59580aea8fc8d44f01ce24bf82046137f7866e545d49edcd88e0daa510a98991303283271269f332f0d61fc664da2163892d4dc739694ecba6eb9c0e3a014901";
-  const decimalsSignature = "7351a199d0fba70e35d4714b0b62e9912243dfb2b209738c5f650e887caa71eb9afc9ccf21aeaa87a426b198442431159cb07107bbd98c1ca63ffbf133c2b307";
-
-  assert.ok(verifyEd25519(publicKey, nameSignature, attestationHash(subject, "name", "Hodler Coalition Coin", 0)));
-  assert.ok(verifyEd25519(publicKey, decimalsSignature, attestationHash(subject, "decimals", 4, 0)));
-  assert.ok(!verifyEd25519(publicKey, nameSignature, attestationHash(subject, "name", "Another name", 0)));
-});
 
 // ---------------------------------------------------------------------------
 // Reward distribution

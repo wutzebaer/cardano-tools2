@@ -9,7 +9,6 @@ Cardano Tools is a [Next.js](https://nextjs.org) dApp: every transaction is buil
 | `/mint` | Mint CIP-68 NFTs and fungible tokens, one or many per transaction, with additional files and a JSON editor for the metadata |
 | `/royalties` | Mint the CIP-27 royalty token of a policy |
 | `/burn` | Burn tokens of own policies, including their CIP-68 reference NFT |
-| `/register` | Create a signed entry for the Cardano token registry |
 | `/rewards` | Distribute ADA and tokens to the delegators of a pool |
 | `/statement` | Wallet statement with fiat values and CSV export |
 | `/pool` | The Cardano Tools pool [TOOLS] and delegation |
@@ -18,8 +17,7 @@ Cardano Tools is a [Next.js](https://nextjs.org) dApp: every transaction is buil
 
 A new policy is `all [sig <wallet payment key>, before <slot>]`, so the wallet signs for it and nothing secret has to be stored. Policies are found again through the wallet's mints on-chain; until the first mint they are kept in the browser's local storage.
 
-Policies of the previous Cardano Tools had their key generated on the server. They can be imported on the mint page with script and signing key, which then stay in local storage and sign next to the wallet. Only these policies can be registered in the token registry, because a wallet cannot produce the registry's attestation signature.
-
+Policies of the previous Cardano Tools had their key generated on the server. They can be imported on the mint page with script and signing key, which then stay in local storage and sign next to the wallet.
 ## Getting Started
 
 ```bash
@@ -47,7 +45,7 @@ npm run update-schema
 
 ```bash
 npm run lint
-npm test        # reward distribution, registry attestation, statement, mint metadata
+npm test        # reward distribution, statement, mint metadata
 npm run build
 ```
 

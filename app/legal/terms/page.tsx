@@ -20,7 +20,7 @@ export default function Page() {
 
         <LegalHeading>What the site does</LegalHeading>
         <p>
-          The site is a free tool for the Cardano blockchain. It shows public chain data and helps you build transactions, for example to mint or burn tokens, set royalties, register a token, send rewards to stakers or delegate your stake. There are no user accounts. The site never holds your funds or the keys of your wallet: every transaction is shown to you in your own wallet and is only sent after you have signed it there.
+          The site is a free tool for the Cardano blockchain. It shows public chain data and helps you build transactions, for example to mint or burn tokens, set royalties, send rewards to stakers or delegate your stake. There are no user accounts. The site never holds your funds or the keys of your wallet: every transaction is shown to you in your own wallet and is only sent after you have signed it there.
         </p>
 
         <LegalHeading>Your responsibility</LegalHeading>

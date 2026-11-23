@@ -3,7 +3,7 @@ import ErrorBoundary from "@components/ErrorBoundary";
 import ErrorToast from "@components/ErrorToast";
 import { IS_MAINNET, NETWORK } from "@cardano/network";
 import { POOL_TICKER, TELEGRAM_URL } from "@cardano/pool";
-import { BanknotesIcon, DocumentTextIcon, FireIcon, GiftIcon, IdentificationIcon, SparklesIcon, Squares2X2Icon, WalletIcon } from "@heroicons/react/24/outline";
+import { BanknotesIcon, DocumentTextIcon, FireIcon, GiftIcon,SparklesIcon, Squares2X2Icon, WalletIcon } from "@heroicons/react/24/outline";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Image from "next/image";
@@ -70,9 +70,6 @@ export default function RootLayout({
                   </NavLink>
                   <NavLink href="/burn" icon={<FireIcon className="size-5" />}>
                     Burn
-                  </NavLink>
-                  <NavLink href="/register" icon={<IdentificationIcon className="size-5" />}>
-                    Register token
                   </NavLink>
                   <NavLink href="/rewards" icon={<GiftIcon className="size-5" />}>
                     Reward stakers
