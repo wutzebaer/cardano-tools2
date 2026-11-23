@@ -23,7 +23,7 @@ export default function PoolStake() {
       {delegatedHere ? (
         <p className="flex items-center gap-2 rounded-field border border-success/40 bg-success/10 px-4 py-3 text-sm text-success">
           <CheckBadgeIcon className="size-5 shrink-0" />
-          Thank you! Your wallet stakes {formatAda(info?.stake)} with [{POOL_TICKER}]{info?.poolRewards ? ` and has earned ${formatAda(info.poolRewards)} in rewards so far` : ""}.
+          Thank you! Your wallet stakes {formatAda(info?.stake)} with [{POOL_TICKER}]{info?.poolRewards ? `, and the pool has earned ${formatAda(info.poolRewards)} in rewards for you so far` : ""}.
         </p>
       ) : (
         <>
