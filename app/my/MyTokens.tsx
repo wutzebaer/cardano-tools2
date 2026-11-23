@@ -18,8 +18,10 @@ export default function MyTokens() {
   const pathname = usePathname();
   // the searched address lives in the URL, so coming back from a token shows the same list again
   const query = useSearchParams().get("address") ?? "";
-  const [input, setInput] = useState(query);
+  // null until something is typed: the field then holds the searched address or the connected wallet
+  const [typed, setInput] = useState<string | null>(null);
   const walletHandle = useHandle(wallet?.stakeAddress);
+  const input = typed ?? (query || walletHandle || wallet?.stakeAddress || "");
   const [result, setResult] = useState<{ query: string; data?: AddressTokens; error?: string } | null>(null);
 
   // without an explicit search the connected wallet is shown

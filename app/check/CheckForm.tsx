@@ -15,7 +15,9 @@ export default function CheckForm({ initial = "" }: { initial?: string }) {
   const router = useRouter();
   const { wallet, connect, connecting } = useWallet();
   const walletHandle = useHandle(wallet?.stakeAddress);
-  const [input, setInput] = useState(initial);
+  // null until something is typed: the field then holds the checked address or the connected wallet
+  const [typed, setInput] = useState<string | null>(null);
+  const input = typed ?? (initial || walletHandle || wallet?.stakeAddress || "");
   const [waitingForWallet, setWaitingForWallet] = useState(false);
 
   // the wallet was asked for by "Check my wallet" and has arrived
@@ -31,10 +33,6 @@ export default function CheckForm({ initial = "" }: { initial?: string }) {
   };
 
   const useWalletAddress = async () => {
-    if (wallet) {
-      router.push(checkPath(wallet.stakeAddress));
-      return;
-    }
     setWaitingForWallet(true);
     await connect().catch(() => setWaitingForWallet(false));
   };
@@ -48,10 +46,13 @@ export default function CheckForm({ initial = "" }: { initial?: string }) {
       <button className="btn btn-primary" type="submit" disabled={!input.trim()}>
         Check
       </button>
-      <button className="btn border-line bg-base-300" type="button" onClick={useWalletAddress} disabled={connecting && waitingForWallet}>
-        {connecting && waitingForWallet ? <span className="loading loading-spinner loading-xs" /> : null}
-        {wallet ? `Check ${walletHandle ? `$${walletHandle}` : "my wallet"}` : "Check my wallet"}
-      </button>
+      {/* a connected wallet is in the field already */}
+      {!wallet ? (
+        <button className="btn border-line bg-base-300" type="button" onClick={useWalletAddress} disabled={connecting && waitingForWallet}>
+          {connecting && waitingForWallet ? <span className="loading loading-spinner loading-xs" /> : null}
+          Check my wallet
+        </button>
+      ) : null}
     </form>
   );
 }

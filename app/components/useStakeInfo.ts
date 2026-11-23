@@ -80,8 +80,10 @@ export function useStakeInfo() {
     };
   }, [stakeAddress, currentRevision]);
 
-  const info = stakeAddress && loaded?.stakeAddress === stakeAddress ? loaded.info : null;
+  // false while the pool of the connected wallet is still being looked up
+  const known = Boolean(stakeAddress) && loaded?.stakeAddress === stakeAddress;
+  const info = known ? loaded!.info : null;
   const submitted = delegation && stakeAddress && (delegation.stakeAddress ?? stakeAddress) === stakeAddress ? delegation : null;
   const delegatedHere = info?.poolHash === POOL_ID || submitted?.confirmed === true;
-  return { info, delegatedHere, pending: Boolean(submitted) && !delegatedHere };
+  return { info, known, delegatedHere, pending: Boolean(submitted) && !delegatedHere };
 }

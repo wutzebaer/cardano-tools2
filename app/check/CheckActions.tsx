@@ -46,7 +46,20 @@ function Submitted({ txHash, label }: { txHash: string; label: string }) {
  * An action only the owner of the checked address can take. Without a wallet it offers to connect one,
  * with the wallet of another address it says so instead of building a transaction for the wrong account.
  */
-function OwnerAction({ stakeAddress, done, children }: { stakeAddress: string; done: string; children: (run: (send: (wallet: ConnectedWallet) => Promise<string>) => void, busy: boolean) => ReactNode }) {
+function OwnerAction({
+  stakeAddress,
+  done,
+  connectLabel = "Connect the wallet of this address",
+  connectClass = "btn btn-sm border-line bg-base-300",
+  children,
+}: {
+  stakeAddress: string;
+  done: string;
+  /** What the button says while no wallet is connected, a click on it connects one */
+  connectLabel?: string;
+  connectClass?: string;
+  children: (run: (send: (wallet: ConnectedWallet) => Promise<string>) => void, busy: boolean) => ReactNode;
+}) {
   const { wallet, connect, connecting } = useWallet();
   const [busy, setBusy] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -54,9 +67,9 @@ function OwnerAction({ stakeAddress, done, children }: { stakeAddress: string; d
   if (txHash) return <Submitted txHash={txHash} label={done} />;
   if (!wallet) {
     return (
-      <button className="btn btn-sm border-line bg-base-300" onClick={connect} disabled={connecting}>
+      <button className={connectClass} onClick={connect} disabled={connecting}>
         {connecting ? <span className="loading loading-spinner loading-xs" /> : null}
-        Connect the wallet of this address
+        {connectLabel}
       </button>
     );
   }
@@ -118,12 +131,14 @@ export function WithdrawRewards({ stakeAddress, lovelace }: { stakeAddress: stri
   );
 }
 
-export function DelegateToPool({ stakeAddress, poolHash, ticker }: { stakeAddress: string; poolHash: string; ticker: string }) {
+/** `prominent` is the filled button, the others are outlined in the same colour so every pool can be picked at a glance. */
+export function DelegateToPool({ stakeAddress, poolHash, ticker, prominent = false }: { stakeAddress: string; poolHash: string; ticker: string; prominent?: boolean }) {
+  const buttonClass = prominent ? "btn btn-primary btn-sm" : "btn btn-sm border-primary/60 bg-primary/10 text-primary hover:border-primary hover:bg-primary/20";
   return (
-    <OwnerAction stakeAddress={stakeAddress} done="Delegation">
+    <OwnerAction stakeAddress={stakeAddress} done="Delegation" connectLabel={`Delegate to [${ticker}]`} connectClass={buttonClass}>
       {(run, busy) => (
         <button
-          className="btn btn-sm border-line bg-base-300"
+          className={buttonClass}
           disabled={busy}
           onClick={() =>
             run(async (wallet) => {

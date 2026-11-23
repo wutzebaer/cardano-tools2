@@ -15,8 +15,10 @@ export interface CheckData {
   /** What was asked for, a `$handle` keeps its name */
   label: string;
   stakeAddress: string;
-  /** Null for a stake address the chain has never seen */
-  check: StakeCheck | null;
+  /** For a stake address the chain has never seen: an unregistered one that holds nothing */
+  check: StakeCheck;
+  /** False for a stake address the chain has never seen */
+  known: boolean;
   performance: PoolPerformance | null;
   findings: Finding[];
   /** Pools to move to, filled when the address is not staking or its pool calls for a decision */
@@ -44,10 +46,12 @@ export async function loadCheck(input: string): Promise<CheckData | { error: str
   const { stakeAddress, error } = await resolveStakeAddress(input);
   if (!stakeAddress) return { error: error ?? "Address not found." };
 
-  const check = await getStakeCheck(stakeAddress);
-  const pool = check?.pool ?? null;
+  const found = await getStakeCheck(stakeAddress);
+  // a fresh wallet is as good as one that never delegated: it gets the same pools to pick from
+  const check: StakeCheck = found ?? { stakeAddress, currentEpoch: 0, registered: false, balance: 0, rewardsAvailable: 0 };
+  const pool = check.pool ?? null;
   const performance = pool ? await getPoolPerformance(pool.poolHash) : null;
-  const findings = pool && check ? poolFindings(pool, performance, check.currentEpoch) : [];
+  const findings = pool ? poolFindings(pool, performance, check.currentEpoch) : [];
 
   let alternatives: PoolOption[] = [];
   if (!pool || suggestsAlternatives(findings)) {
@@ -56,5 +60,5 @@ export async function loadCheck(input: string): Promise<CheckData | { error: str
     alternatives = await Promise.all(picked.map(async (option) => ({ pool: option, performance: await getPoolPerformance(option.poolHash) })));
   }
 
-  return { label: input.trim().startsWith("$") ? input.trim().toLowerCase() : stakeAddress, stakeAddress, check, performance, findings, alternatives };
+  return { label: input.trim().startsWith("$") ? input.trim().toLowerCase() : stakeAddress, stakeAddress, check, known: found != null, performance, findings, alternatives };
 }

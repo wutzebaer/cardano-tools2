@@ -15,7 +15,7 @@ export default function PoolStake() {
   const [txHash, setTxHash] = useState<string | null>(null);
 
   if (txHash) {
-    return <TxResult title="Delegation submitted" txHashes={[txHash]} onReset={() => setTxHash(null)} resetLabel="Done" />;
+    return <TxResult title="Delegation submitted" txHashes={[txHash]} onReset={() => setTxHash(null)} resetLabel="Done" support={false} />;
   }
 
   return (

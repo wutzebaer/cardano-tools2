@@ -1,8 +1,8 @@
 import { explorerPoolUrl } from "@cardano/network";
-import { POOL_ID } from "@cardano/pool";
+import { POOL_ID, POOL_TICKER } from "@cardano/pool";
 import { formatAda, formatNumber, shortenId } from "@cardano/utils";
 import CopyButton from "@components/CopyButton";
-import { ExternalLink, Notice } from "@components/ui";
+import { ExternalLink } from "@components/ui";
 import { CheckCircleIcon, ExclamationTriangleIcon, InformationCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import { ReactNode } from "react";
 import { DelegateToPool, VoteDelegation, WithdrawRewards } from "./CheckActions";
@@ -102,12 +102,8 @@ function PoolFacts({ pool, performance }: { pool: PoolCheck; performance: PoolPe
 const DISCLAIMER = "Chain data as of the current epoch. A short-term return says little about a small pool, its blocks come irregularly. This is information, not financial advice.";
 
 export default function CheckResult({ data }: { data: CheckData }) {
-  const { check, performance, findings, alternatives, stakeAddress, label } = data;
+  const { check, known, performance, findings, alternatives, stakeAddress, label } = data;
   const sharePath = `/check/${encodeURIComponent(label)}`;
-
-  if (!check) {
-    return <Notice>The chain has no record of this stake address. It has never held ADA or been registered, so there is nothing to check yet.</Notice>;
-  }
 
   const pool = check.pool ?? null;
   const stake = check.balance + check.rewardsAvailable;
@@ -119,9 +115,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-brand truncate text-xl font-semibold tracking-tight">{label.startsWith("$") ? label : shortenId(stakeAddress, 14)}</p>
-          <p className="text-sm text-base-content/55">
-            {formatAda(stake)} staked or stakeable, epoch {check.currentEpoch}
-          </p>
+          <p className="text-sm text-base-content/55">{known ? `${formatAda(stake)} staked or stakeable, epoch ${check.currentEpoch}` : "A new address, the chain has not seen it yet"}</p>
         </div>
         <CopyButton text={`https://cardano-tools.io${sharePath}`}>Copy link to this check</CopyButton>
       </div>
@@ -129,7 +123,13 @@ export default function CheckResult({ data }: { data: CheckData }) {
       <Card title="Stake pool">
         {!check.registered ? (
           <ul className="flex flex-col gap-2">
-            <FindingRow finding={{ level: "problem", title: "This address is not staking", text: "Its stake key is not registered, so the ADA here earns no rewards. Delegating to a pool registers it, the ADA stays in the wallet." }} />
+            <FindingRow
+              finding={{
+                level: "problem",
+                title: "This address is not delegated yet",
+                text: `${stake > 0 ? `Its ${formatAda(stake)} earn no staking rewards.` : "It holds no ADA yet, and what arrives earns no staking rewards."} Delegate to [${POOL_TICKER}] or one of the other pools below: it is one transaction, the ADA stays in the wallet, and the 2 ₳ deposit for registering the stake key comes back when you stop staking.`,
+              }}
+            />
           </ul>
         ) : !pool ? (
           <ul className="flex flex-col gap-2">
@@ -225,7 +225,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
                     <ExternalLink href={explorerPoolUrl(option.poolHash)}>cexplorer</ExternalLink>
-                    <DelegateToPool stakeAddress={stakeAddress} poolHash={option.poolHash} ticker={option.ticker ?? "pool"} />
+                    <DelegateToPool stakeAddress={stakeAddress} poolHash={option.poolHash} ticker={option.ticker ?? "pool"} prominent={option.poolHash === POOL_ID} />
                   </div>
                 </div>
                 <PoolFacts pool={option} performance={results} />

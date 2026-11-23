@@ -48,7 +48,8 @@ export default function WalletStatement() {
   // addresses of the last statement are remembered; null means the user has not typed yet
   const [typed, setInput] = useState<string | null>(null);
   const stored = useSyncExternalStore(subscribeNothing, () => localStorage.getItem(STORAGE_KEY) ?? "", () => "");
-  const input = typed ?? stored;
+  // until something is typed the field holds the addresses of the last statement or the connected wallet
+  const input = typed ?? (stored || wallet?.stakeAddress || "");
   const [currency, setCurrency] = useState<Currency>("EUR");
   const [rows, setRows] = useState<StatementRow[] | null>(null);
   const [prices, setPrices] = useState<Partial<Record<Currency, PricePoint[]>>>({});

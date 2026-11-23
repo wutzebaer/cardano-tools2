@@ -2,6 +2,7 @@
 
 import { watchConfirmation } from "@cardano/confirmation";
 import { explorerTxUrl } from "@cardano/network";
+import SupportNote from "@components/SupportNote";
 import { ExternalLink } from "@components/ui";
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
 import { ReactNode, useEffect, useState } from "react";
@@ -36,7 +37,22 @@ function TxRow({ txHash }: { txHash: string }) {
 }
 
 /** Success panel after submitting one or more transactions; follows them until they are on-chain. */
-export default function TxResult({ title, txHashes, children, onReset, resetLabel }: { title: string; txHashes: string[]; children?: ReactNode; onReset: () => void; resetLabel: string }) {
+export default function TxResult({
+  title,
+  txHashes,
+  children,
+  onReset,
+  resetLabel,
+  support = true,
+}: {
+  title: string;
+  txHashes: string[];
+  children?: ReactNode;
+  onReset: () => void;
+  resetLabel: string;
+  /** Says how the site is paid for, off where the transaction was the delegation itself */
+  support?: boolean;
+}) {
   return (
     <div className="surface flex flex-col gap-5 p-6">
       <div>
@@ -49,6 +65,7 @@ export default function TxResult({ title, txHashes, children, onReset, resetLabe
         ))}
       </ul>
       {children}
+      {support ? <SupportNote /> : null}
       <div>
         <button className="btn btn-primary btn-sm" onClick={onReset}>
           {resetLabel}
