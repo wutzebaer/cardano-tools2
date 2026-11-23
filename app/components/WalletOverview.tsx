@@ -35,14 +35,20 @@ function WalletOverview() {
       });
       const name = fetchedWalletInfo.name;
       const icon = fetchedWalletInfo.icon;
-      const balanceCBORHex = await connection.getBalance();
-      const balanceBigNum = Value.from_bytes(
-        Buffer.from(balanceCBORHex, 'hex')
-      ).coin();
-      const balance = Number(balanceBigNum.to_str());
-      const changeAddress = await connection.getChangeAddress();
-      const rewardAddresses = await connection.getRewardAddresses();
-      setWalletStats({ name, icon, balance, changeAddress, rewardAddresses });
+      try {
+        const balanceCBORHex = await connection.getBalance();
+        const balanceBigNum = Value.from_bytes(
+          Buffer.from(balanceCBORHex, 'hex')
+        ).coin();
+        const balance = Number(balanceBigNum.to_str());
+        const changeAddress = await connection.getChangeAddress();
+        const rewardAddresses = await connection.getRewardAddresses();
+        setWalletStats({ name, icon, balance, changeAddress, rewardAddresses });
+      } catch (error) {
+        // the wallet does not answer: back to "Connect wallet" instead of "Connecting" forever
+        context.setState({ walletInfo: null });
+        throw error;
+      }
     }
   };
 
@@ -100,6 +106,11 @@ function WalletOverview() {
             {handle ?? stakeAddress}
           </p>
         </div>
+      ) : context.state.walletInfo ? (
+        <button className="btn btn-primary w-full" disabled>
+          <span className="loading loading-spinner loading-sm" />
+          Connecting…
+        </button>
       ) : (
         <button className="btn btn-primary w-full" onClick={reconnect}>
           Connect wallet

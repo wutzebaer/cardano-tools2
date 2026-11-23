@@ -15,7 +15,10 @@ export default function ConnectWallet({ message, children }: { message: string; 
     <div className="surface flex flex-col items-center gap-4 px-6 py-16 text-center">
       <p className="text-sm text-base-content/55">{message}</p>
       {connecting ? (
-        <span className="loading loading-spinner loading-md text-primary" />
+        <button className="btn btn-primary" disabled>
+          <span className="loading loading-spinner loading-sm" />
+          Connecting…
+        </button>
       ) : (
         <button className="btn btn-primary" onClick={connect}>
           Connect wallet
