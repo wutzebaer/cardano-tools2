@@ -5,7 +5,7 @@ import { groupFeed } from "../app/browse/groupTokens.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
 import { assetNameFor, tokenMetadata, tokensFromMetadata, tokensMetadata } from "../app/cardano/metadata.ts";
 import { NETWORK, NETWORKS, unixToEpoch, unixToSlot } from "../app/cardano/network.ts";
-import { candidateUnlockTimes, DAY_SECONDS, FIRST_UNLOCK_UNIX, MAX_LOCK_DAYS, timeScriptHash, unlockDateError, unlockUnixOfDate } from "../app/cardano/timelockScript.ts";
+import { candidateUnlockTimes, DAY_SECONDS, FIRST_UNLOCK_UNIX, MAX_LOCK_DAYS, timelockMetadata, timeScriptHash, unlockSlotsFromMetadata, unlockTimeError } from "../app/cardano/timelockScript.ts";
 import { policyLockSlot } from "../app/cardano/utils.ts";
 import { priceAt, statementCsv, statementLines } from "../app/statement/statement.ts";
 
@@ -263,22 +263,31 @@ test("the hash of a key-and-time script matches a policy id on mainnet", () => {
   assert.throws(() => timeScriptHash("406d", "after", 1));
 });
 
-test("a lock ends at midnight UTC of a real date", () => {
-  assert.equal(unlockUnixOfDate("2027-01-01"), 1798761600);
-  assert.equal(unlockUnixOfDate("2027-02-30"), undefined);
-  assert.equal(unlockUnixOfDate("1.1.2027"), undefined);
+test("the unlock slot of a lock is read from the metadata of its transaction", () => {
+  assert.deepEqual(unlockSlotsFromMetadata(JSON.stringify([timelockMetadata(207195309)])), [207195309]);
+  // next to other metadata, e.g. a message
+  assert.deepEqual(unlockSlotsFromMetadata('[{"msg":["hi"]},{"timelock":5}]'), [5]);
+  assert.deepEqual(unlockSlotsFromMetadata('[{"timelock":"5"},{"timelock":-1},{"timelock":1.5},null,7]'), []);
+  assert.deepEqual(unlockSlotsFromMetadata(""), []);
+  assert.deepEqual(unlockSlotsFromMetadata(undefined), []);
+  assert.deepEqual(unlockSlotsFromMetadata("not json"), []);
+  assert.deepEqual(unlockSlotsFromMetadata('{"timelock":5}'), []);
 });
 
-test("every date a lock can be made for is among the dates tried when looking for locks", () => {
+test("a lock ends in the future and within the longest time", () => {
+  const now = Date.UTC(2027, 5, 15, 13, 30) / 1000;
+  assert.equal(unlockTimeError(now + 300, now), undefined);
+  assert.ok(unlockTimeError(now, now));
+  assert.ok(unlockTimeError(NaN, now));
+  assert.equal(unlockTimeError(now + MAX_LOCK_DAYS * DAY_SECONDS, now), undefined);
+  assert.ok(unlockTimeError(now + MAX_LOCK_DAYS * DAY_SECONDS + 60, now));
+});
+
+test("locks without metadata are looked for at every midnight a lock of the first version could end", () => {
   const now = Date.UTC(2027, 5, 15, 13, 30) / 1000;
   const candidates = new Set(candidateUnlockTimes(now));
-  const tomorrow = unlockUnixOfDate("2027-06-16");
-  const last = tomorrow + (MAX_LOCK_DAYS - 1) * DAY_SECONDS;
+  const tomorrow = Date.UTC(2027, 5, 16) / 1000;
   assert.ok(candidates.has(FIRST_UNLOCK_UNIX));
   assert.ok(candidates.has(tomorrow));
-  assert.ok(candidates.has(last));
-  assert.equal(unlockDateError(new Date(last * 1000).toISOString().slice(0, 10), now), undefined);
-  assert.ok(unlockDateError(new Date((last + DAY_SECONDS) * 1000).toISOString().slice(0, 10), now));
-  assert.ok(unlockDateError("2027-06-15", now));
-  assert.equal(unlockDateError("2027-06-16", now), undefined);
+  assert.ok(candidates.has(tomorrow + (MAX_LOCK_DAYS - 1) * DAY_SECONDS));
 });

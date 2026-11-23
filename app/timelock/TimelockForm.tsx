@@ -3,7 +3,7 @@
 import { assetKey, assetsInUtxos, lovelaceInUtxos, WalletAsset } from "@cardano/assets";
 import { unixToSlot } from "@cardano/network";
 import { findTimelocks, isUnlockable, lockFunds, LockedToken, minLockLovelace, Timelock, timelockAddress, timelockKey, timelockScriptJson, unlockDate, unlockFunds } from "@cardano/timelock";
-import { DAY_SECONDS, MAX_LOCK_DAYS, unlockDateError, unlockUnixOfDate } from "@cardano/timelockScript";
+import { DAY_SECONDS, MAX_LOCK_DAYS, unlockTimeError } from "@cardano/timelockScript";
 import { walletChangeAddress, walletUtxos } from "@cardano/transaction";
 import { assetNameFromHex, formatAda, shortenId } from "@cardano/utils";
 import ConnectWallet from "@components/ConnectWallet";
@@ -19,9 +19,15 @@ interface TokenRow {
   amount: string;
 }
 
-const isoDate = (unix: number) => new Date(unix * 1000).toISOString().slice(0, 10);
+/** Value of a `datetime-local` input for a time, in the browser's time zone. */
+function toLocalInput(unix: number) {
+  const date = new Date(unix * 1000);
+  const pad = (value: number) => `${value}`.padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
-const formatDate = (date: Date) => date.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
+/** In the browser's time zone, like the input the time was picked with. */
+const formatDate = (date: Date) => date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
 function adaToLovelace(ada: string) {
   const value = Number(ada);
@@ -33,8 +39,8 @@ function tokenLabel(token: LockedToken) {
 }
 
 function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
-  const [now] = useState(() => Date.now() / 1000);
-  const [date, setDate] = useState("");
+  const [now, setNow] = useState(() => Date.now() / 1000);
+  const [when, setWhen] = useState("");
   const [ada, setAda] = useState("");
   const [tokenRows, setTokenRows] = useState<TokenRow[]>([]);
   const [funds, setFunds] = useState<{ wallet: ConnectedWallet; lovelace: bigint; assets: WalletAsset[]; changeAddress: Address } | null>(null);
@@ -56,12 +62,20 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
     };
   }, [wallet, reload]);
 
+  // keeps "in the future" true to the minute and lets a lock open while the page is open
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now() / 1000), 15_000);
+    return () => clearInterval(timer);
+  }, []);
+
   const walletFunds = funds?.wallet === wallet ? funds : null;
   const locks = loaded?.wallet === wallet ? loaded.locks : null;
   const walletAssets = useMemo(() => new Map((walletFunds?.assets ?? []).map((asset) => [assetKey(asset.policyId, asset.name), asset])), [walletFunds]);
 
-  const dateError = date ? unlockDateError(date, now) : undefined;
-  const unlockUnix = date && !dateError ? unlockUnixOfDate(date) : undefined;
+  // a datetime-local value has no time zone, Date reads it in the browser's
+  const pickedUnix = when ? Math.floor(new Date(when).getTime() / 1000) : undefined;
+  const dateError = pickedUnix != null ? unlockTimeError(pickedUnix, now) : undefined;
+  const unlockUnix = pickedUnix != null && !dateError ? pickedUnix : undefined;
   const unlockSlot = unlockUnix != null ? unixToSlot(unlockUnix) : undefined;
 
   const tokenErrors = tokenRows.map((row) => {
@@ -97,7 +111,7 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
   const lock = async () => {
     if (unlockSlot == null || unlockUnix == null) return;
     const what = [formatAda(Number(lovelace)), ...tokens.map(tokenLabel)].join(", ");
-    if (!confirm(`Lock ${what} until ${formatDate(new Date(unlockUnix * 1000))} UTC?\n\nNobody can move it before that date, not even you, and it cannot be undone.`)) return;
+    if (!confirm(`Lock ${what} until ${formatDate(new Date(unlockUnix * 1000))}?\n\nNobody can move it before that date, not even you, and it cannot be undone.`)) return;
     setBusy("lock");
     try {
       const txHash = await lockFunds(wallet.connection, wallet.keyHash, unlockSlot, lovelace, tokens);
@@ -147,14 +161,14 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
       <div className="surface flex flex-col gap-4 p-5">
         <p className="section-label">New lock</p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Locked until (00:00 UTC of this day)" error={dateError} hint={`At most ${MAX_LOCK_DAYS} days ahead`}>
+          <Field label="Locked until (your local time)" error={dateError} hint={`At most ${MAX_LOCK_DAYS} days ahead`}>
             <input
               className={inputClass}
-              type="date"
-              min={isoDate(now + DAY_SECONDS)}
-              max={isoDate(now + MAX_LOCK_DAYS * DAY_SECONDS)}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
+              type="datetime-local"
+              min={toLocalInput(now + 60)}
+              max={toLocalInput(now + MAX_LOCK_DAYS * DAY_SECONDS)}
+              value={when}
+              onChange={(e) => setWhen(e.target.value)}
             />
           </Field>
           <Field
@@ -244,7 +258,7 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
                       {lock.tokens.length > 0 ? <span className="font-normal text-base-content/65"> + {lock.tokens.map(tokenLabel).join(", ")}</span> : null}
                     </p>
                     <p className="text-xs text-base-content/55">
-                      {open ? "Unlocked since" : "Locked until"} {formatDate(unlockDate(lock))} UTC
+                      {open ? "Unlocked since" : "Locked until"} {formatDate(unlockDate(lock))}
                     </p>
                     <p className="truncate font-mono text-[11px] text-base-content/45" title={lock.address}>
                       {shortenId(lock.address, 14)}

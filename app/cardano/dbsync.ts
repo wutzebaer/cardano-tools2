@@ -135,6 +135,17 @@ export async function isTransactionConfirmed(txId: string) {
   );
 }
 
+/** The metadata values of a transaction as a JSON array, without their labels. Empty for a transaction without metadata. */
+export async function getTransactionMetadata(txId: string) {
+  return handleRequest(
+    client.GET("/transaction/{txId}/metadata", {
+      params: { path: { txId } },
+      parseAs: "text",
+      cache: "no-store",
+    })
+  );
+}
+
 export async function getUtxos(address: string) {
   return handleRequest(
     client.GET("/{address}/utxos", {

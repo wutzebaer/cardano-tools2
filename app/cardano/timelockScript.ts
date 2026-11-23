@@ -2,8 +2,9 @@
  * The script of a timelock and the dates it can end on, no wallet or serialization library involved.
  *
  * A timelock is the native script `all [sig keyHash, after slot]`: only the owner of the key can spend, and only
- * from the slot on. Nothing about a lock is stored anywhere. Locks always end at midnight UTC, so the few
- * thousand scripts a wallet key could have locked with can simply be tried against the addresses found on chain.
+ * from the slot on. Nothing about a lock is stored in the browser. The locking transaction carries the slot in its
+ * metadata, and with it the script of every wallet key can be tried against the address found on chain.
+ * The first version (2.1.0) wrote no metadata and locked until midnight UTC, those few thousand slots are tried as well.
  */
 import { blake2b } from "@noble/hashes/blake2.js";
 
@@ -14,6 +15,26 @@ export const MAX_LOCK_DAYS = 3660;
 
 /** Midnight UTC of the day the feature went live, no lock ends before it. */
 export const FIRST_UNLOCK_UNIX = Date.UTC(2026, 10, 23) / 1000;
+
+/** Metadata label of a locking transaction, its value is `{"timelock": unlockSlot}`. */
+export const TIMELOCK_LABEL = 1415;
+
+export const timelockMetadata = (unlockSlot: number) => ({ timelock: unlockSlot });
+
+/** The unlock slots named by the metadata of a transaction, given as the array of its metadata values. */
+export function unlockSlotsFromMetadata(metadataJson: string | null | undefined): number[] {
+  let values: unknown;
+  try {
+    values = JSON.parse(metadataJson || "[]");
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(values)) return [];
+  return values.flatMap((value) => {
+    const slot = value != null && typeof value === "object" ? (value as Record<string, unknown>).timelock : undefined;
+    return typeof slot === "number" && Number.isSafeInteger(slot) && slot >= 0 ? [slot] : [];
+  });
+}
 
 function cborUint(value: number) {
   if (value < 24) return [value];
@@ -37,16 +58,7 @@ export function timeScriptHash(keyHash: string, bound: "after" | "before", slot:
   return Buffer.from(blake2b(bytes, { dkLen: 28 })).toString("hex");
 }
 
-/** Unix time of midnight UTC of a `YYYY-MM-DD` date, undefined if it is not a date. */
-export function unlockUnixOfDate(isoDate: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
-  if (!match) return undefined;
-  const unix = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 1000;
-  // Date.UTC rolls an impossible day over into the next month
-  return new Date(unix * 1000).toISOString().slice(0, 10) === isoDate ? unix : undefined;
-}
-
-/** Every time a lock that exists at `nowUnix` can end: the midnights from the first day to the longest lock made today. */
+/** Every time a lock without metadata can end: the midnights UTC from the first day to the longest lock made today. */
 export function candidateUnlockTimes(nowUnix: number) {
   const last = Math.floor(nowUnix / DAY_SECONDS) * DAY_SECONDS + (MAX_LOCK_DAYS + 1) * DAY_SECONDS;
   const times: number[] = [];
@@ -56,10 +68,9 @@ export function candidateUnlockTimes(nowUnix: number) {
   return times;
 }
 
-/** Why a lock cannot end on this date, undefined if it can. */
-export function unlockDateError(isoDate: string, nowUnix: number) {
-  const unix = unlockUnixOfDate(isoDate);
-  if (unix == null) return "Pick a date";
-  if (unix <= nowUnix) return "Must be in the future";
-  return unix > nowUnix + MAX_LOCK_DAYS * DAY_SECONDS ? `At most ${MAX_LOCK_DAYS} days ahead` : undefined;
+/** Why a lock cannot end at this time, undefined if it can. */
+export function unlockTimeError(unlockUnix: number, nowUnix: number) {
+  if (!Number.isFinite(unlockUnix)) return "Pick date and time";
+  if (unlockUnix <= nowUnix) return "Must be in the future";
+  return unlockUnix > nowUnix + MAX_LOCK_DAYS * DAY_SECONDS ? `At most ${MAX_LOCK_DAYS} days ahead` : undefined;
 }

@@ -1,7 +1,7 @@
-import { getUtxos } from "@cardano/dbsync";
+import { getTransactionMetadata, getUtxos } from "@cardano/dbsync";
 import { scriptAddress } from "@cardano/mint";
 import { currentSlot, slotToUnix, unixToSlot } from "@cardano/network";
-import { candidateUnlockTimes, timeScriptHash } from "@cardano/timelockScript";
+import { candidateUnlockTimes, TIMELOCK_LABEL, timelockMetadata, timeScriptHash, unlockSlotsFromMetadata } from "@cardano/timelockScript";
 import { COINS_PER_UTXO_BYTE, hexToBytes, sendTransaction, walletChangeAddress } from "@cardano/transaction";
 import { WalletConnection } from "@cardano/types";
 import {
@@ -10,6 +10,7 @@ import {
   BigNum,
   DataCost,
   Ed25519KeyHash,
+  MetadataJsonSchema,
   min_ada_for_output,
   MultiAsset,
   NativeScript,
@@ -92,7 +93,20 @@ export async function lockFunds(connection: WalletConnection, keyHash: string, u
   const address = timelockAddress(await walletChangeAddress(connection), keyHash, unlockSlot);
   return sendTransaction(connection, (txBuilder) => {
     txBuilder.add_output(TransactionOutput.new(address, lockValue(lovelace, tokens)));
+    // the slot is all it takes to rebuild the script, the lock is found again by it
+    txBuilder.add_json_metadatum_with_schema(BigNum.from_str(`${TIMELOCK_LABEL}`), JSON.stringify(timelockMetadata(unlockSlot)), MetadataJsonSchema.NoConversions);
   });
+}
+
+/** Unlock slots the transactions name in their metadata. A failed lookup only means the lock is searched by date. */
+async function metadataSlots(txHashes: string[]) {
+  const slots = new Map<string, number[]>();
+  await Promise.all(
+    txHashes.map(async (txHash) => {
+      slots.set(txHash, unlockSlotsFromMetadata(await getTransactionMetadata(txHash).catch(() => null)));
+    })
+  );
+  return slots;
 }
 
 /**
@@ -102,32 +116,42 @@ export async function lockFunds(connection: WalletConnection, keyHash: string, u
 export async function findTimelocks(stakeAddress: string, keyHashes: string[]): Promise<Timelock[]> {
   const rows = await getUtxos(stakeAddress);
 
-  const outputs = new Map<string, { rows: typeof rows; scriptHash: string }>();
+  const outputs = new Map<string, { rows: typeof rows; scriptHash: string; txHash: string }>();
   for (const row of rows) {
     const key = `${row.txHash}#${row.txIndex}`;
     let output = outputs.get(key);
     if (!output) {
       const scriptHash = Address.from_bech32(row.owningAddress).payment_cred()?.to_scripthash()?.to_hex();
       if (!scriptHash) continue;
-      output = { rows: [], scriptHash };
+      output = { rows: [], scriptHash, txHash: row.txHash };
       outputs.set(key, output);
     }
     output.rows.push(row);
   }
   if (outputs.size === 0) return [];
 
-  const wanted = new Set([...outputs.values()].map((output) => output.scriptHash));
   const scripts = new Map<string, { keyHash: string; unlockSlot: number }>();
-  const slots = candidateUnlockTimes(Date.now() / 1000).map((unix) => unixToSlot(unix));
-  search: for (const keyHash of keyHashes) {
-    for (const unlockSlot of slots) {
-      const hash = timeScriptHash(keyHash, "after", unlockSlot);
-      if (wanted.has(hash)) {
-        scripts.set(hash, { keyHash, unlockSlot });
-        if (scripts.size === wanted.size) break search;
+  const search = (scriptHashes: Set<string>, slots: number[]) => {
+    const wanted = new Set([...scriptHashes].filter((hash) => !scripts.has(hash)));
+    for (const keyHash of keyHashes) {
+      for (const unlockSlot of slots) {
+        if (wanted.size === 0) return;
+        const hash = timeScriptHash(keyHash, "after", unlockSlot);
+        if (wanted.delete(hash)) scripts.set(hash, { keyHash, unlockSlot });
       }
     }
+  };
+
+  // the slot from the metadata of the transaction that made the output
+  const slotsByTx = await metadataSlots([...new Set([...outputs.values()].map((output) => output.txHash))]);
+  for (const output of outputs.values()) {
+    search(new Set([output.scriptHash]), slotsByTx.get(output.txHash) ?? []);
   }
+  // locks of the first version carry no metadata and end at midnight UTC
+  search(
+    new Set([...outputs.values()].map((output) => output.scriptHash)),
+    candidateUnlockTimes(Date.now() / 1000).map((unix) => unixToSlot(unix))
+  );
 
   const locks: Timelock[] = [];
   for (const output of outputs.values()) {
