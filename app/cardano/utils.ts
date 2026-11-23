@@ -227,21 +227,45 @@ export function toDisplayMetadata(metadata: ReturnType<typeof JSON.parse>): obje
 }
 
 /**
- * Slot after which a native script policy can no longer mint or burn: the earliest `before` in the script.
- * Undefined if the script has no time lock or cannot be read.
+ * Last slot up to which a native script can still validate, Infinity if time never stops it.
+ * A `before` ends at its slot, `all` ends with its first child, `any` with its last, and `atLeast n` with the
+ * n-th last: as long as n children can still validate, so can the script.
  */
+function scriptExpiry(script: unknown): number {
+  if (script == null || typeof script !== "object") return Infinity;
+  const { type, slot, scripts, required } = script as { type?: string; slot?: number; scripts?: unknown[]; required?: number };
+  if (type === "before") return typeof slot === "number" ? slot : Infinity;
+  const children = Array.isArray(scripts) ? scripts.map(scriptExpiry) : [];
+  switch (type) {
+    case "all":
+      return Math.min(Infinity, ...children);
+    case "any":
+      // an empty "any" can never validate, which is not a matter of time
+      return children.length > 0 ? Math.max(...children) : Infinity;
+    case "atLeast": {
+      const needed = typeof required === "number" ? required : 0;
+      if (needed <= 0 || needed > children.length) return Infinity;
+      return children.sort((a, b) => b - a)[needed - 1];
+    }
+    default:
+      return Infinity;
+  }
+}
+
+/**
+ * Slot after which a native script can no longer validate, so a policy can no longer mint or burn.
+ * Undefined if time never locks it: a script without `before`, or one where a branch without it stays open.
+ */
+export function scriptLockSlot(script: unknown): number | undefined {
+  const expiry = scriptExpiry(script);
+  return Number.isFinite(expiry) ? expiry : undefined;
+}
+
+/** `scriptLockSlot` of a script given as JSON, undefined as well if it cannot be read. */
 export function policyLockSlot(policyScriptJson?: string | null): number | undefined {
-  const slots: number[] = [];
-  const collect = (script: unknown) => {
-    if (script == null || typeof script !== "object") return;
-    const { type, slot, scripts } = script as { type?: string; slot?: number; scripts?: unknown[] };
-    if (type === "before" && typeof slot === "number") slots.push(slot);
-    if (Array.isArray(scripts)) scripts.forEach(collect);
-  };
   try {
-    collect(JSON.parse(policyScriptJson ?? ""));
+    return scriptLockSlot(JSON.parse(policyScriptJson ?? ""));
   } catch {
     return undefined;
   }
-  return slots.length > 0 ? Math.min(...slots) : undefined;
 }

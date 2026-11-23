@@ -1,7 +1,7 @@
 import { COINS_PER_UTXO_BYTE, currentSlot, hexToBytes, sendTransaction, toNativeScript, TTL_SECONDS, TxOptions, walletChangeAddress } from "@cardano/transaction";
 import { MintPolicy, MintToken, SimpleScript, TokenDetails, WalletConnection } from "@cardano/types";
 import { MetaValue, tokenMetadata } from "@cardano/metadata";
-import { crc8 } from "@cardano/utils";
+import { crc8, scriptLockSlot } from "@cardano/utils";
 import {
   Address,
   AssetName,
@@ -90,15 +90,8 @@ export function policyTxOptions(policy: MintPolicy, keyHashes: string[]): TxOpti
   return policy.skey ? { signingKeys: [PrivateKey.from_hex(policy.skey)] } : { signerKeyHash: policyWalletKeyHash(policy, keyHashes) };
 }
 
-function scriptDueSlot(script: SimpleScript): number | undefined {
-  if (script.type === "before") {
-    return script.slot;
-  }
-  return script.scripts?.map(scriptDueSlot).find((slot) => slot != null);
-}
-
 export function policyDueSlot(policy: MintPolicy) {
-  return scriptDueSlot(policy.script);
+  return scriptLockSlot(policy.script);
 }
 
 export function policySecondsLeft(policy: MintPolicy) {

@@ -188,10 +188,38 @@ test("edited metadata becomes the token list again", () => {
   assert.throws(() => tokensFromMetadata({ ["x".repeat(29)]: { name: "x" } }, []), /bytes/);
 });
 
-test("policy lock is the earliest before-slot of the script", () => {
-  assert.equal(policyLockSlot('{"type":"all","scripts":[{"type":"sig","keyHash":"aa"},{"type":"before","slot":500},{"type":"any","scripts":[{"type":"before","slot":300}]}]}'), 300);
-  assert.equal(policyLockSlot('{"type":"sig","keyHash":"aa"}'), undefined);
+test("a policy locks at the last slot its script can still validate", () => {
+  const sig = { type: "sig", keyHash: "aa" };
+  const before = (slot) => ({ type: "before", slot });
+  const lock = (script) => policyLockSlot(JSON.stringify(script));
+
+  // all: the first time lock ends it
+  assert.equal(lock({ type: "all", scripts: [sig, before(500)] }), 500);
+  assert.equal(lock({ type: "all", scripts: [sig, before(500), before(300)] }), 300);
+  assert.equal(lock({ type: "all", scripts: [sig, before(500), { type: "any", scripts: [before(300)] }] }), 300);
+  assert.equal(lock(before(700)), 700);
+
+  // any: a branch without time lock keeps it open, otherwise the last one ends it
+  assert.equal(lock({ type: "any", scripts: [sig, before(500)] }), undefined);
+  assert.equal(lock({ type: "any", scripts: [before(300), before(500)] }), 500);
+
+  // atLeast: open as long as enough branches are
+  assert.equal(lock({ type: "atLeast", required: 1, scripts: [sig, before(500)] }), undefined);
+  assert.equal(lock({ type: "atLeast", required: 2, scripts: [sig, before(500)] }), 500);
+  assert.equal(lock({ type: "atLeast", required: 2, scripts: [before(100), before(300), before(500)] }), 300);
+  assert.equal(lock({ type: "atLeast", required: 2, scripts: [sig, sig, before(500)] }), undefined);
+
+  // nested
+  assert.equal(lock({ type: "all", scripts: [sig, { type: "any", scripts: [sig, before(300)] }] }), undefined);
+  assert.equal(lock({ type: "all", scripts: [before(900), { type: "any", scripts: [sig, before(300)] }] }), 900);
+  assert.equal(lock({ type: "any", scripts: [{ type: "all", scripts: [sig, before(300)] }, { type: "all", scripts: [sig, before(800)] }] }), 800);
+
+  // "after" opens a script, it never locks one
+  assert.equal(lock({ type: "all", scripts: [sig, { type: "after", slot: 100 }] }), undefined);
+
+  assert.equal(lock(sig), undefined);
   assert.equal(policyLockSlot(null), undefined);
+  assert.equal(policyLockSlot("not json"), undefined);
 });
 
 // ---------------------------------------------------------------------------
