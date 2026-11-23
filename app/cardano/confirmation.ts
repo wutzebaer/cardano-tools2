@@ -10,7 +10,7 @@ async function isConfirmed(txHash: string): Promise<boolean> {
  * Follows a submitted transaction and calls back once it is on-chain. Gives up after twenty minutes.
  * Returns a function that stops following.
  */
-export function watchConfirmation(txHash: string, onConfirmed: () => void): () => void {
+export function watchConfirmation(txHash: string, onConfirmed: () => void, onGivenUp?: () => void): () => void {
   let polls = 0;
   const interval = setInterval(async () => {
     polls++;
@@ -18,6 +18,7 @@ export function watchConfirmation(txHash: string, onConfirmed: () => void): () =
     const confirmed = await isConfirmed(txHash).catch(() => false);
     if (confirmed || polls >= MAX_POLLS) clearInterval(interval);
     if (confirmed) onConfirmed();
+    else if (polls >= MAX_POLLS) onGivenUp?.();
   }, POLL_MS);
   return () => clearInterval(interval);
 }

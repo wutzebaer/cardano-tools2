@@ -114,7 +114,16 @@ export const buildTransaction = async (
   throw firstError;
 };
 
-export const signAndSubmitTransaction = async (connection: WalletConnection, tx: Transaction, signingKeys: PrivateKey[] = []) => {
+/** A node's rejection in words where the cause is a known one, otherwise as the node gave it. */
+export function rejectionReason(nodeAnswer: string): string {
+  const missingKey = nodeAnswer.match(/MissingVKeyWitnessesUTXOW[^\]]*?([0-9a-f]{56})/)?.[1];
+  if (missingKey) {
+    return `Your wallet did not sign with a key this transaction needs (${missingKey.slice(0, 8)}…). Nothing was submitted.`;
+  }
+  return `The network rejected the transaction: ${nodeAnswer.slice(0, 400)}`;
+}
+
+export const signAndSubmitTransaction =async (connection: WalletConnection, tx: Transaction, signingKeys: PrivateKey[] = []) => {
   // FixedTransaction keeps the body bytes untouched, so the hash the wallet signs is the hash we submit
   const fixedTransaction = FixedTransaction.from_bytes(tx.to_bytes());
 
@@ -132,11 +141,10 @@ export const signAndSubmitTransaction = async (connection: WalletConnection, tx:
     await connection.submitTx(signedTx);
   } catch (walletError) {
     // some wallets cannot submit (e.g. no node connection), try a public submit endpoint before giving up
-    try {
-      await submitSignedTx(signedTx);
-    } catch {
-      throw walletError;
-    }
+    const submitted = await submitSignedTx(signedTx).catch(() => null);
+    if (!submitted) throw walletError;
+    // the node says why it rejects a transaction, which a wallet often does not pass on
+    if (!submitted.ok) throw new Error(rejectionReason(submitted.body));
   }
 
   return fixedTransaction.transaction_hash().to_hex();

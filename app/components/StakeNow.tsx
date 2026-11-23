@@ -27,7 +27,7 @@ export function useStakeNow() {
 
 const StakeNow = () => {
   const stake = useStakeNow();
-  const { info, delegatedHere } = useStakeInfo();
+  const { info, delegatedHere, pending } = useStakeInfo();
 
   // a wallet that already stakes with the pool is thanked instead of asked again
   if (delegatedHere) {
@@ -39,7 +39,7 @@ const StakeNow = () => {
             <CheckBadgeIcon className="size-4 shrink-0" />
             Thank you!
           </p>
-          <p className="text-xs text-base-content/55">{info?.poolRewards ? `${formatAda(info.poolRewards)} earned with [${POOL_TICKER}]` : `You stake with [${POOL_TICKER}]`}</p>
+          <p className="text-xs text-base-content/55">{info?.poolHash === POOL_ID && info.poolRewards ? `${formatAda(info.poolRewards)} earned with [${POOL_TICKER}]` : `You stake with [${POOL_TICKER}]`}</p>
         </div>
       </Link>
     );
@@ -54,9 +54,16 @@ const StakeNow = () => {
           <p className="text-xs text-base-content/55">Support Cardano Tools</p>
         </div>
       </div>
-      <button className="btn btn-sm w-full border-line bg-base-300 hover:border-line-strong hover:bg-base-300" onClick={stake}>
-        Delegate
-      </button>
+      {pending ? (
+        <p className="flex items-center gap-2 text-xs text-base-content/55">
+          <span className="loading loading-spinner loading-xs" />
+          Delegation submitted, waiting for confirmation
+        </p>
+      ) : (
+        <button className="btn btn-sm w-full border-line bg-base-300 hover:border-line-strong hover:bg-base-300" onClick={stake}>
+          Delegate
+        </button>
+      )}
     </div>
   );
 };
