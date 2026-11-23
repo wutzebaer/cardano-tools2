@@ -126,6 +126,7 @@ export async function burnTokens(connection: WalletConnection, policy: MintPolic
       txBuilder.set_mint_builder(mintBuilder);
       applyPolicy(txBuilder, policy, keyHashes);
     },
-    { ...policyTxOptions(policy), utxos: otherUtxos }
+    // the key that locks the reference tokens has to sign as well, for a wallet-key policy it is the policy's key
+    { ...policyTxOptions(policy, keyHashes), signerKeyHash: lockKeyHash, utxos: otherUtxos }
   );
 }

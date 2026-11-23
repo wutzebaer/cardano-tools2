@@ -85,9 +85,9 @@ export function applyPolicy(txBuilder: TransactionBuilder, policy: MintPolicy, k
   }
 }
 
-/** Extra signing keys the policy needs besides the wallet. */
-export function policyTxOptions(policy: MintPolicy): TxOptions {
-  return policy.skey ? { signingKeys: [PrivateKey.from_hex(policy.skey)] } : {};
+/** How a transaction of the policy gets signed: by its stored key if it was imported, otherwise by the wallet's key. */
+export function policyTxOptions(policy: MintPolicy, keyHashes: string[]): TxOptions {
+  return policy.skey ? { signingKeys: [PrivateKey.from_hex(policy.skey)] } : { signerKeyHash: policyWalletKeyHash(policy, keyHashes) };
 }
 
 function scriptDueSlot(script: SimpleScript): number | undefined {
@@ -248,6 +248,6 @@ export async function mintTokens(connection: WalletConnection, policy: MintPolic
       txBuilder.set_mint_builder(mintBuilder);
       applyPolicy(txBuilder, policy, keyHashes);
     },
-    policyTxOptions(policy)
+    policyTxOptions(policy, keyHashes)
   );
 }

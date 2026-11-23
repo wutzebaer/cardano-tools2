@@ -58,6 +58,19 @@ export interface TxOptions {
   signingKeys?: PrivateKey[];
   /** Spend from these instead of asking the wallet, used to chain transactions before they are confirmed. */
   utxos?: TransactionUnspentOutput[];
+  /**
+   * A wallet key that has to sign besides the inputs' keys, e.g. the key of a policy. The transaction then spends
+   * from the address of that key and returns the change to it: some wallets (Yoroi) only sign with the keys of
+   * the inputs, and the change keeps the address funded for the next time.
+   */
+  signerKeyHash?: string;
+}
+
+const paymentKeyHashOf = (utxo: TransactionUnspentOutput) => utxo.output().address().payment_cred()?.to_keyhash()?.to_hex();
+
+/** The wallet's UTxO with the most ADA at the address of a payment key. */
+export function utxoOfKey(utxos: TransactionUnspentOutput[], keyHash: string) {
+  return utxos.filter((utxo) => paymentKeyHashOf(utxo) === keyHash).sort((a, b) => b.output().amount().coin().compare(a.output().amount().coin()))[0];
 }
 
 export const hexToBytes = (hex: string) => Uint8Array.from(Buffer.from(hex, "hex"));
@@ -80,10 +93,13 @@ const INPUT_STRATEGIES = [CoinSelectionStrategyCIP2.RandomImproveMultiAsset, Coi
 export const buildTransaction = async (
   connection: WalletConnection,
   configure: (txBuilder: TransactionBuilder) => void,
-  utxos?: TransactionUnspentOutput[]
+  utxos?: TransactionUnspentOutput[],
+  signerKeyHash?: string
 ): Promise<Transaction> => {
-  const changeAddress = await walletChangeAddress(connection);
-  const spendable = utxos ?? (await walletUtxos(connection));
+  const available = utxos ?? (await walletUtxos(connection));
+  const signerUtxo = signerKeyHash ? utxoOfKey(available, signerKeyHash) : undefined;
+  const changeAddress = signerUtxo?.output().address() ?? (await walletChangeAddress(connection));
+  const spendable = available.filter((utxo) => utxo !== signerUtxo);
 
   let firstError: unknown;
   for (const strategy of INPUT_STRATEGIES) {
@@ -93,6 +109,9 @@ export const buildTransaction = async (
 
       configure(txBuilder);
 
+      if (signerUtxo) {
+        txBuilder.add_regular_input(signerUtxo.output().address(), signerUtxo.input(), signerUtxo.output().amount());
+      }
       if (strategy === "all") {
         for (const utxo of spendable) {
           txBuilder.add_regular_input(utxo.output().address(), utxo.input(), utxo.output().amount());
@@ -118,7 +137,7 @@ export const buildTransaction = async (
 export function rejectionReason(nodeAnswer: string): string {
   const missingKey = nodeAnswer.match(/MissingVKeyWitnessesUTXOW[^\]]*?([0-9a-f]{56})/)?.[1];
   if (missingKey) {
-    return `Your wallet did not sign with a key this transaction needs (${missingKey.slice(0, 8)}…). Nothing was submitted.`;
+    return `Your wallet did not sign with a key this transaction needs (${missingKey.slice(0, 8)}…). Nothing was submitted. If this is the key of a policy, create a new policy and try again.`;
   }
   return `The network rejected the transaction: ${nodeAnswer.slice(0, 400)}`;
 }
@@ -151,7 +170,7 @@ export const signAndSubmitTransaction =async (connection: WalletConnection, tx: 
 };
 
 export const sendTransaction = async (connection: WalletConnection, configure: (txBuilder: TransactionBuilder) => void, options: TxOptions = {}) => {
-  const tx = await buildTransaction(connection, configure, options.utxos);
+  const tx = await buildTransaction(connection, configure, options.utxos, options.signerKeyHash);
   return signAndSubmitTransaction(connection, tx, options.signingKeys);
 };
 

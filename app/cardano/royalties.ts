@@ -63,6 +63,6 @@ export async function mintRoyaltyToken(connection: WalletConnection, policy: Min
       txBuilder.add_json_metadatum_with_schema(BigNum.from_str(ROYALTY_LABEL), JSON.stringify(royaltyMetadata(percent, address)), MetadataJsonSchema.NoConversions);
       applyPolicy(txBuilder, policy, keyHashes);
     },
-    policyTxOptions(policy)
+    policyTxOptions(policy, keyHashes)
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { NETWORK } from "@cardano/network";
-import { hexToBytes, rewardAddressHashToBech32 } from "@cardano/transaction";
+import { hexToBytes, rewardAddressHashToBech32, utxoOfKey, walletUtxos } from "@cardano/transaction";
 import { WalletConnection, WalletInfo } from "@cardano/types";
 import { enableWallet, getSelectedWallet, SelectionMode } from "@cardano/wallet";
 import { ApplicationContext, ApplicationState } from "@components/StateProvider";
@@ -13,7 +13,7 @@ export interface ConnectedWallet {
   connection: WalletConnection;
   /** Bech32 change address */
   changeAddress: string;
-  /** Payment key hash of the change address */
+  /** Payment key hash new policies are made with: of the change address, or of a funded address if that one is empty */
   keyHash: string;
   /** Payment key hashes of all addresses the wallet reports, the wallet can sign for any of them */
   keyHashes: string[];
@@ -39,11 +39,21 @@ async function loadWallet(info: WalletInfo): Promise<ConnectedWallet> {
     connection.getUsedAddresses().catch(() => []),
     connection.getUnusedAddresses().catch(() => []),
   ]);
-  const keyHash = paymentKeyHash(changeAddressHex);
-  if (!keyHash) {
+  const changeKeyHash = paymentKeyHash(changeAddressHex);
+  if (!changeKeyHash) {
     throw new Error("The wallet's change address has no payment key");
   }
-  const keyHashes = new Set([keyHash]);
+  // a wallet with many addresses (Yoroi) hands out an unused one for change and may not sign with its key,
+  // so new policies take the key of an address that holds funds: spending from it makes every wallet sign
+  const utxos = await walletUtxos(connection).catch(() => []);
+  const fundedKeyHash = utxoOfKey(utxos, changeKeyHash)
+    ? changeKeyHash
+    : [...utxos]
+        .sort((a, b) => b.output().amount().coin().compare(a.output().amount().coin()))
+        .map((utxo) => utxo.output().address().payment_cred()?.to_keyhash()?.to_hex())
+        .find((hash) => hash != null);
+  const keyHash = fundedKeyHash ?? changeKeyHash;
+  const keyHashes = new Set([keyHash, changeKeyHash]);
   for (const address of [...(usedAddresses ?? []), ...(unusedAddresses ?? [])]) {
     const hash = paymentKeyHash(address);
     if (hash) keyHashes.add(hash);
