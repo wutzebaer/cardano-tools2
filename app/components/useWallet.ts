@@ -4,7 +4,7 @@ import { NETWORK } from "@cardano/network";
 import { hexToBytes, rewardAddressHashToBech32 } from "@cardano/transaction";
 import { WalletConnection, WalletInfo } from "@cardano/types";
 import { enableWallet, getSelectedWallet, SelectionMode } from "@cardano/wallet";
-import { ApplicationContext } from "@components/StateProvider";
+import { ApplicationContext, ApplicationState } from "@components/StateProvider";
 import { Address } from "@emurgo/cardano-serialization-lib-browser";
 import { useCallback, useContext, useEffect, useState } from "react";
 
@@ -61,26 +61,30 @@ async function loadWallet(info: WalletInfo): Promise<ConnectedWallet> {
 /** The connected wallet with its addresses and keys, or null while none is connected or it is still loading. */
 export function useWallet() {
   const context = useContext(ApplicationContext);
-  const walletInfo = context.state.walletInfo;
-  const [loaded, setLoaded] = useState<ConnectedWallet | null>(null);
+  // every selection creates a new state object, also when the same wallet is selected again after "Switch"
+  const state = context.state;
+  const walletInfo = state.walletInfo;
+  const [loaded, setLoaded] = useState<{ state: ApplicationState; wallet: ConnectedWallet } | null>(null);
 
   useEffect(() => {
+    const walletInfo = state.walletInfo;
     if (!walletInfo) return;
     let cancelled = false;
     // a refused connection is reported and reset by the wallet overview, which asks for the same connection
     enableWallet(walletInfo).then(
       () =>
         loadWallet(walletInfo).then((wallet) => {
-          if (!cancelled) setLoaded(wallet);
+          if (!cancelled) setLoaded({ state, wallet });
         }),
       () => undefined
     );
     return () => {
       cancelled = true;
     };
-  }, [walletInfo]);
+  }, [state]);
 
-  const wallet = walletInfo && loaded?.info === walletInfo ? loaded : null;
+  // a wallet loaded for an earlier selection is stale: the account inside the wallet may be another one now
+  const wallet = walletInfo && loaded?.state === state ? loaded.wallet : null;
 
   const connect = useCallback(async () => {
     const walletInfo = await getSelectedWallet(SelectionMode.ForceSelectIfNone);

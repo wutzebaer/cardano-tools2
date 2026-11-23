@@ -32,7 +32,11 @@ export async function getSelectedWallet(selectionMode: SelectionMode = Selection
     localStorage.removeItem("walletKey");
     const walletKey = await showReturningModal("wallet_dialog");
     localStorage.setItem("walletKey", walletKey);
-    return wallets.get(walletKey)!;
+    const wallet = wallets.get(walletKey)!;
+    // choosing again means connecting again: the account selected inside the wallet may have changed,
+    // and the connection of the previous account stops working then
+    connections.delete(wallet);
+    return wallet;
   }
   else if (selectionMode === SelectionMode.ForceSelectIfNone) {
     if (localStorageWalletKey && wallets.has(localStorageWalletKey)) {
