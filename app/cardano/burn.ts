@@ -27,7 +27,7 @@ import {
 } from "@emurgo/cardano-serialization-lib-browser";
 
 /** Nothing sent here ever comes out again: `all [before slot 0]` can never validate. Often called a burn address, but the tokens stay in the supply. */
-function blackHoleAddress() {
+function deadAddress() {
   const scripts = NativeScripts.new();
   scripts.add(NativeScript.new_timelock_expiry(TimelockExpiry.new_timelockexpiry(BigNum.zero())));
   const script = NativeScript.new_script_all(ScriptAll.new(scripts));
@@ -35,7 +35,7 @@ function blackHoleAddress() {
 }
 
 /** On mainnet the well known address, on testnets the address of the same script. */
-export const BLACK_HOLE_ADDRESS = IS_MAINNET ? "addr1wxa7ec20249sqg87yu2aqkqp735qa02q6yd93u28gzul93ghspjnt" : blackHoleAddress();
+export const DEAD_ADDRESS = IS_MAINNET ? "addr1wxa7ec20249sqg87yu2aqkqp735qa02q6yd93u28gzul93ghspjnt" : deadAddress();
 
 export interface BurnItem {
   asset: WalletAsset;
