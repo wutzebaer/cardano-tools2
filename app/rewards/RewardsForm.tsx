@@ -37,7 +37,7 @@ const isPoolId = (value: string) => /^pool1[a-z0-9]{51}$/.test(value);
 function resolvePool(input: string, pools: Pool[]) {
   const value = input.trim();
   if (isPoolId(value)) return value;
-  const matches = pools.filter((pool) => pool.tickerName?.toLowerCase() === value.toLowerCase());
+  const matches = pools.filter((pool) => pool.tickerName?.trim().toLowerCase() === value.toLowerCase());
   return matches.length === 1 ? matches[0].poolHash : undefined;
 }
 
@@ -73,6 +73,21 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
 
   const walletFunds = funds?.wallet === wallet ? funds : null;
   const walletAssets = useMemo(() => new Map((walletFunds?.assets ?? []).map((asset) => [assetKey(asset.policyId, asset.name), asset])), [walletFunds]);
+
+  // the browser shows an option's value large and its label small: the ticker goes first where it names exactly one pool,
+  // a ticker several pools share cannot be resolved and keeps the pool id as value
+  const poolOptions = useMemo(() => {
+    const tickerCount = new Map<string, number>();
+    for (const pool of pools) {
+      const ticker = pool.tickerName?.trim().toLowerCase();
+      if (ticker) tickerCount.set(ticker, (tickerCount.get(ticker) ?? 0) + 1);
+    }
+    return pools.map((pool) => {
+      const ticker = pool.tickerName?.trim();
+      const unique = ticker && !isPoolId(ticker) && tickerCount.get(ticker.toLowerCase()) === 1;
+      return unique ? { poolHash: pool.poolHash, value: ticker, label: pool.poolHash } : { poolHash: pool.poolHash, value: pool.poolHash, label: ticker ?? "" };
+    });
+  }, [pools]);
 
   const poolHash = resolvePool(poolInput, pools);
   const epochNo = Number(epoch);
@@ -169,9 +184,9 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
         <Field label="Pool id or ticker" error={poolHash || !poolInput.trim() ? undefined : "Unknown pool"} className="sm:col-span-2">
           <input className={`${inputClass} font-mono text-xs`} value={poolInput} onChange={(e) => setPoolInput(e.target.value)} list="pool-tickers" placeholder="Ticker or pool1…" />
           <datalist id="pool-tickers">
-            {pools.map((pool) => (
-              <option key={pool.poolHash} value={pool.poolHash}>
-                {pool.tickerName}
+            {poolOptions.map((option) => (
+              <option key={option.poolHash} value={option.value}>
+                {option.label}
               </option>
             ))}
           </datalist>
