@@ -84,7 +84,47 @@ export function yearTotals(entries: RewardEntry[]): YearTotal[] {
   return [...years.values()].sort((a, b) => b.year - a.year);
 }
 
-const csvCell = (value: string | number | undefined | null) => {
+export interface MonthTotal {
+  /** `YYYY-MM` of the payout, UTC */
+  month: string;
+  rewards: number;
+  lovelace: number;
+  fiat: number;
+  unpriced: number;
+}
+
+/**
+ * Totals per calendar month of one year, January first. Months without a payout are listed with zeros between the
+ * first and the last month that has one, so a monthly return has a line for each of them.
+ */
+export function monthTotals(entries: RewardEntry[], year: number): MonthTotal[] {
+  const months = new Map<number, MonthTotal>();
+  for (const entry of entries) {
+    const date = new Date(entry.payoutTime);
+    if (date.getUTCFullYear() !== year) continue;
+    const index = date.getUTCMonth();
+    const total = months.get(index) ?? { month: `${year}-${`${index + 1}`.padStart(2, "0")}`, rewards: 0, lovelace: 0, fiat: 0, unpriced: 0 };
+    total.rewards++;
+    total.lovelace += entry.lovelace;
+    if (entry.fiat == null) total.unpriced++;
+    else total.fiat += entry.fiat;
+    months.set(index, total);
+  }
+  if (months.size === 0) return [];
+  const totals: MonthTotal[] = [];
+  for (let index = Math.min(...months.keys()); index <= Math.max(...months.keys()); index++) {
+    totals.push(months.get(index) ?? { month: `${year}-${`${index + 1}`.padStart(2, "0")}`, rewards: 0, lovelace: 0, fiat: 0, unpriced: 0 });
+  }
+  return totals;
+}
+
+export function monthCsv(totals: MonthTotal[], currency: string) {
+  const header = ["Month", "Payouts", "Rewards ADA", `Value ${currency}`, "Payouts without a price"];
+  const rows = totals.map((total) => [total.month, total.rewards, (total.lovelace / 1_000_000).toFixed(6), total.fiat.toFixed(2), total.unpriced]);
+  return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+}
+
+const csvCell =(value: string | number | undefined | null) => {
   const text = value == null ? "" : String(value);
   return /[",\n;]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 };

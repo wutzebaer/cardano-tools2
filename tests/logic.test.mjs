@@ -11,7 +11,7 @@ import { NETWORK, NETWORKS, unixToEpoch, unixToSlot } from "../app/cardano/netwo
 import { candidateUnlockTimes, DAY_SECONDS, FIRST_UNLOCK_UNIX, MAX_LOCK_DAYS, timelockMetadata, timeScriptHash, unlockSlotsFromMetadata, unlockTimeError } from "../app/cardano/timelockScript.ts";
 import { policyLockSlot } from "../app/cardano/utils.ts";
 import { priceAt, statementCsv, statementLines } from "../app/statement/statement.ts";
-import { isPaid, rewardCsv, rewardEntries, yearTotals } from "../app/tax/rewardReport.ts";
+import { isPaid, monthCsv, monthTotals, rewardCsv, rewardEntries, yearTotals } from "../app/tax/rewardReport.ts";
 
 // ---------------------------------------------------------------------------
 // Reward distribution
@@ -560,4 +560,18 @@ test("open actions come first, the one ending soonest on top, then the closed on
     govAction({ title: "open soon", expiresEpoch: 671 }),
   ];
   assert.deepEqual(sortActions(actions, 669).map((action) => action.title), ["open soon", "open late", "closed new", "closed old"]);
+});
+
+test("the rewards of a year are totalled per month, with a line for a month without a payout", () => {
+  // paid out on 30 Dec 2024, 4 Jan, 9 Jan and 15 Mar 2025
+  const entries = rewardEntries([rewardRow(529, 10_000_000), rewardRow(530, 20_000_000), rewardRow(531, 30_000_000), rewardRow(544, 5_000_000)], (unix) => (unix < Date.UTC(2025, 1, 1) / 1000 ? 0.5 : undefined), EPOCH);
+  assert.deepEqual(entries.map((entry) => entry.payoutTime.slice(0, 10)), ["2024-12-30", "2025-01-04", "2025-01-09", "2025-03-15"]);
+  assert.deepEqual(monthTotals(entries, 2025), [
+    { month: "2025-01", rewards: 2, lovelace: 50_000_000, fiat: 25, unpriced: 0 },
+    { month: "2025-02", rewards: 0, lovelace: 0, fiat: 0, unpriced: 0 },
+    { month: "2025-03", rewards: 1, lovelace: 5_000_000, fiat: 0, unpriced: 1 },
+  ]);
+  assert.deepEqual(monthTotals(entries, 2024).map((month) => month.month), ["2024-12"]);
+  assert.deepEqual(monthTotals(entries, 2023), []);
+  assert.equal(monthCsv(monthTotals(entries, 2025), "EUR").split("\r\n")[1], "2025-01,2,50.000000,25.00,0");
 });

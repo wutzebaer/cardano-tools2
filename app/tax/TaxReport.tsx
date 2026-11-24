@@ -8,13 +8,16 @@ import { ArrowDownTrayIcon, PrinterIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Currency, loadPrices, loadStatement, PricePoint, StatementRow } from "../statement/loadStatement";
 import { priceAt } from "../statement/statement";
-import { isPaid, rewardCsv, rewardEntries, yearTotals } from "./rewardReport";
+import { isPaid, monthCsv, monthTotals, rewardCsv, rewardEntries, yearTotals } from "./rewardReport";
 
 function formatFiat(value: number | undefined, currency: Currency) {
   return value == null ? "" : Intl.NumberFormat("en-US", { style: "currency", currency }).format(value);
 }
 
 const formatDay = (isoTime: string) => new Date(isoTime).toLocaleDateString("en-GB", { dateStyle: "medium", timeZone: "UTC" });
+
+/** "March 2026" for `2026-03` */
+const formatMonth = (month: string) => new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
 
 function download(filename: string, content: string) {
   // the BOM makes spreadsheet apps read the file as UTF-8
@@ -87,6 +90,7 @@ export default function TaxReport() {
   const shownYear = year ?? totals[0]?.year;
   const shown = entries.filter((entry) => new Date(entry.payoutTime).getUTCFullYear() === shownYear).reverse();
   const shownTotal = totals.find((total) => total.year === shownYear);
+  const months = useMemo(() => (shownYear == null ? [] : monthTotals(entries, shownYear)), [entries, shownYear]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -113,6 +117,10 @@ export default function TaxReport() {
               <button className={secondaryButtonClass} onClick={() => download(`cardano-staking-rewards-${shownYear}-${currency}.csv`, rewardCsv([...shown].reverse(), currency))}>
                 <ArrowDownTrayIcon className="size-4" />
                 CSV {shownYear}
+              </button>
+              <button className={secondaryButtonClass} onClick={() => download(`cardano-staking-rewards-${shownYear}-by-month-${currency}.csv`, monthCsv(months, currency))}>
+                <ArrowDownTrayIcon className="size-4" />
+                CSV months {shownYear}
               </button>
               <button className={secondaryButtonClass} onClick={() => download(`cardano-staking-rewards-all-${currency}.csv`, rewardCsv(entries, currency))}>
                 <ArrowDownTrayIcon className="size-4" />
@@ -175,6 +183,35 @@ export default function TaxReport() {
               {shownTotal.unpriced} payout{shownTotal.unpriced === 1 ? " has" : "s have"} no {currency} price and {shownTotal.unpriced === 1 ? "is" : "are"} missing from the value.
             </Notice>
           ) : null}
+          <div className="flex flex-col gap-2">
+            <h3 className="section-label">By month</h3>
+            <div className="overflow-x-auto">
+              <table className="table table-sm">
+                <thead>
+                  <tr className="text-xs text-base-content/55">
+                    <th>Month</th>
+                    <th className="text-right">Payouts</th>
+                    <th className="text-right">Rewards</th>
+                    <th className="text-right">Value at payout</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {months.map((month) => (
+                    <tr key={month.month} className={month.rewards === 0 ? "text-base-content/45" : ""}>
+                      <td className="whitespace-nowrap">{formatMonth(month.month)}</td>
+                      <td className="text-right tabular-nums">{month.rewards}</td>
+                      <td className="whitespace-nowrap text-right tabular-nums">{formatAda(month.lovelace)}</td>
+                      <td className="whitespace-nowrap text-right tabular-nums font-medium">
+                        {formatFiat(month.fiat, currency)}
+                        {month.unpriced > 0 ? <span className="ml-1 text-xs font-normal text-warning">({month.unpriced} without price)</span> : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <h3 className="section-label">Every payout</h3>
           <div className="overflow-x-auto">
             <table className="table table-sm">
               <thead>
