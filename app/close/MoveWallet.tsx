@@ -159,7 +159,7 @@ function Move({ wallet }: { wallet: ConnectedWallet }) {
             ) : null}
 
             <p className="text-sm text-base-content/65">
-              About {formatAda(arriving)} arrive at the new address, less the transaction fee of about 0.2 ₳. What is locked in a timelock stays where it is until you take it
+              About <span className="text-brand inline-block text-base font-semibold">{formatAda(arriving)}</span> arrive at the new address, less the transaction fee of about 0.2 ₳. What is locked in a timelock stays where it is until you take it
               back.
             </p>
           </>
