@@ -4,7 +4,7 @@ process.env.TZ = "UTC";
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { alertMessage, alertsOf, listMessage, lockAlerts, locksOf, newAlerts, parseCommand, pendingLocksLine, welcomeMessage } from "../app/alerts/alertLogic.ts";
+import { alertMessage, alertsOf, listMessage, lockAlerts, locksOf, newAlerts, parseCommand, pendingLocksLine, watchSummary, welcomeMessage } from "../app/alerts/alertLogic.ts";
 import { groupFeed } from "../app/browse/groupTokens.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
 import { drepKind, marginCostPerYear, pickAlternatives, poolFindings, suggestsAlternatives } from "../app/check/checkLogic.ts";
@@ -512,7 +512,11 @@ test("the bot's messages name the address, the pool and the page with the detail
   assert.match(welcome, new RegExp(`https://cardano-tools.io/check/${WATCHED}`));
   assert.match(welcomeMessage(WATCHED, { registered: true, pool: { poolHash: "pool1a" } }, [], "https://x"), /Nothing stands out right now/);
   assert.match(alertMessage(WATCHED, alerts, "https://cardano-tools.io"), /^News for stake1u8gnr7…djvep8:\n\nThe choice about the voting rights is open\n/);
-  assert.match(listMessage([WATCHED]), /1\. stake1u8gnr7/);
+  assert.match(listMessage([{ stakeAddress: WATCHED }]), /1\. stake1u8gnr7/);
+  const summary = watchSummary({ registered: true, pool: { poolHash: "pool1a", ticker: "ABC" } }, alerts, [{ txHash: "aa", txIndex: 0, unlockSlot: 1000, lovelace: 1, tokens: 0 }], 999, 1591566291);
+  assert.equal(summary, "staked with [ABC], The choice about the voting rights is open, 1 timelock closed, the next opens 2020-06-07 22:01 UTC");
+  assert.equal(watchSummary({ registered: false }, alertsOf({ registered: false }, []), [], 0, 0), "not staking, no timelocks");
+  assert.match(listMessage([{ stakeAddress: WATCHED, summary }]), /djvep8\nNow: staked with \[ABC\].*\n\nFor each I write when its pool retires/);
   assert.match(listMessage([]), /not watching any address/);
 });
 

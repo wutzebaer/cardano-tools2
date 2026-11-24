@@ -187,9 +187,33 @@ export function alertMessage(stakeAddress: string, alerts: Alert[], siteUrl: str
   return lines.join("\n");
 }
 
-export function listMessage(stakeAddresses: string[]) {
-  if (stakeAddresses.length === 0) return "I am not watching any address for you. Send me a stake address (stake1…) or use the button on the staking check.";
-  return ["I am watching:", ...stakeAddresses.map((address, index) => `${index + 1}. ${address}`), "", "/stop 1 ends the first, /stop ends all."].join("\n");
+/** How things stand for one watched address, in a line for the list. */
+export function watchSummary(state: AlertState, alerts: Alert[], locks: LockOutput[], nowSlot: number, slotZeroUnix: number) {
+  const staking = !state.registered ? "not staking" : state.pool ? `staked with ${poolName(state)}` : "not delegated to a pool";
+  const open = alerts.filter((alert) => !alert.lock && alert.key !== "unregistered" && alert.key !== "undelegated").map((alert) => alert.title);
+  const closed = locks.filter((lock) => lock.unlockSlot > nowSlot).sort((a, b) => a.unlockSlot - b.unlockSlot);
+  const opened = locks.length - closed.length;
+  const parts = [staking, ...open];
+  if (opened > 0) parts.push(`${opened === 1 ? "1 timelock" : `${opened} timelocks`} can be taken back`);
+  if (closed.length > 0) parts.push(`${closed.length === 1 ? "1 timelock" : `${closed.length} timelocks`} closed, the next opens ${utcTime(closed[0].unlockSlot + slotZeroUnix)}`);
+  if (locks.length === 0) parts.push("no timelocks");
+  return parts.join(", ");
+}
+
+export const WATCHED_FOR =
+  "For each I write when its pool retires, stops making blocks, raises its fees or gets oversaturated, when the choice about the voting rights is missing, and when a timelock opens.";
+
+/** What the chat has the bot watch. A summary is missing for an address the chain data could not be read for. */
+export function listMessage(watched: { stakeAddress: string; summary?: string }[]) {
+  if (watched.length === 0) return "I am not watching any address for you. Send me a stake address (stake1…) or use the button on the staking check.";
+  return [
+    "I am watching:",
+    ...watched.flatMap((entry, index) => ["", `${index + 1}. ${entry.stakeAddress}`, ...(entry.summary ? [`Now: ${entry.summary}`] : [])]),
+    "",
+    WATCHED_FOR,
+    "",
+    "/stop 1 ends the first, /stop ends all.",
+  ].join("\n");
 }
 
 export const HELP_MESSAGE = [

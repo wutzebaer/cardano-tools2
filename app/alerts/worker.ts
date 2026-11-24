@@ -24,6 +24,7 @@ import {
   parseCommand,
   pendingLocksLine,
   UtxoRow,
+  watchSummary,
   welcomeMessage,
 } from "./alertLogic";
 
@@ -185,7 +186,16 @@ async function handleMessage(chatId: number, text: string) {
     await saveStore();
     await send(chatId, welcomeMessage(command.stakeAddress, state, alerts, SITE_URL, pendingLocksLine(locks, currentSlot(), NETWORK.slotZeroUnix)));
   } else if (command.kind === "list") {
-    await send(chatId, listMessage(mine().map((subscription) => subscription.stakeAddress)));
+    const watched = [];
+    for (const { stakeAddress } of mine()) {
+      // the list is still worth showing when the chain data of an address cannot be read right now
+      const summary = await look(stakeAddress).then(
+        ({ state, alerts, locks }) => watchSummary(state, alerts, locks, currentSlot(), NETWORK.slotZeroUnix),
+        () => undefined
+      );
+      watched.push({ stakeAddress, summary });
+    }
+    await send(chatId, listMessage(watched));
   } else if (command.kind === "stop") {
     const watched = mine();
     const stopped = command.index == null ? watched : watched.slice(command.index - 1, command.index);
