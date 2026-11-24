@@ -11,6 +11,7 @@ const CHECKS: { title: string; text: string }[] = [
   { title: "Your stake pool", text: "Active, retiring or saturated? Blocks of the last epochs, the return next to the network average, margin and fixed fee." },
   { title: "Voting rights", text: "Cardano asks every staker to decide what happens with their vote before rewards can be withdrawn. The check shows whether that choice is still open." },
   { title: "Rewards", text: "What is waiting to be withdrawn, and roughly what the pool's fees cost you per year." },
+  { title: "Alerts on Telegram", text: "After the check you can let a bot watch the address. It writes when the pool retires, stops making blocks or raises its fees." },
 ];
 
 export default function Page() {
@@ -21,7 +22,7 @@ export default function Page() {
       </PageHeader>
       <div className="flex flex-col gap-8">
         <CheckForm />
-        <ul className="grid gap-3 sm:grid-cols-3">
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {CHECKS.map((item) => (
             <li key={item.title} className="surface p-5">
               <h2 className="font-semibold">{item.title}</h2>

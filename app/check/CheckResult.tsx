@@ -29,6 +29,9 @@ const LEVEL_STYLE: Record<Level, { icon: ReactNode; border: string }> = {
   ok: { icon: <CheckCircleIcon className="size-5 shrink-0 text-success" />, border: "border-success/30" },
 };
 
+/** What the Telegram bot writes about, in the order a staker would worry about it. */
+const ALERTS = ["Your pool retires", "Your pool stops making blocks", "Your pool raises its fees", "Your pool gets oversaturated", "Your voting choice is missing"];
+
 const percent = (share: number) => `${formatNumber(share * 100)} %`;
 
 const poolTitle = (pool: PoolCheck) => (pool.ticker ? `[${pool.ticker}] ${pool.name ?? ""}`.trim() : shortenId(pool.poolHash, 10));
@@ -268,17 +271,31 @@ export default function CheckResult({ data }: { data: CheckData }) {
       ) : null}
 
       {IS_MAINNET ? (
-        <Card title="Get a message when something changes" icon={BellAlertIcon}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-base-content/65">
-              The Telegram bot of this site looks at this address once an hour and writes when the pool announces its retirement, gets oversaturated, raises its fees or stops
-              making blocks, and when the choice about the voting rights is missing. It stores your Telegram chat and this address, nothing else, and /stop ends it.
-            </p>
-            <ExternalLink href={`https://t.me/${TELEGRAM_BOT}?start=${stakeAddress}`} className="btn btn-sm shrink-0 border-primary/60 bg-primary/10 text-primary hover:border-primary hover:bg-primary/20">
-              Alerts on Telegram
+        <section className="alert-card flex flex-col gap-5 rounded-box p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <span className="icon-brand flex size-12 shrink-0 items-center justify-center rounded-field">
+                <BellAlertIcon className="size-6" />
+              </span>
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight">Get a message when your staking needs you</h2>
+                <p className="mt-0.5 text-sm text-base-content/65">Free alerts on Telegram, so you do not have to come back and check.</p>
+              </div>
+            </div>
+            <ExternalLink href={`https://t.me/${TELEGRAM_BOT}?start=${stakeAddress}`} className="btn btn-primary shrink-0">
+              Get alerts on Telegram
             </ExternalLink>
           </div>
-        </Card>
+          <ul className="flex flex-wrap gap-2">
+            {ALERTS.map((alert) => (
+              <li key={alert} className="flex items-center gap-1.5 rounded-full border border-line bg-base-300/60 px-3 py-1 text-xs text-base-content/80">
+                <CheckCircleIcon className="size-4 text-primary" />
+                {alert}
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-base-content/50">The bot looks at this address once an hour. It stores your Telegram chat and this address, nothing else, and /stop ends it.</p>
+        </section>
       ) : null}
 
       {check.registered ? (

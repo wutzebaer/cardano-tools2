@@ -87,6 +87,15 @@
   color: #c7d2fe;
 }
 
+/* The one card of a page that offers something: a faint wash of the logo's colours and a brighter edge. */
+@utility alert-card {
+  background-image:
+    radial-gradient(circle at 0% 0%, rgb(34 211 238 / 0.1) 0, transparent 45%),
+    radial-gradient(circle at 100% 100%, rgb(167 139 250 / 0.14) 0, transparent 50%);
+  background-color: var(--color-base-200);
+  border: 1px solid rgb(139 158 255 / 0.35);
+}
+
 /* A button in the colours of the logo, for the one action the site asks for: delegating to its pool. */
 @utility btn-brand {
   background-image:
