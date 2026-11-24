@@ -1,5 +1,6 @@
+import { watchConfirmation } from "@cardano/confirmation";
 import { currentSlot } from "@cardano/network";
-import { signAndSubmitTransaction, TTL_SECONDS, txBuilderConfig, walletRewardAddress, walletUtxos } from "@cardano/transaction";
+import { delegateVote, signAndSubmitTransaction, TTL_SECONDS, txBuilderConfig, walletRewardAddress, walletUtxos } from "@cardano/transaction";
 import { WalletConnection } from "@cardano/types";
 import {
   Address,
@@ -19,6 +20,27 @@ export interface MoveProgress {
   transaction: number;
   /** UTxOs still in the wallet, the ones of this transaction included */
   remaining: number;
+  /** Set while the choice about the voting rights is made first, or its confirmation is awaited */
+  preparing?: "sign" | "confirming" | "wallet";
+}
+
+const inputId = (utxo: TransactionUnspentOutput) => utxo.input().to_hex();
+
+/** Resolves when the transaction is on chain, rejects if that takes too long. */
+const confirmed = (txHash: string) =>
+  new Promise<void>((resolve, reject) => {
+    watchConfirmation(txHash, resolve, () => reject(new Error("The first transaction was not confirmed in time. Check it in your wallet and start again once it is through.")));
+  });
+
+/** Waits until the wallet itself has seen a transaction: it no longer offers all of the coins it offered before. */
+async function walletCaughtUp(connection: WalletConnection, before: TransactionUnspentOutput[]) {
+  const spent = new Set(before.map(inputId));
+  for (let waited = 0; waited < 600; waited += 5) {
+    const now = await walletUtxos(connection);
+    if (!before.every((utxo) => now.some((other) => inputId(other) === inputId(utxo))) || now.some((utxo) => !spent.has(inputId(utxo)))) return now;
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+  throw new Error("Your wallet does not show the first transaction yet. Wait a little and start again, the first step is done.");
 }
 
 interface Unstake {
@@ -54,14 +76,34 @@ function moveTransaction(utxos: TransactionUnspentOutput[], target: Address, uns
  * Sends everything the wallet holds, ADA and tokens, to the target. A wallet with more UTxOs than fit into one
  * transaction is emptied in several, each asks for a signature. With `unstakeRewards` (the rewards to pay out,
  * possibly zero) the last transaction also deregisters the stake key, which returns its deposit.
+ *
+ * Rewards are only paid out to a stake key that has decided about its voting rights, and a key with rewards cannot
+ * be deregistered. With `chooseAbstainFirst` a transaction of its own makes the choice "do not take part" before
+ * anything is moved, and the rest waits until it is on chain and the wallet has seen it.
  */
-export async function moveEverything(connection: WalletConnection, target: Address, unstakeRewards: bigint | null, onProgress: (progress: MoveProgress) => void): Promise<string[]> {
+export async function moveEverything(
+  connection: WalletConnection,
+  target: Address,
+  unstakeRewards: bigint | null,
+  chooseAbstainFirst: boolean,
+  onProgress: (progress: MoveProgress) => void
+): Promise<string[]> {
   let remaining = await walletUtxos(connection);
   if (remaining.length === 0) {
     throw new Error("Your wallet reports no ADA or tokens. If you just received some, wait until the wallet shows them.");
   }
   const unstake = unstakeRewards == null ? undefined : { rewardAddress: await walletRewardAddress(connection), rewards: unstakeRewards };
   const txHashes: string[] = [];
+
+  if (unstake && chooseAbstainFirst) {
+    onProgress({ transaction: 1, remaining: remaining.length, preparing: "sign" });
+    const voteTx = await delegateVote(connection, "abstain");
+    txHashes.push(voteTx);
+    onProgress({ transaction: 1, remaining: remaining.length, preparing: "confirming" });
+    await confirmed(voteTx);
+    onProgress({ transaction: 1, remaining: remaining.length, preparing: "wallet" });
+    remaining = await walletCaughtUp(connection, remaining);
+  }
 
   while (remaining.length > 0) {
     // as many UTxOs as fit: all of them if possible, otherwise half as many until the transaction can be built

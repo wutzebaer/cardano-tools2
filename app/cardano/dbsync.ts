@@ -209,3 +209,12 @@ export async function getGovernance(drepId?: string | null, poolHash?: string | 
     })
   );
 }
+
+/** Active DReps with name and the ADA delegated to them, the largest first. */
+export async function getDreps() {
+  try {
+    return await handleRequest(client.GET("/dreps", { next: { revalidate: 3600 } }));
+  } catch {
+    return [];
+  }
+}

@@ -198,7 +198,11 @@ export default function CheckResult({ data }: { data: CheckData }) {
           <details className="text-sm" open={vote === "none"}>
             <summary className="cursor-pointer text-base-content/65">{vote === "none" ? "Make the choice now" : "Change the choice"}</summary>
             <div className="mt-3">
-              <VoteDelegation stakeAddress={stakeAddress} current={check.drepId} />
+              <VoteDelegation
+                stakeAddress={stakeAddress}
+                current={check.drepId}
+                suggested={pool?.operatorDrepId?.startsWith("drep1") ? { drepId: pool.operatorDrepId, name: pool.operatorDrepName, poolTicker: pool.ticker } : null}
+              />
             </div>
           </details>
         </Card>

@@ -61,9 +61,10 @@ function Move({ wallet }: { wallet: ConnectedWallet }) {
 
   const registered = staking?.registered === true;
   const rewards = staking?.rewardsAvailable ?? 0;
-  // the chain pays rewards out only after the choice about the voting rights, and deregisters no key with rewards left
-  const rewardsBlocked = registered && rewards > 0 && !staking?.drepId;
-  const willUnstake = registered && unstake && !rewardsBlocked;
+  // the chain pays rewards out only after the choice about the voting rights, and deregisters no key with rewards left:
+  // such a wallet gets the choice "do not take part" made first, in a transaction of its own
+  const needsVoteFirst = registered && rewards > 0 && !staking?.drepId;
+  const willUnstake = registered && unstake;
   const arriving = Number(lovelace) + (willUnstake ? KEY_DEPOSIT + rewards : 0);
 
   const send = async () => {
@@ -74,7 +75,7 @@ function Move({ wallet }: { wallet: ConnectedWallet }) {
     if (!confirm(`Send everything in this wallet (${what}) to\n\n${target.trim()}\n\nCompare the address with the one your new wallet shows. This cannot be undone.`)) return;
     setSending(true);
     try {
-      setTxHashes(await moveEverything(wallet.connection, targetAddress, willUnstake ? BigInt(rewards) : null, setProgress));
+      setTxHashes(await moveEverything(wallet.connection, targetAddress, willUnstake ? BigInt(rewards) : null, willUnstake && needsVoteFirst, setProgress));
     } finally {
       setSending(false);
       setProgress(null);
@@ -84,7 +85,7 @@ function Move({ wallet }: { wallet: ConnectedWallet }) {
   if (txHashes) {
     return (
       <TxResult
-        title="Wallet moved"
+        title="Wallet emptied"
         txHashes={txHashes}
         support={false}
         onReset={() => {
@@ -138,8 +139,8 @@ function Move({ wallet }: { wallet: ConnectedWallet }) {
 
             {registered ? (
               <div className="flex flex-col gap-2">
-                <label className={`flex items-start gap-3 text-sm ${rewardsBlocked ? "opacity-60" : ""}`}>
-                  <input type="checkbox" className="checkbox checkbox-sm mt-0.5" checked={willUnstake} disabled={rewardsBlocked} onChange={(e) => setUnstake(e.target.checked)} />
+                <label className="flex items-start gap-3 text-sm">
+                  <input type="checkbox" className="checkbox checkbox-sm mt-0.5" checked={willUnstake} onChange={(e) => setUnstake(e.target.checked)} />
                   <span>
                     Stop staking with this wallet as well
                     <span className="block text-base-content/65">
@@ -148,13 +149,10 @@ function Move({ wallet }: { wallet: ConnectedWallet }) {
                     </span>
                   </span>
                 </label>
-                {rewardsBlocked ? (
-                  <p className="text-sm text-warning">
-                    This wallet has {formatAda(rewards)} of rewards that Cardano only pays out once the choice about its voting rights is made. Make it in the{" "}
-                    <a href={`/check/${wallet.stakeAddress}`} className="underline">
-                      staking check
-                    </a>{" "}
-                    first, or move the wallet now and leave deposit and rewards behind.
+                {willUnstake && needsVoteFirst ? (
+                  <p className="text-sm text-base-content/65">
+                    One signature more than usual: Cardano only pays the {formatAda(rewards)} of rewards out once the wallet has decided about its voting rights. So the first
+                    transaction chooses &quot;do not take part&quot;, and when it is confirmed, which takes a minute or two, the wallet is emptied.
                   </p>
                 ) : null}
               </div>
@@ -169,7 +167,13 @@ function Move({ wallet }: { wallet: ConnectedWallet }) {
 
         {progress ? (
           <Notice>
-            Transaction {progress.transaction}: waiting for your signature, {progress.remaining} UTxO{progress.remaining === 1 ? "" : "s"} left to move
+            {progress.preparing === "sign"
+              ? "Step 1: sign the choice about the voting rights"
+              : progress.preparing === "confirming"
+                ? "Step 1 is sent, waiting for its confirmation. Keep this page open"
+                : progress.preparing === "wallet"
+                  ? "Step 1 is confirmed, waiting until your wallet shows it"
+                  : `Waiting for your signature, ${progress.remaining} UTxO${progress.remaining === 1 ? "" : "s"} left to move`}
           </Notice>
         ) : null}
 

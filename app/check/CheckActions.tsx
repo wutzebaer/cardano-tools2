@@ -5,12 +5,13 @@ import { explorerTxUrl } from "@cardano/network";
 import { POOL_ID } from "@cardano/pool";
 import { delegateToPool, delegateVote, deregisterStake, VoteTarget, withdrawRewards } from "@cardano/transaction";
 import { formatAda } from "@cardano/utils";
-import { ExternalLink, inputClass } from "@components/ui";
+import { ExternalLink } from "@components/ui";
 import { watchDelegation } from "@components/useStakeInfo";
 import { ConnectedWallet, useWallet } from "@components/useWallet";
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
+import DrepPicker from "./DrepPicker";
 
 /** Follows a submitted transaction and refreshes the check once it is on chain. */
 function Submitted({ txHash, label }: { txHash: string; label: string }) {
@@ -88,9 +89,25 @@ function OwnerAction({
   return <>{children(run, busy)}</>;
 }
 
-/** Delegates the vote of the address: the two automatic choices as buttons, any DRep by id. */
-export function VoteDelegation({ stakeAddress, current }: { stakeAddress: string; current?: string | null }) {
-  const [drepId, setDrepId] = useState("");
+/**
+ * Delegates the vote of the address: the two automatic choices as buttons, a DRep from the list or by id.
+ * `suggested` is preselected in the list: the DRep the operator of the address's pool chose for themselves.
+ */
+export function VoteDelegation({
+  stakeAddress,
+  current,
+  currentName,
+  suggested,
+}: {
+  stakeAddress: string;
+  current?: string | null;
+  currentName?: string | null;
+  suggested?: { drepId: string; name?: string | null; poolTicker?: string | null } | null;
+}) {
+  // the DRep the address already delegates to, else the suggestion
+  const currentDrep = current?.startsWith("drep1") ? current : null;
+  const [drepId, setDrepId] = useState(currentDrep ?? suggested?.drepId ?? "");
+  const isSuggestion = suggested != null && drepId === suggested.drepId && drepId !== currentDrep;
   return (
     <OwnerAction stakeAddress={stakeAddress} done="Your choice">
       {(run, busy) => {
@@ -110,19 +127,26 @@ export function VoteDelegation({ stakeAddress, current }: { stakeAddress: string
               <div>
                 <p className="text-sm font-medium">A representative votes for me</p>
                 <p className="mt-0.5 text-sm text-base-content/65">
-                  A DRep votes with the weight of your ADA, the ADA itself stays with you. Representatives introduce themselves on{" "}
+                  A DRep votes with the weight of your ADA, the ADA itself stays with you. Pick one from the list, each links to a page about it, or browse who they are and
+                  what they stand for in the{" "}
                   <a href="https://gov.tools/drep_directory" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                    gov.tools
+                    DRep directory on gov.tools
                   </a>
-                  , copy the id of the one you pick from there.
+                  .
                 </p>
               </div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input className={`${inputClass} input-sm font-mono text-xs`} value={drepId} onChange={(e) => setDrepId(e.target.value)} placeholder="drep1…" aria-label="DRep id" />
-                <button className="btn btn-sm shrink-0 border-line bg-base-300" disabled={busy || !drepId.trim().startsWith("drep1")} onClick={() => send(drepId)}>
-                  Choose this DRep
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                <DrepPicker value={drepId} onChange={setDrepId} knownName={drepId === currentDrep ? currentName : drepId === suggested?.drepId ? suggested.name : null} />
+                <button className="btn btn-sm shrink-0 border-line bg-base-300 sm:mt-1" disabled={busy || !drepId.trim().startsWith("drep1") || drepId === currentDrep} onClick={() => send(drepId)}>
+                  {drepId === currentDrep ? "Chosen" : "Choose this DRep"}
                 </button>
               </div>
+              {isSuggestion ? (
+                <p className="text-xs text-base-content/55">
+                  Preselected: the representative the operator of your pool{suggested?.poolTicker ? ` [${suggested.poolTicker}]` : ""} chose for their own ADA. A starting point, not a
+                  recommendation, pick another one if you prefer.
+                </p>
+              ) : null}
             </li>
             <li className="flex flex-col gap-2 rounded-field border border-line bg-base-300/40 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">

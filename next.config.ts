@@ -28,6 +28,8 @@ const nextConfig: NextConfig = {
       "/reward-stakers": "/rewards",
       "/wallet-statement": "/statement",
       "/burn-address": "/burn",
+      // the page was called "Move wallet" for a day
+      "/move": "/close",
       "/mint-on-demand": "/mint",
       "/drop/:prettyUrl": "/browse",
     };

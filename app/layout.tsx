@@ -57,19 +57,36 @@ export default function RootLayout({
                 <SidebarHeader />
 
                 <nav className="flex flex-col gap-1">
-                  <p className="section-label mb-2 px-3">Tools</p>
+                  {/* grouped by who a tool is for: everybody who holds ADA, collectors, token creators, pool operators */}
+                  <p className="section-label mb-1 px-3">Your ADA</p>
                   <NavLink href="/check" icon={<ShieldCheckIcon className="size-5" />}>
                     Staking check
                   </NavLink>
                   <NavLink href="/votes" icon={<ScaleIcon className="size-5" />}>
                     Governance
                   </NavLink>
+                  <NavLink href="/tax" icon={<CalculatorIcon className="size-5" />}>
+                    Rewards report
+                  </NavLink>
+                  <NavLink href="/statement" icon={<DocumentTextIcon className="size-5" />}>
+                    Wallet statement
+                  </NavLink>
+                  <NavLink href="/timelock" icon={<LockClosedIcon className="size-5" />}>
+                    Timelock
+                  </NavLink>
+                  <NavLink href="/close" icon={<ArrowRightStartOnRectangleIcon className="size-5" />}>
+                    Close wallet
+                  </NavLink>
+
+                  <p className="section-label mb-1 mt-4 px-3">Tokens</p>
                   <NavLink href="/browse" icon={<Squares2X2Icon className="size-5" />}>
                     Browse
                   </NavLink>
                   <NavLink href="/my" icon={<WalletIcon className="size-5" />}>
                     My tokens
                   </NavLink>
+
+                  <p className="section-label mb-1 mt-4 px-3">For creators</p>
                   <NavLink href="/mint" icon={<SparklesIcon className="size-5" />}>
                     Mint
                   </NavLink>
@@ -79,21 +96,13 @@ export default function RootLayout({
                   <NavLink href="/burn" icon={<FireIcon className="size-5" />}>
                     Burn
                   </NavLink>
-                  <NavLink href="/timelock" icon={<LockClosedIcon className="size-5" />}>
-                    Timelock
-                  </NavLink>
-                  <NavLink href="/move" icon={<ArrowRightStartOnRectangleIcon className="size-5" />}>
-                    Move wallet
-                  </NavLink>
+
+                  <p className="section-label mb-1 mt-4 px-3">For pool operators</p>
                   <NavLink href="/rewards" icon={<GiftIcon className="size-5" />}>
                     Reward stakers
                   </NavLink>
-                  <NavLink href="/statement" icon={<DocumentTextIcon className="size-5" />}>
-                    Wallet statement
-                  </NavLink>
-                  <NavLink href="/tax" icon={<CalculatorIcon className="size-5" />}>
-                    Rewards report
-                  </NavLink>
+
+                  <p className="section-label mb-1 mt-4 px-3">This site</p>
                   <NavLink
                     href="/pool"
                     icon={
