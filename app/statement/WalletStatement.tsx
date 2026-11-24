@@ -3,7 +3,7 @@
 import { explorerTxUrl } from "@cardano/network";
 import { formatAda, shortenId } from "@cardano/utils";
 import { ExternalLink, Field, Notice, secondaryButtonClass, textareaClass } from "@components/ui";
-import { useHandle } from "@components/useHandles";
+import { useHandle, useHandles } from "@components/useHandles";
 import { useWallet } from "@components/useWallet";
 import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -12,6 +12,7 @@ import { statementCsv, statementLines } from "./statement";
 
 const STORAGE_KEY = "statementAddresses";
 const VISIBLE_ROWS = 500;
+const STAKE_ADDRESS = /stake1[0-9a-z]{50,}/g;
 
 const subscribeNothing = () => () => {};
 
@@ -51,7 +52,9 @@ export default function WalletStatement() {
   const stored = useSyncExternalStore(subscribeNothing, () => localStorage.getItem(STORAGE_KEY) ?? "", () => "");
   // until something is typed the field holds the addresses of the last statement or the connected wallet
   const walletHandle = useHandle(wallet?.stakeAddress);
-  const input = typed ?? (stored || walletHandle || wallet?.stakeAddress || "");
+  // remembered stake addresses that own a handle are shown as that handle
+  const storedHandles = useHandles(stored.match(STAKE_ADDRESS) ?? []);
+  const input = typed ?? (stored.replace(STAKE_ADDRESS, (address) => (storedHandles[address] ? `$${storedHandles[address]}` : address)) || walletHandle || wallet?.stakeAddress || "");
   const [currency, setCurrency] = useState<Currency>("EUR");
   const [rows, setRows] = useState<StatementRow[] | null>(null);
   const [prices, setPrices] = useState<Partial<Record<Currency, PricePoint[]>>>({});

@@ -29,7 +29,9 @@ export default function CheckForm({
   const walletHandle = useHandle(wallet?.stakeAddress);
   // null until something is typed: the field then holds the checked address or the connected wallet
   const [typed, setInput] = useState<string | null>(null);
-  const input = typed ?? (initial || walletHandle || wallet?.stakeAddress || "");
+  // a checked stake address that owns a handle is shown as that handle
+  const initialHandle = useHandle(initial.startsWith("stake") ? initial : undefined);
+  const input = typed ?? (initialHandle || initial || walletHandle || wallet?.stakeAddress || "");
   const [waitingForWallet, setWaitingForWallet] = useState(false);
 
   // on the empty page a connected wallet is checked right away, whether it was connected before or just now by "Check my wallet".

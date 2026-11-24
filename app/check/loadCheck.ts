@@ -1,4 +1,5 @@
 import { getAddressByHandle, getDreps, getPoolAlternatives, getPoolCheck, getPoolPerformance, getStakeAddress, getStakeCheck } from "@cardano/dbsync";
+import { loadHandles } from "@cardano/handles";
 import { POOL_ID } from "@cardano/pool";
 import { Finding, pickAlternatives, poolFindings, suggestsAlternatives } from "./checkLogic";
 
@@ -12,7 +13,7 @@ export interface PoolOption {
 }
 
 export interface CheckData {
-  /** What was asked for, a `$handle` keeps its name */
+  /** The `$handle` that was asked for or that the address owns, otherwise the stake address */
   label: string;
   stakeAddress: string;
   /** For a stake address the chain has never seen: an unregistered one that holds nothing */
@@ -65,5 +66,7 @@ export async function loadCheck(input: string): Promise<CheckData | { error: str
   // the list of DReps is cached, so the name costs no request of its own most of the time
   const drepName = check.drepId?.startsWith("drep1") ? ((await getDreps()).find((drep) => drep.drepId === check.drepId)?.name ?? null) : null;
 
-  return { label: input.trim().startsWith("$") ? input.trim().toLowerCase() : stakeAddress, stakeAddress, check, known: found != null, performance, drepName, findings, alternatives };
+  // an address that owns a handle is shown and shared under it as well
+  const ownHandle = input.trim().startsWith("$") ? input.trim().slice(1).toLowerCase() : (await loadHandles([stakeAddress]))[stakeAddress];
+  return { label: ownHandle ? `$${ownHandle}` : stakeAddress, stakeAddress, check, known: found != null, performance, drepName, findings, alternatives };
 }

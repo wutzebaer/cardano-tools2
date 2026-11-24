@@ -8,8 +8,9 @@ export const load = cache(loadCheck);
 /** One line for link previews: where the address stakes and what stands out, no balances. */
 export async function checkSummary(input: string) {
   const data = await load(input);
-  const name = input.startsWith("$") ? input.toLowerCase() : shortenId(input, 8);
-  if ("error" in data) return { name, summary: data.error };
+  const fallback = input.startsWith("$") ? input.toLowerCase() : shortenId(input, 8);
+  if ("error" in data) return { name: fallback, summary: data.error };
+  const name = data.label.startsWith("$") ? data.label : fallback;
   const { check, findings } = data;
   if (!check.registered || !check.pool) return { name, summary: "This address is not staking yet." };
   const pool = check.pool.ticker ? `[${check.pool.ticker}]` : "a pool without a name";
