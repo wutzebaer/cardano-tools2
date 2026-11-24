@@ -780,6 +780,7 @@ export interface components {
         DRepInfo: {
             drepId: string;
             name?: string;
+            objectives?: string;
             /** Format: int64 */
             votingPower: number;
         };
