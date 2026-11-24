@@ -187,7 +187,14 @@ async function postPoolNews() {
   if (tip == null) return;
   const scheduled = await scheduledByEpoch();
   for (const due of duePoolPosts(store.poolPosts, now, unixToEpoch(slotToUnix(tip)), scheduled)) {
-    if (due.post) {
+    // an epoch without a block is not worth a message, neither as a plan nor as a result
+    let worthPosting = due.post;
+    if (worthPosting && due.kind === "result") {
+      const facts = await api<PoolEpochFacts>(`/pool/${POOL_ID}/epoch/${due.epoch}`);
+      if (!facts) continue;
+      worthPosting = facts.blocks > 0;
+    }
+    if (worthPosting) {
       const post = await poolPost(due.kind, due.epoch, scheduled);
       if (!post) continue;
       await sendPhoto(POOL_CHAT_ID, post.image, post.caption);
