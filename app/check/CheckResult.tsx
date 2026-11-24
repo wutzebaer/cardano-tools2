@@ -165,28 +165,32 @@ export default function CheckResult({ data }: { data: CheckData }) {
       ) : null}
 
       {check.registered ? (
-        <Card title="Governance vote">
+        <Card title="Your voting rights">
+          <p className="text-sm text-base-content/65">
+            Whoever holds ADA has a say in how Cardano develops: its rules and its shared budget are decided by vote. You do not have to vote yourself. You either hand your
+            vote to a representative, called a DRep, or you say that you do not take part.
+          </p>
           <ul className="flex flex-col gap-2">
             {vote === "none" ? (
               <FindingRow
                 finding={{
                   level: "warning",
-                  title: "No vote delegation",
-                  text: "Since the Conway era staking rewards can only be withdrawn once the stake key has delegated its vote. Choosing to abstain is enough, it costs only the transaction fee and can be changed at any time.",
+                  title: "You have not made this choice yet",
+                  text: "Cardano asks for it before staking rewards can be taken out of the reward account. Until then they keep adding up but cannot be withdrawn. Choosing takes one transaction with a fee of about 0.2 ₳, the ADA stays in the wallet, and the choice can be changed at any time.",
                 }}
               />
             ) : (
               <FindingRow
                 finding={{
                   level: "ok",
-                  title: vote === "abstain" ? "The vote always abstains" : vote === "no_confidence" ? "The vote is always no confidence" : "The vote is delegated to a DRep",
-                  text: vote === "drep" ? `${check.drepId}. Rewards can be withdrawn.` : "Rewards can be withdrawn.",
+                  title: vote === "abstain" ? "You do not take part in votes" : vote === "no_confidence" ? "Your ADA counts as a vote of no confidence" : "A representative votes for you",
+                  text: vote === "drep" ? `Your DRep is ${check.drepId}. The choice is made, so rewards can be withdrawn.` : "The choice is made, so rewards can be withdrawn.",
                 }}
               />
             )}
           </ul>
           <details className="text-sm" open={vote === "none"}>
-            <summary className="cursor-pointer text-base-content/65">{vote === "none" ? "Delegate the vote" : "Change the vote delegation"}</summary>
+            <summary className="cursor-pointer text-base-content/65">{vote === "none" ? "Make the choice now" : "Change the choice"}</summary>
             <div className="mt-3">
               <VoteDelegation stakeAddress={stakeAddress} current={check.drepId} />
             </div>
@@ -205,7 +209,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
             </div>
             {check.rewardsAvailable > 0 && vote !== "none" ? <WithdrawRewards stakeAddress={stakeAddress} lovelace={check.rewardsAvailable} /> : null}
           </div>
-          {check.rewardsAvailable > 0 && vote === "none" ? <p className="text-xs text-warning">Withdrawing needs a vote delegation first, see above.</p> : null}
+          {check.rewardsAvailable > 0 && vote === "none" ? <p className="text-xs text-warning">Before they can be withdrawn, make the choice under &quot;Your voting rights&quot; above.</p> : null}
         </Card>
       ) : null}
 
@@ -238,7 +242,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
       {check.registered ? (
         <Card title="Stop staking">
           <p className="text-sm text-base-content/65">
-            For closing a wallet: deregistering the stake key ends the delegation to the pool and the vote delegation, pays out the rewards and returns the 2 ₳ deposit that was
+            For closing a wallet: deregistering the stake key ends the delegation to the pool and the choice about the voting rights, pays out the rewards and returns the 2 ₳ deposit that was
             taken when the key was registered. Many wallets have no button for this. Switching pools does not need it.
           </p>
           <div>

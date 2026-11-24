@@ -92,26 +92,50 @@ function OwnerAction({
 export function VoteDelegation({ stakeAddress, current }: { stakeAddress: string; current?: string | null }) {
   const [drepId, setDrepId] = useState("");
   return (
-    <OwnerAction stakeAddress={stakeAddress} done="Vote delegation">
+    <OwnerAction stakeAddress={stakeAddress} done="Your choice">
       {(run, busy) => {
         const send = (target: VoteTarget) => run((wallet) => delegateVote(wallet.connection, target));
         return (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap gap-2">
-              <button className="btn btn-primary btn-sm" disabled={busy || current === "drep_always_abstain"} onClick={() => send("abstain")}>
-                Always abstain
+          <ul className="flex flex-col gap-3">
+            <li className="flex flex-col gap-2 rounded-field border border-line bg-base-300/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">I do not want to take part</p>
+                <p className="mt-0.5 text-sm text-base-content/65">Your ADA is not counted in any vote. The simplest choice if you just want to stake. Called &quot;abstain&quot; on Cardano.</p>
+              </div>
+              <button className="btn btn-primary btn-sm shrink-0" disabled={busy || current === "drep_always_abstain"} onClick={() => send("abstain")}>
+                {current === "drep_always_abstain" ? "Chosen" : "Choose this"}
               </button>
-              <button className="btn btn-sm border-line bg-base-300" disabled={busy || current === "drep_always_no_confidence"} onClick={() => send("no_confidence")}>
-                Always no confidence
+            </li>
+            <li className="flex flex-col gap-2 rounded-field border border-line bg-base-300/40 p-4">
+              <div>
+                <p className="text-sm font-medium">A representative votes for me</p>
+                <p className="mt-0.5 text-sm text-base-content/65">
+                  A DRep votes with the weight of your ADA, the ADA itself stays with you. Representatives introduce themselves on{" "}
+                  <a href="https://gov.tools/drep_directory" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    gov.tools
+                  </a>
+                  , copy the id of the one you pick from there.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input className={`${inputClass} input-sm font-mono text-xs`} value={drepId} onChange={(e) => setDrepId(e.target.value)} placeholder="drep1…" aria-label="DRep id" />
+                <button className="btn btn-sm shrink-0 border-line bg-base-300" disabled={busy || !drepId.trim().startsWith("drep1")} onClick={() => send(drepId)}>
+                  Choose this DRep
+                </button>
+              </div>
+            </li>
+            <li className="flex flex-col gap-2 rounded-field border border-line bg-base-300/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">I have no confidence in the current committee</p>
+                <p className="mt-0.5 text-sm text-base-content/65">
+                  Your ADA always counts as a vote to replace the committee that guards Cardano&apos;s constitution. A political statement, only for those who mean it.
+                </p>
+              </div>
+              <button className="btn btn-sm shrink-0 border-line bg-base-300" disabled={busy || current === "drep_always_no_confidence"} onClick={() => send("no_confidence")}>
+                {current === "drep_always_no_confidence" ? "Chosen" : "Choose this"}
               </button>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input className={`${inputClass} input-sm font-mono text-xs`} value={drepId} onChange={(e) => setDrepId(e.target.value)} placeholder="or the id of a DRep: drep1…" aria-label="DRep id" />
-              <button className="btn btn-sm border-line bg-base-300" disabled={busy || !drepId.trim().startsWith("drep1")} onClick={() => send(drepId)}>
-                Delegate to this DRep
-              </button>
-            </div>
-          </div>
+            </li>
+          </ul>
         );
       }}
     </OwnerAction>
@@ -137,8 +161,8 @@ export function StopStaking({ stakeAddress, rewards, voteDelegated }: { stakeAdd
   if (rewards > 0 && !voteDelegated) {
     return (
       <p className="text-sm text-warning">
-        This address still has {formatAda(rewards)} of rewards, which have to be paid out with the deregistration. That needs a vote delegation first: choose &quot;Always
-        abstain&quot; above, wait for the confirmation and come back here.
+        This address still has {formatAda(rewards)} of rewards, which have to be paid out with the deregistration. Cardano only pays rewards out once the choice under
+        &quot;Your voting rights&quot; above is made: make it, wait for the confirmation and come back here.
       </p>
     );
   }
@@ -149,7 +173,7 @@ export function StopStaking({ stakeAddress, rewards, voteDelegated }: { stakeAdd
           className="btn btn-sm border-error/50 bg-error/10 text-error hover:border-error hover:bg-error/20"
           disabled={busy}
           onClick={() => {
-            if (!confirm("Stop staking with this wallet?\n\nThe stake key is deregistered: the delegation to the pool and the vote delegation end, the rewards are paid out and the 2 ₳ deposit comes back. Staking again later means registering again.")) return;
+            if (!confirm("Stop staking with this wallet?\n\nThe stake key is deregistered: the delegation to the pool and the choice about the voting rights end, the rewards are paid out and the 2 ₳ deposit comes back. Staking again later means registering again.")) return;
             run((wallet) => deregisterStake(wallet.connection, BigInt(rewards)));
           }}
         >

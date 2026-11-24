@@ -48,7 +48,7 @@ export const MAX_TX_SIZE = 16384;
 /** Seconds a built transaction stays valid. */
 export const TTL_SECONDS = 60 * 10;
 
-const txBuilderConfig = TransactionBuilderConfigBuilder.new()
+export const txBuilderConfig = TransactionBuilderConfigBuilder.new()
   .fee_algo(LinearFee.new(BigNum.from_str("44"), BigNum.from_str("155381")))
   .coins_per_utxo_byte(COINS_PER_UTXO_BYTE)
   .pool_deposit(BigNum.from_str("500000000"))
@@ -226,7 +226,7 @@ export const delegateToPool = async (connection: WalletConnection, poolId: strin
 /** Who a stake key hands its vote to: one of the two automatic choices or the id of a DRep (`drep1…`). */
 export type VoteTarget = "abstain" | "no_confidence" | string;
 
-async function walletRewardAddress(connection: WalletConnection) {
+export async function walletRewardAddress(connection: WalletConnection) {
   const rewardAddress = RewardAddress.from_address(Address.from_bytes(hexToBytes((await connection.getRewardAddresses())[0])));
   if (!rewardAddress) throw new Error("Your wallet reports no stake address");
   return rewardAddress;

@@ -14,6 +14,6 @@ export async function checkSummary(input: string) {
   if (!check.registered || !check.pool) return { name, summary: "This address is not staking yet." };
   const pool = check.pool.ticker ? `[${check.pool.ticker}]` : "a pool without a name";
   const top = findings[0];
-  const vote = check.drepId ? "" : " The governance vote is not delegated.";
+  const vote = check.drepId ? "" : " The choice about its voting rights is still open.";
   return { name, summary: `Staked with ${pool}. ${top?.level === "ok" ? "Nothing stands out about the pool." : `${top?.title}.`}${vote}` };
 }

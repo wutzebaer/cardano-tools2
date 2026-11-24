@@ -29,7 +29,7 @@ export default async function Image({ params }: { params: Promise<{ address: str
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 30, color: "#8b93a7" }}>
           <span>cardano-tools.io/check</span>
-          <span>Pool · fees · governance vote · rewards</span>
+          <span>Pool · fees · voting rights · rewards</span>
         </div>
       </div>
     ),

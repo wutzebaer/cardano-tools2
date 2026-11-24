@@ -27,7 +27,7 @@ export default async function Page({ params }: Props) {
   return (
     <>
       <PageHeader title="Staking check" art="check">
-        Pool, fees, governance vote and rewards of a Cardano address
+        Pool, fees, voting rights and rewards of a Cardano address
       </PageHeader>
       <div className="flex flex-col gap-8">
         <CheckForm initial={input} />

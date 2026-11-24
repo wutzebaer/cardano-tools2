@@ -11,6 +11,7 @@ Cardano Tools is a [Next.js](https://nextjs.org) dApp: every transaction is buil
 | `/royalties` | Mint the CIP-27 royalty token of a policy |
 | `/burn` | Burn tokens of own policies, including their CIP-68 reference NFT |
 | `/timelock` | Lock ADA and tokens at a native script until a date and take them back afterwards |
+| `/move` | Empty a wallet into a new address, tokens included, in as many transactions as it takes, optionally deregistering the stake key |
 | `/rewards` | Distribute ADA and tokens to the delegators of a pool |
 | `/statement` | Wallet statement with fiat values and CSV export |
 | `/tax` | Staking rewards per epoch with their value on the payout day, totals per year, CSV and print view |
