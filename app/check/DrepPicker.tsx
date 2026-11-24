@@ -6,6 +6,7 @@ import { ExternalLink, inputClass } from "@components/ui";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { DrepVote, latestDrepVote } from "./drepVotes";
 
 type Drep = Awaited<ReturnType<typeof getDreps>>[number];
 
@@ -15,6 +16,15 @@ const power = (drep: Drep) => `${POWER.format(drep.votingPower / 1_000_000)} ₳
 
 /** Where a DRep is described: its statement, its votes and who delegates to it. */
 export const drepUrl = (drepId: string) => `https://gov.tools/drep_directory/${drepId}`;
+
+/** The API cuts the goals of a DRep to this length */
+const OBJECTIVES_LENGTH = 240;
+
+const VOTE_STYLE: Record<string, string> = {
+  Yes: "bg-success/15 text-success",
+  No: "bg-error/15 text-error",
+  Abstain: "bg-base-content/10 text-base-content/65",
+};
 
 const votesCast = (drep: Drep) => drep.votesYes + drep.votesNo + drep.votesAbstain;
 
@@ -46,7 +56,22 @@ export default function DrepPicker({ value, onChange, knownName }: { value: stri
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [dreps, setDreps] = useState<Drep[] | null>(null);
+  const [latest, setLatest] = useState<{ drepId: string; vote: DrepVote | null } | null>(null);
   const root = useRef<HTMLDivElement>(null);
+
+  // what the chosen DRep voted on last, fetched per choice
+  useEffect(() => {
+    if (!value.startsWith("drep1")) return;
+    let cancelled = false;
+    latestDrepVote(value)
+      .catch(() => null)
+      .then((vote) => {
+        if (!cancelled) setLatest({ drepId: value, vote });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [value]);
 
   // fetched right away: the name of a preselected DRep comes from the list as well
   useEffect(() => {
@@ -70,6 +95,7 @@ export default function DrepPicker({ value, onChange, knownName }: { value: stri
   }, [open]);
 
   const selected = dreps?.find((drep) => drep.drepId === value);
+  const latestVote = latest?.drepId === value ? latest.vote : null;
   const name = selected?.name ?? (value ? knownName : null);
   const needle = query.trim().toLowerCase();
   const matches = (dreps ?? []).filter(
@@ -184,10 +210,23 @@ export default function DrepPicker({ value, onChange, knownName }: { value: stri
               </dd>
             </div>
           </dl>
+          {latestVote ? (
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-base-content/45">Its latest vote</p>
+              <p className="mt-0.5 flex items-baseline gap-2 text-sm">
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${VOTE_STYLE[latestVote.vote] ?? VOTE_STYLE.Abstain}`}>{latestVote.vote}</span>
+                <span className="min-w-0 truncate" title={latestVote.title}>
+                  {latestVote.title}
+                </span>
+                {latestVote.title.startsWith(latestVote.kind) ? null : <span className="hidden shrink-0 text-xs text-base-content/45 sm:inline">{latestVote.kind}</span>}
+              </p>
+            </div>
+          ) : null}
           {selected.objectives ? (
             <p className="line-clamp-2 text-xs text-base-content/65" title={selected.objectives}>
               <span className="text-base-content/45">Its goals: </span>
               {selected.objectives}
+              {selected.objectives.length >= OBJECTIVES_LENGTH ? "…" : ""}
             </p>
           ) : null}
           <div className="flex flex-wrap gap-2">
