@@ -114,16 +114,8 @@ export function VoteDelegation({
         const send = (target: VoteTarget) => run((wallet) => delegateVote(wallet.connection, target));
         return (
           <ul className="flex flex-col gap-3">
-            <li className="flex flex-col gap-2 rounded-field border border-line bg-base-300/40 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-medium">I do not want to take part</p>
-                <p className="mt-0.5 text-sm text-base-content/65">Your ADA is not counted in any vote. The simplest choice if you just want to stake. Called &quot;abstain&quot; on Cardano.</p>
-              </div>
-              <button className="btn btn-primary btn-sm shrink-0" disabled={busy || current === "drep_always_abstain"} onClick={() => send("abstain")}>
-                {current === "drep_always_abstain" ? "Chosen" : "Choose this"}
-              </button>
-            </li>
-            <li className="flex flex-col gap-2 rounded-field border border-line bg-base-300/40 p-4">
+            {/* the representative comes first and stands out: taking part is what the vote is for */}
+            <li className="flex flex-col gap-2 rounded-field border border-line-strong bg-base-300/40 p-4">
               <div>
                 <p className="text-sm font-medium">A representative votes for me</p>
                 <p className="mt-0.5 text-sm text-base-content/65">
@@ -137,7 +129,7 @@ export function VoteDelegation({
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
                 <DrepPicker value={drepId} onChange={setDrepId} knownName={drepId === currentDrep ? currentName : drepId === suggested?.drepId ? suggested.name : null} />
-                <button className="btn btn-sm shrink-0 border-line bg-base-300 sm:mt-1" disabled={busy || !drepId.trim().startsWith("drep1") || drepId === currentDrep} onClick={() => send(drepId)}>
+                <button className="btn btn-brand btn-sm shrink-0 sm:mt-1" disabled={busy || !drepId.trim().startsWith("drep1") || drepId === currentDrep} onClick={() => send(drepId)}>
                   {drepId === currentDrep ? "Chosen" : "Choose this DRep"}
                 </button>
               </div>
@@ -147,6 +139,15 @@ export function VoteDelegation({
                   recommendation, pick another one if you prefer.
                 </p>
               ) : null}
+            </li>
+            <li className="flex flex-col gap-2 rounded-field border border-line bg-base-300/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">I do not want to take part</p>
+                <p className="mt-0.5 text-sm text-base-content/65">Your ADA is not counted in any vote. For those who only want to stake and leave the decisions to others. Called &quot;abstain&quot; on Cardano.</p>
+              </div>
+              <button className="btn btn-sm shrink-0 border-line bg-base-300" disabled={busy || current === "drep_always_abstain"} onClick={() => send("abstain")}>
+                {current === "drep_always_abstain" ? "Chosen" : "Choose this"}
+              </button>
             </li>
             <li className="flex flex-col gap-2 rounded-field border border-line bg-base-300/40 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
