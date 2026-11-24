@@ -1,3 +1,4 @@
+import { epochStartUnix } from "@cardano/network";
 import { POOL_ID, POOL_TICKER } from "@cardano/pool";
 import { formatAda, shortenId } from "@cardano/utils";
 import { ExternalLink } from "@components/ui";
@@ -17,6 +18,22 @@ const STATE_STYLE: Record<ActionState, string> = {
 const VOTE_STYLE: Record<string, string> = { Yes: "text-success", No: "text-error", Abstain: "text-base-content/65" };
 
 const SUMMARY_LENGTH = 320;
+
+// in UTC, so the server and every browser print the same day
+const DATE = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+const date = (unixSeconds: number) => DATE.format(new Date(unixSeconds * 1000));
+
+/** When an action was submitted and until when it can be voted on, or when it was decided. */
+function actionDates(action: GovAction, state: ActionState) {
+  const submitted = action.submittedUnix ? `Submitted ${date(action.submittedUnix)}` : null;
+  // an action is decided at the boundary that begins the epoch the chain names
+  const decidedEpoch = action.ratifiedEpoch ?? action.expiredEpoch ?? action.droppedEpoch ?? action.enactedEpoch;
+  const end =
+    state === "open" || decidedEpoch == null
+      ? `voting ${state === "open" ? "until" : "ended"} ${date(epochStartUnix(action.expiresEpoch + 1))}`
+      : `decided ${date(epochStartUnix(decidedEpoch))}`;
+  return [submitted, end].filter(Boolean).join(" · ");
+}
 
 function Tally({ label, yes, no, abstain }: { label: string; yes: number; no: number; abstain?: number }) {
   const total = yes + no + (abstain ?? 0);
@@ -62,6 +79,7 @@ function Action({ action, data }: { action: GovAction; data: GovernanceData }) {
             {action.withdrawal ? ` · ${formatAda(action.withdrawal)}` : ""}
           </p>
           <h2 className="mt-1 break-words text-lg font-semibold tracking-tight">{actionTitle(action)}</h2>
+          <p className="mt-1 text-xs text-base-content/55">{actionDates(action, status.state)}</p>
         </div>
         <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${STATE_STYLE[status.state]}`}>{status.label}</span>
       </div>

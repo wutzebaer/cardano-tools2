@@ -765,6 +765,8 @@ export interface components {
             drepVote?: string;
             poolVote?: string;
             poolVoteAnchorUrl?: string;
+            /** Format: int64 */
+            submittedUnix: number;
         };
         GovernanceOverview: {
             /** Format: int32 */

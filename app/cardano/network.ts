@@ -44,6 +44,9 @@ export const slotToUnix = (slot: number, network: Network = NETWORK) => slot + n
 export const unixToEpoch = (unixSeconds: number, network: Network = NETWORK) =>
   network.epochAtAnchor + Math.floor((unixSeconds - network.epochAnchorUnix) / network.epochSeconds);
 
+/** When an epoch begins, in seconds since 1970. An epoch ends where the next one begins. */
+export const epochStartUnix = (epoch: number, network: Network = NETWORK) => network.epochAnchorUnix + (epoch - network.epochAtAnchor) * network.epochSeconds;
+
 export const currentSlot = () => Math.floor(unixToSlot(Date.now() / 1000));
 
 export const currentEpoch = () => unixToEpoch(Date.now() / 1000);
