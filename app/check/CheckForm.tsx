@@ -11,48 +11,29 @@ import { FormEvent, useEffect, useState } from "react";
  * Takes an address, a handle or the connected wallet to the page for it: `/check/<address>` by default, or the page
  * of another section that shows something per address.
  */
-export default function CheckForm({
-  initial = "",
-  base = "/check",
-  submitLabel = "Check",
-  walletLabel = "Check my wallet",
-}: {
-  initial?: string;
-  base?: string;
-  submitLabel?: string;
-  walletLabel?: string;
-}) {
+export default function CheckForm({ initial = "", base = "/check", submitLabel = "Check" }: { initial?: string; base?: string; submitLabel?: string }) {
   // a `$handle` reads better in a link than the address behind it
   const checkPath = (address: string) => `${base}/${encodeURIComponent(address)}`;
   const router = useRouter();
-  const { wallet, connect, connecting } = useWallet();
+  const { wallet } = useWallet();
   const walletHandle = useHandle(wallet?.stakeAddress);
   // null until something is typed: the field then holds the checked address or the connected wallet
   const [typed, setInput] = useState<string | null>(null);
   // a checked stake address that owns a handle is shown as that handle
   const initialHandle = useHandle(initial.startsWith("stake") ? initial : undefined);
   const input = typed ?? (initialHandle || initial || walletHandle || wallet?.stakeAddress || "");
-  const [waitingForWallet, setWaitingForWallet] = useState(false);
 
-  // on the empty page a connected wallet is checked right away, whether it was connected before or just now by "Check my wallet".
+  // on the empty page a connected wallet is checked right away, whether it was connected before or just now.
   // Another address can still be checked from the field of the result page.
   const walletAddress = wallet?.stakeAddress;
   useEffect(() => {
-    if (!walletAddress) return;
-    const path = `${base}/${encodeURIComponent(walletAddress)}`;
-    if (waitingForWallet) router.push(path);
-    else if (!initial) router.replace(path);
-  }, [waitingForWallet, walletAddress, initial, base, router]);
+    if (walletAddress && !initial) router.replace(`${base}/${encodeURIComponent(walletAddress)}`);
+  }, [walletAddress, initial, base, router]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const address = input.trim();
     if (address) router.push(checkPath(address));
-  };
-
-  const useWalletAddress = async () => {
-    setWaitingForWallet(true);
-    await connect().catch(() => setWaitingForWallet(false));
   };
 
   return (
@@ -64,13 +45,6 @@ export default function CheckForm({
       <button className="btn btn-primary" type="submit" disabled={!input.trim()}>
         {submitLabel}
       </button>
-      {/* a connected wallet is in the field already */}
-      {!wallet ? (
-        <button className="btn border-line bg-base-300" type="button" onClick={useWalletAddress} disabled={connecting && waitingForWallet}>
-          {connecting && waitingForWallet ? <span className="loading loading-spinner loading-xs" /> : null}
-          {walletLabel}
-        </button>
-      ) : null}
     </form>
   );
 }

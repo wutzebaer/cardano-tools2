@@ -24,7 +24,7 @@ export default async function Page() {
       <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-3">
           <p className="text-sm text-base-content/65">{INTRO} Enter an address to see how its representative and its pool voted.</p>
-          <CheckForm base="/votes" submitLabel="Show votes" walletLabel="Show my votes" />
+          <CheckForm base="/votes" submitLabel="Show votes" />
         </div>
         {"error" in data ? <Notice tone="warning">{data.error}</Notice> : <GovernanceView data={data} />}
       </div>
