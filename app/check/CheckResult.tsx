@@ -30,7 +30,7 @@ const LEVEL_STYLE: Record<Level, { icon: ReactNode; border: string }> = {
 };
 
 /** What the Telegram bot writes about, in the order a staker would worry about it. */
-const ALERTS = ["Your pool retires", "Your pool stops making blocks", "Your pool raises its fees", "Your pool gets oversaturated", "Your voting choice is missing"];
+const ALERTS = ["Your pool retires", "Your pool stops making blocks", "Your pool raises its fees", "Your pool gets oversaturated", "Your voting choice is missing", "A timelock of yours opens"];
 
 const percent = (share: number) => `${formatNumber(share * 100)} %`;
 

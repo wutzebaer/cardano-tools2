@@ -55,6 +55,76 @@ export interface Alert {
   key: string;
   title: string;
   text: string;
+  /** Set for a lock that opened: it has nothing to do with the staking check the other alerts link to */
+  lock?: boolean;
+}
+
+/** An output the address has locked on the timelock page, as far as the chain tells without the wallet's keys. */
+export interface LockOutput {
+  txHash: string;
+  txIndex: number;
+  /** From the metadata of the locking transaction */
+  unlockSlot: number;
+  lovelace: number;
+  /** How many different tokens are locked along */
+  tokens: number;
+}
+
+/** A row of the chain data about what an address holds: one per output and asset, ADA has no policy. */
+export interface UtxoRow {
+  txHash: string;
+  txIndex: number;
+  owningAddress: string;
+  value: number;
+  maPolicyId?: string | null;
+}
+
+/**
+ * The locks among the outputs of a stake address: outputs at a script address made by a transaction that names
+ * an unlock slot in its metadata, which is what the timelock page writes. The script itself cannot be checked
+ * without the wallet's keys, a made-up lock would only earn its maker a message.
+ */
+export function locksOf(rows: UtxoRow[], unlockSlotOfTx: (txHash: string) => number | undefined): LockOutput[] {
+  const locks = new Map<string, LockOutput>();
+  for (const row of rows) {
+    const unlockSlot = isScriptAddress(row.owningAddress) ? unlockSlotOfTx(row.txHash) : undefined;
+    if (unlockSlot == null) continue;
+    const key = `${row.txHash}#${row.txIndex}`;
+    const lock = locks.get(key) ?? { txHash: row.txHash, txIndex: row.txIndex, unlockSlot, lovelace: 0, tokens: 0 };
+    if (row.maPolicyId) lock.tokens += 1;
+    else lock.lovelace = Number(row.value);
+    locks.set(key, lock);
+  }
+  return [...locks.values()];
+}
+
+/**
+ * Whether a payment address of a stake key belongs to a script, which is what a timelock address is. The first
+ * byte of such a mainnet address is 0x11, and bech32 writes its leading five bits as "z".
+ */
+export const isScriptAddress = (address: string) => address.startsWith("addr1z");
+
+const utcTime = (unix: number) => `${new Date(unix * 1000).toISOString().slice(0, 16).replace("T", " ")} UTC`;
+
+const ada = (lovelace: number) => `${(lovelace / 1_000_000).toLocaleString("en-US", { maximumFractionDigits: 2 })} ₳`;
+
+/** One alert per lock whose time is over and that has not been taken back. It ends when the output is spent. */
+export function lockAlerts(locks: LockOutput[], nowSlot: number, slotZeroUnix: number, siteUrl: string): Alert[] {
+  return locks
+    .filter((lock) => lock.unlockSlot <= nowSlot)
+    .map((lock) => ({
+      key: `lock:${lock.txHash}#${lock.txIndex}`,
+      title: "A timelock has opened",
+      text: `${ada(lock.lovelace)}${lock.tokens > 0 ? ` and ${lock.tokens === 1 ? "a token" : `${lock.tokens} kinds of tokens`}` : ""}, locked until ${utcTime(lock.unlockSlot + slotZeroUnix)}, can be taken back now: ${siteUrl}/timelock`,
+      lock: true,
+    }));
+}
+
+/** What the welcome says about the locks that are still closed. */
+export function pendingLocksLine(locks: LockOutput[], nowSlot: number, slotZeroUnix: number) {
+  const pending = locks.filter((lock) => lock.unlockSlot > nowSlot).sort((a, b) => a.unlockSlot - b.unlockSlot);
+  if (pending.length === 0) return undefined;
+  return `${pending.length === 1 ? "1 timelock is" : `${pending.length} timelocks are`} still closed, the next opens ${utcTime(pending[0].unlockSlot + slotZeroUnix)}. I write when one opens.`;
 }
 
 /** Everything about the staking of an address that calls for the owner's attention right now. */
@@ -89,7 +159,7 @@ const checkUrl = (siteUrl: string, stakeAddress: string) => `${siteUrl}/check/${
 const poolName = (state: AlertState) => (state.pool?.ticker ? `[${state.pool.ticker}]` : "a pool without a name");
 
 /** The answer to a new subscription: what is watched and how things stand. */
-export function welcomeMessage(stakeAddress: string, state: AlertState, alerts: Alert[], siteUrl: string) {
+export function welcomeMessage(stakeAddress: string, state: AlertState, alerts: Alert[], siteUrl: string, pendingLocks?: string) {
   const lines = [`Watching ${shorten(stakeAddress)}${state.registered && state.pool ? `, staked with ${poolName(state)}` : ""}.`, ""];
   if (alerts.length === 0) {
     lines.push("Nothing stands out right now.");
@@ -97,9 +167,10 @@ export function welcomeMessage(stakeAddress: string, state: AlertState, alerts: 
     lines.push("Right now:");
     for (const alert of alerts) lines.push(`• ${alert.title}`);
   }
+  if (pendingLocks) lines.push("", pendingLocks);
   lines.push(
     "",
-    "I look once an hour and write when the pool announces its retirement, gets oversaturated, raises its fees or stops making blocks, and when the choice about the voting rights is missing.",
+    "I look once an hour and write when the pool announces its retirement, gets oversaturated, raises its fees or stops making blocks, when the choice about the voting rights is missing, and when a timelock of this address opens.",
     "",
     `Details: ${checkUrl(siteUrl, stakeAddress)}`,
     "/list shows what I watch, /stop ends it."
@@ -111,7 +182,8 @@ export function welcomeMessage(stakeAddress: string, state: AlertState, alerts: 
 export function alertMessage(stakeAddress: string, alerts: Alert[], siteUrl: string) {
   const lines = [`News for ${shorten(stakeAddress)}:`];
   for (const alert of alerts) lines.push("", alert.title, alert.text);
-  lines.push("", `Details and other pools: ${checkUrl(siteUrl, stakeAddress)}`);
+  // a lock that opened carries its own link, the staking check has nothing to add to it
+  if (alerts.some((alert) => !alert.lock)) lines.push("", `Details and other pools: ${checkUrl(siteUrl, stakeAddress)}`);
   return lines.join("\n");
 }
 
@@ -121,7 +193,7 @@ export function listMessage(stakeAddresses: string[]) {
 }
 
 export const HELP_MESSAGE = [
-  "I watch the staking of Cardano addresses and write when something needs your attention: the pool retires, gets oversaturated, raises its fees or stops making blocks, or the choice about the voting rights is missing.",
+  "I watch the staking of Cardano addresses and write when something needs your attention: the pool retires, gets oversaturated, raises its fees or stops making blocks, or the choice about the voting rights is missing. I also write when something you locked on https://cardano-tools.io/timelock can be taken back.",
   "",
   "Send me a stake address (stake1…) to start, or use the button on https://cardano-tools.io/check.",
   "/list shows what I watch, /stop ends it.",

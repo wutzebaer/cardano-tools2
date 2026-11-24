@@ -1,7 +1,8 @@
 "use client";
 
 import { assetKey, assetsInUtxos, lovelaceInUtxos, WalletAsset } from "@cardano/assets";
-import { unixToSlot } from "@cardano/network";
+import { IS_MAINNET, unixToSlot } from "@cardano/network";
+import { TELEGRAM_BOT } from "@cardano/pool";
 import {
   findTimelocks,
   fundKeyAddress,
@@ -25,10 +26,10 @@ import { assetNameFromHex, formatAda, shortenId } from "@cardano/utils";
 import ConnectWallet from "@components/ConnectWallet";
 import TokenSelect from "@components/TokenSelect";
 import TxResult from "@components/TxResult";
-import { Field, inputClass, Notice, secondaryButtonClass } from "@components/ui";
+import { ExternalLink, Field, inputClass, Notice, secondaryButtonClass } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
 import { Address } from "@emurgo/cardano-serialization-lib-browser";
-import { LockClosedIcon, LockOpenIcon, PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { BellAlertIcon, LockClosedIcon, LockOpenIcon, PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useState } from "react";
 
 interface TokenRow {
@@ -194,6 +195,26 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
         earlier, and nobody can help if the date was a mistake. The locked ADA keeps counting for your stake delegation. Nothing is stored here: the locks are found on
         chain, with this wallet in any browser.
       </Notice>
+
+      {IS_MAINNET ? (
+        <div className="alert-card flex flex-col gap-4 rounded-box p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <span className="icon-brand flex size-11 shrink-0 items-center justify-center rounded-field">
+              <BellAlertIcon className="size-5" />
+            </span>
+            <div>
+              <h2 className="font-semibold tracking-tight">Get a message when a lock opens</h2>
+              <p className="mt-0.5 text-sm text-base-content/65">
+                The Telegram bot of this site writes within an hour of the date, for the locks you have now and for those you make later. It stores your Telegram chat and
+                your stake address, nothing else, and watches the staking of this wallet as well.
+              </p>
+            </div>
+          </div>
+          <ExternalLink href={`https://t.me/${TELEGRAM_BOT}?start=${wallet.stakeAddress}`} className="btn btn-primary shrink-0">
+            Tell me on Telegram
+          </ExternalLink>
+        </div>
+      ) : null}
 
       <div className="surface flex flex-col gap-4 p-5">
         <p className="section-label">New lock</p>

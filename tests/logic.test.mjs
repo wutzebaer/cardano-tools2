@@ -4,7 +4,7 @@ process.env.TZ = "UTC";
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { alertMessage, alertsOf, listMessage, newAlerts, parseCommand, welcomeMessage } from "../app/alerts/alertLogic.ts";
+import { alertMessage, alertsOf, listMessage, lockAlerts, locksOf, newAlerts, parseCommand, pendingLocksLine, welcomeMessage } from "../app/alerts/alertLogic.ts";
 import { groupFeed } from "../app/browse/groupTokens.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
 import { drepKind, marginCostPerYear, pickAlternatives, poolFindings, suggestsAlternatives } from "../app/check/checkLogic.ts";
@@ -514,6 +514,40 @@ test("the bot's messages name the address, the pool and the page with the detail
   assert.match(alertMessage(WATCHED, alerts, "https://cardano-tools.io"), /^News for stake1u8gnr7…djvep8:\n\nThe choice about the voting rights is open\n/);
   assert.match(listMessage([WATCHED]), /1\. stake1u8gnr7/);
   assert.match(listMessage([]), /not watching any address/);
+});
+
+test("the bot finds the locks of an address and reports each once it has opened", () => {
+  const SLOT_ZERO = 1591566291;
+  const rows = [
+    // a lock of ADA with one token, made by a transaction that names its slot
+    { txHash: "aa", txIndex: 0, owningAddress: "addr1zlock", value: 25_000_000 },
+    { txHash: "aa", txIndex: 0, owningAddress: "addr1zlock", value: 1, maPolicyId: "f0" },
+    { txHash: "bb", txIndex: 1, owningAddress: "addr1zlater", value: 5_000_000 },
+    // a script output of another kind, and the wallet's ordinary ADA
+    { txHash: "cc", txIndex: 0, owningAddress: "addr1zcontract", value: 2_000_000 },
+    { txHash: "aa", txIndex: 1, owningAddress: "addr1qchange", value: 9_000_000 },
+  ];
+  const locks = locksOf(rows, (txHash) => ({ aa: 1000, bb: 5000 })[txHash]);
+  assert.deepEqual(locks, [
+    { txHash: "aa", txIndex: 0, unlockSlot: 1000, lovelace: 25_000_000, tokens: 1 },
+    { txHash: "bb", txIndex: 1, unlockSlot: 5000, lovelace: 5_000_000, tokens: 0 },
+  ]);
+
+  assert.deepEqual(lockAlerts(locks, 999, SLOT_ZERO, "https://x"), []);
+  const opened = lockAlerts(locks, 1000, SLOT_ZERO, "https://x");
+  assert.deepEqual(opened.map((alert) => alert.key), ["lock:aa#0"]);
+  assert.equal(opened[0].text, "25 ₳ and a token, locked until 2020-06-07 22:01 UTC, can be taken back now: https://x/timelock");
+  // known after the first message, and gone once the output is spent
+  assert.equal(newAlerts(["lock:aa#0"], opened).length, 0);
+  assert.equal(lockAlerts(locksOf(rows.slice(2), () => 5000), 1000, SLOT_ZERO, "https://x").length, 0);
+
+  assert.equal(pendingLocksLine(locks, 999, SLOT_ZERO), "2 timelocks are still closed, the next opens 2020-06-07 22:01 UTC. I write when one opens.");
+  assert.equal(pendingLocksLine(locks, 1000, SLOT_ZERO), "1 timelock is still closed, the next opens 2020-06-07 23:08 UTC. I write when one opens.");
+  assert.equal(pendingLocksLine(locks, 5000, SLOT_ZERO), undefined);
+
+  // a message about a lock alone does not point to the staking check
+  assert.doesNotMatch(alertMessage(WATCHED, opened, "https://x"), /other pools/);
+  assert.match(welcomeMessage(WATCHED, { registered: true, pool: { poolHash: "pool1a" } }, [], "https://x", "1 timelock is still closed."), /Nothing stands out right now\.\n\n1 timelock is still closed\./);
 });
 
 // ---------------------------------------------------------------------------

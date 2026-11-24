@@ -6,7 +6,26 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { poolFindings, PoolFacts, PoolResults } from "../check/checkLogic";
-import { Alert, alertMessage, alertsOf, AlertState, HELP_MESSAGE, listMessage, MAX_SUBSCRIPTIONS_PER_CHAT, newAlerts, parseCommand, welcomeMessage } from "./alertLogic";
+import { currentSlot, NETWORK } from "../cardano/network";
+import { unlockSlotsFromMetadata } from "../cardano/timelockScript";
+import {
+  Alert,
+  alertMessage,
+  alertsOf,
+  AlertState,
+  HELP_MESSAGE,
+  isScriptAddress,
+  listMessage,
+  lockAlerts,
+  LockOutput,
+  locksOf,
+  MAX_SUBSCRIPTIONS_PER_CHAT,
+  newAlerts,
+  parseCommand,
+  pendingLocksLine,
+  UtxoRow,
+  welcomeMessage,
+} from "./alertLogic";
 
 interface Subscription {
   chatId: number;
@@ -108,21 +127,45 @@ async function send(chatId: number, text: string) {
   }
 }
 
-async function api<T>(route: string): Promise<T | null> {
+async function apiText(route: string): Promise<string> {
   const response = await fetch(`${process.env.CARDANO_DBSYNC_API_URL}${route}`, { cache: "no-store", signal: AbortSignal.timeout(60_000) });
   if (!response.ok) throw new Error(`chain data: ${response.status}`);
-  const text = await response.text();
+  return response.text();
+}
+
+async function api<T>(route: string): Promise<T | null> {
+  const text = await apiText(route);
   // the API answers an unknown address or pool with an empty body
   return text ? (JSON.parse(text) as T) : null;
 }
 
-/** The staking state of an address and what stands out about it, by the rules of the staking check. */
-async function look(stakeAddress: string): Promise<{ state: AlertState; alerts: Alert[] }> {
+/** Unlock slot a transaction names in its metadata, null if it names none. A transaction never changes, so it is asked once. */
+const unlockSlots = new Map<string, number | null>();
+const MAX_REMEMBERED_TRANSACTIONS = 20_000;
+
+/** What the address has locked on the timelock page. */
+async function locksOfAddress(stakeAddress: string): Promise<LockOutput[]> {
+  const rows = ((await api<UtxoRow[]>(`/${stakeAddress}/utxos`)) ?? []).filter((row) => isScriptAddress(row.owningAddress));
+  for (const txHash of new Set(rows.map((row) => row.txHash))) {
+    if (unlockSlots.has(txHash)) continue;
+    if (unlockSlots.size >= MAX_REMEMBERED_TRANSACTIONS) unlockSlots.clear();
+    // a failed lookup ends the look at this address for now: guessing "no lock" would report the lock again later
+    const slots = unlockSlotsFromMetadata(await apiText(`/transaction/${txHash}/metadata`));
+    // one transaction makes one lock; should it ever name several slots, the message comes when all of them are over
+    unlockSlots.set(txHash, slots.length > 0 ? Math.max(...slots) : null);
+  }
+  return locksOf(rows, (txHash) => unlockSlots.get(txHash) ?? undefined);
+}
+
+/** The staking state of an address and what stands out about it, by the rules of the staking check, and its timelocks. */
+async function look(stakeAddress: string): Promise<{ state: AlertState; alerts: Alert[]; locks: LockOutput[] }> {
+  const locks = await locksOfAddress(stakeAddress);
+  const opened = lockAlerts(locks, currentSlot(), NETWORK.slotZeroUnix, SITE_URL);
   const check = await api<StakeCheck>(`/${stakeAddress}/stakeCheck`);
-  if (!check) return { state: { registered: false }, alerts: alertsOf({ registered: false }, []) };
+  if (!check) return { state: { registered: false }, alerts: [...alertsOf({ registered: false }, []), ...opened], locks };
   const results = check.pool ? await api<PoolResults>(`/pool/${check.pool.poolHash}/performance`) : null;
   const findings = check.pool ? poolFindings(check.pool, results, check.currentEpoch) : [];
-  return { state: check, alerts: alertsOf(check, findings) };
+  return { state: check, alerts: [...alertsOf(check, findings), ...opened], locks };
 }
 
 async function handleMessage(chatId: number, text: string) {
@@ -135,12 +178,12 @@ async function handleMessage(chatId: number, text: string) {
       await send(chatId, `I watch at most ${MAX_SUBSCRIPTIONS_PER_CHAT} addresses per chat. /list shows them, /stop 1 ends the first.`);
       return;
     }
-    const { state, alerts } = await look(command.stakeAddress);
+    const { state, alerts, locks } = await look(command.stakeAddress);
     const known = alerts.map((alert) => alert.key);
     if (existing) existing.alerts = known;
     else store.subscriptions.push({ chatId, stakeAddress: command.stakeAddress, alerts: known, since: new Date().toISOString() });
     await saveStore();
-    await send(chatId, welcomeMessage(command.stakeAddress, state, alerts, SITE_URL));
+    await send(chatId, welcomeMessage(command.stakeAddress, state, alerts, SITE_URL, pendingLocksLine(locks, currentSlot(), NETWORK.slotZeroUnix)));
   } else if (command.kind === "list") {
     await send(chatId, listMessage(mine().map((subscription) => subscription.stakeAddress)));
   } else if (command.kind === "stop") {
