@@ -1,5 +1,6 @@
 import { getPolicyRoyalties, getTokenDetailsByFingerprint } from '@cardano/dbsync';
-import { currentSlot, explorerAddressUrl, explorerAssetUrl, IS_MAINNET, slotToDate } from '@cardano/network';
+import { currentSlot, explorerAddressUrl, explorerAssetUrl, IS_MAINNET, slotToUnix } from '@cardano/network';
+import LocalTime from '@components/LocalTime';
 import { assetNameFromHex, formatNumber, formatTokenAmount, policyLockSlot, metadataDecimals, parseMetadata, shortenId, toDisplayMetadata, tokenFiles, tokenImage, toIpfsUrl } from '@cardano/utils';
 import { getCollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
@@ -213,7 +214,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                                     <span className="font-sans">{tokenDetails.maPolicyScript ? 'no time lock, more can be minted or burned' : 'decided by a smart contract'}</span>
                                 ) : (
                                     <>
-                                        {slotToDate(lockSlot)}
+                                        <LocalTime unix={slotToUnix(lockSlot)} time />
                                         <span className={`ml-2 font-sans text-xs ${locked ? 'text-success' : 'text-warning'}`}>{locked ? 'locked' : 'still open'}</span>
                                     </>
                                 )}
@@ -236,7 +237,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                                     )}
                                 </DetailRow>
                             ) : null}
-                            <DetailRow label="Minted">{slotToDate(tokenDetails.slotNo)}</DetailRow>
+                            <DetailRow label="Minted"><LocalTime unix={slotToUnix(tokenDetails.slotNo)} time /></DetailRow>
                             <DetailRow label="Transaction">{tokenDetails.txHash}</DetailRow>
                         </dl>
                     </Section>

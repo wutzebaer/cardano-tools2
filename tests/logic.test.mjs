@@ -1,4 +1,7 @@
 // Tests for the logic that needs neither a wallet nor the chain. Run with `npm test`.
+// the reports group by local time, the expectations below are written for UTC
+process.env.TZ = "UTC";
+
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { alertMessage, alertsOf, listMessage, newAlerts, parseCommand, welcomeMessage } from "../app/alerts/alertLogic.ts";
@@ -456,7 +459,7 @@ test("the rewards report exports one line per payout", () => {
   const entries = rewardEntries([rewardRow(529, 12_345_678)], () => 0.9, EPOCH);
   assert.equal(
     rewardCsv(entries, "EUR"),
-    "Payout date (UTC),Payout epoch,Earned in epoch,Kind,Reward ADA,Price EUR,Value EUR\r\n2024-12-30,531,529,staking reward,12.345678,0.900000,11.11"
+    "Payout date,Payout epoch,Earned in epoch,Kind,Reward ADA,Price EUR,Value EUR\r\n2024-12-30,531,529,staking reward,12.345678,0.900000,11.11"
   );
 });
 

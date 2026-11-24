@@ -1,5 +1,6 @@
 import { TokenListItem } from '@cardano/types';
-import { slotToDate } from '@cardano/network';
+import { slotToUnix } from '@cardano/network';
+import LocalTime from '@components/LocalTime';
 import { assetNameFromHex, shortenId, toIpfsUrl } from '@cardano/utils';
 import { CollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
@@ -45,7 +46,7 @@ function TokenCard({ item, collection, footer, badge }: { item: TokenListItem; c
                     </Link>
                 </h3>
                 <p className="mt-1 text-xs text-base-content/45">
-                    {footer ?? (item.slotNo != null ? slotToDate(item.slotNo) : null)}
+                    {footer ?? (item.slotNo != null ? <LocalTime unix={slotToUnix(item.slotNo)} time /> : null)}
                 </p>
             </div>
         </article>

@@ -51,10 +51,6 @@ export const currentSlot = () => Math.floor(unixToSlot(Date.now() / 1000));
 
 export const currentEpoch = () => unixToEpoch(Date.now() / 1000);
 
-export function slotToDate(slot: number) {
-  return new Date(slotToUnix(slot) * 1000).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
-}
-
 export const explorerTxUrl = (txHash: string) => `${NETWORK.explorer}/tx/${txHash}`;
 
 export const explorerAddressUrl = (address: string) => `${NETWORK.explorer}/address/${address}`;

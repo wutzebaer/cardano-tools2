@@ -1,4 +1,5 @@
-import { slotToDate } from "@cardano/network";
+import { slotToUnix } from "@cardano/network";
+import LocalTime from "@components/LocalTime";
 import { TokenListItem } from "@cardano/types";
 import { assetNameFromHex, shortenId, toIpfsUrl } from "@cardano/utils";
 import { CollectionInfo } from "@cardano/wayup";
@@ -40,7 +41,7 @@ export default function CollectionCard({ policyId, tokens, collection }: { polic
             {name ?? shortenId(policyId, 8)}
           </Link>
         </h3>
-        <p className="mt-1 text-xs text-base-content/45">{newest?.slotNo != null ? slotToDate(newest.slotNo) : null}</p>
+        <p className="mt-1 text-xs text-base-content/45">{newest?.slotNo != null ? <LocalTime unix={slotToUnix(newest.slotNo)} time /> : null}</p>
       </div>
     </article>
   );

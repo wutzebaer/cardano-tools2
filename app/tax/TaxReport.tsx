@@ -15,10 +15,10 @@ function formatFiat(value: number | undefined, currency: Currency) {
   return value == null ? "" : Intl.NumberFormat("en-US", { style: "currency", currency }).format(value);
 }
 
-const formatDay = (isoTime: string) => new Date(isoTime).toLocaleDateString("en-GB", { dateStyle: "medium", timeZone: "UTC" });
+const formatDay = (isoTime: string) => new Date(isoTime).toLocaleDateString(undefined, { dateStyle: "medium" });
 
 /** "March 2026" for `2026-03` */
-const formatMonth = (month: string) => new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+const formatMonth = (month: string) => new Date(Number(month.slice(0, 4)), Number(month.slice(5)) - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
 function download(filename: string, content: string) {
   // the BOM makes spreadsheet apps read the file as UTF-8
@@ -90,7 +90,7 @@ export default function TaxReport() {
   }, [loaded, prices, currency]);
   const totals = useMemo(() => yearTotals(entries), [entries]);
   const shownYear = year ?? totals[0]?.year;
-  const shown = entries.filter((entry) => new Date(entry.payoutTime).getUTCFullYear() === shownYear).reverse();
+  const shown = entries.filter((entry) => new Date(entry.payoutTime).getFullYear() === shownYear).reverse();
   const shownTotal = totals.find((total) => total.year === shownYear);
   const months = useMemo(() => (shownYear == null ? [] : monthTotals(entries, shownYear)), [entries, shownYear]);
 
@@ -218,7 +218,7 @@ export default function TaxReport() {
             <table className="table table-sm">
               <thead>
                 <tr className="text-xs text-base-content/55">
-                  <th>Payout date (UTC)</th>
+                  <th>Payout date</th>
                   <th className="text-right">Payout epoch</th>
                   <th className="text-right">Earned in epoch</th>
                   <th className="text-right">Reward</th>

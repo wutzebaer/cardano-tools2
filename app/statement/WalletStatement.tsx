@@ -31,7 +31,7 @@ function formatFiat(value: number | undefined, currency: Currency) {
 }
 
 function formatTimestamp(timestamp: string) {
-  return new Date(timestamp).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
+  return new Date(timestamp).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
 function download(filename: string, content: string) {
@@ -148,7 +148,7 @@ export default function WalletStatement() {
           <table className="table table-sm">
             <thead>
               <tr className="text-xs text-base-content/55">
-                <th>Time (UTC)</th>
+                <th>Time</th>
                 <th className="text-right">Epoch</th>
                 <th>Transaction</th>
                 <th className="text-right">Change</th>

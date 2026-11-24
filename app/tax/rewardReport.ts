@@ -69,11 +69,11 @@ export function rewardEntries(rows: RewardRow[], priceAt: (unixSeconds: number) 
 /** A reward that is calculated but not paid yet belongs to no year. */
 export const isPaid = (entry: RewardEntry, nowUnix: number) => Date.parse(entry.payoutTime) / 1000 <= nowUnix;
 
-/** Totals per calendar year of the payout (UTC, which is the same day in Central Europe), newest year first. */
+/** Totals per calendar year of the payout, in the time zone the code runs in: the reader's own in the browser. Newest year first. */
 export function yearTotals(entries: RewardEntry[]): YearTotal[] {
   const years = new Map<number, YearTotal>();
   for (const entry of entries) {
-    const year = new Date(entry.payoutTime).getUTCFullYear();
+    const year = new Date(entry.payoutTime).getFullYear();
     const total = years.get(year) ?? { year, rewards: 0, lovelace: 0, fiat: 0, unpriced: 0 };
     total.rewards++;
     total.lovelace += entry.lovelace;
@@ -85,7 +85,7 @@ export function yearTotals(entries: RewardEntry[]): YearTotal[] {
 }
 
 export interface MonthTotal {
-  /** `YYYY-MM` of the payout, UTC */
+  /** `YYYY-MM` of the payout, local time */
   month: string;
   rewards: number;
   lovelace: number;
@@ -101,8 +101,8 @@ export function monthTotals(entries: RewardEntry[], year: number): MonthTotal[] 
   const months = new Map<number, MonthTotal>();
   for (const entry of entries) {
     const date = new Date(entry.payoutTime);
-    if (date.getUTCFullYear() !== year) continue;
-    const index = date.getUTCMonth();
+    if (date.getFullYear() !== year) continue;
+    const index = date.getMonth();
     const total = months.get(index) ?? { month: `${year}-${`${index + 1}`.padStart(2, "0")}`, rewards: 0, lovelace: 0, fiat: 0, unpriced: 0 };
     total.rewards++;
     total.lovelace += entry.lovelace;
@@ -129,10 +129,13 @@ const csvCell =(value: string | number | undefined | null) => {
   return /[",\n;]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 };
 
+/** `YYYY-MM-DD` in local time, the day the report shows as well */
+const localDay = (date: Date) => `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}-${`${date.getDate()}`.padStart(2, "0")}`;
+
 export function rewardCsv(entries: RewardEntry[], currency: string) {
-  const header = ["Payout date (UTC)", "Payout epoch", "Earned in epoch", "Kind", "Reward ADA", `Price ${currency}`, `Value ${currency}`];
+  const header = ["Payout date", "Payout epoch", "Earned in epoch", "Kind", "Reward ADA", `Price ${currency}`, `Value ${currency}`];
   const rows = entries.map((entry) => [
-    entry.payoutTime.slice(0, 10),
+    localDay(new Date(entry.payoutTime)),
     entry.payoutEpoch,
     entry.earnedEpoch,
     entry.operator ? "pool operator reward" : "staking reward",
