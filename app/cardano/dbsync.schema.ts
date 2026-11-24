@@ -412,6 +412,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pool/{poolHash}/epoch/{epoch}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Blocks, stake and delegators of a pool in one epoch and the blocks its stake lets expect. Empty for an unknown pool */
+        get: operations["getPoolEpoch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pool/{poolHash}/check": {
         parameters: {
             query?: never;
@@ -702,6 +719,21 @@ export interface components {
             blocks: components["schemas"]["EpochBlocks"][];
             /** Format: int64 */
             lifetimeBlocks: number;
+        };
+        PoolEpoch: {
+            poolHash: string;
+            /** Format: int32 */
+            epoch: number;
+            /** Format: int32 */
+            blocks: number;
+            /** Format: int64 */
+            stake: number;
+            /** Format: int64 */
+            totalStake: number;
+            /** Format: int32 */
+            delegators: number;
+            /** Format: double */
+            expectedBlocks?: number;
         };
         PolicyRoyalties: {
             rate?: string;
@@ -1348,6 +1380,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PoolPerformance"];
+                };
+            };
+        };
+    };
+    getPoolEpoch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example pool180fejev4xgwe2y53ky0pxvgxr3wcvkweu6feq5mdljfzcsmtg6u */
+                poolHash: string;
+                /** @example 668 */
+                epoch: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolEpoch"];
                 };
             };
         };

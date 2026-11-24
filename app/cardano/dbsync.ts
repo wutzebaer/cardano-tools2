@@ -192,6 +192,10 @@ export async function getPoolPerformance(poolHash: string) {
   return optional(client.GET("/pool/{poolHash}/performance", { params: { path: { poolHash } }, next: { revalidate: 3600 } }));
 }
 
+export async function getPoolEpoch(poolHash: string, epoch: number) {
+  return optional(client.GET("/pool/{poolHash}/epoch/{epoch}", { params: { path: { poolHash, epoch } }, cache: "no-store" }));
+}
+
 export async function getPoolAlternatives() {
   try {
     return await handleRequest(client.GET("/poolAlternatives", { next: { revalidate: 3600 } }));

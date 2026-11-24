@@ -6,7 +6,9 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { poolFindings, PoolFacts, PoolResults } from "../check/checkLogic";
-import { currentSlot, NETWORK } from "../cardano/network";
+import { currentEpoch, currentSlot, NETWORK, slotToUnix, unixToEpoch } from "../cardano/network";
+import { POOL_ID, POOL_TICKER } from "../cardano/pool";
+import { duePoolPosts, initialPoolPostState, planCaption, PoolEpochFacts, PoolPostKind, PoolPostState, resultCaption, scheduledBlocks } from "./poolPosts";
 import { unlockSlotsFromMetadata } from "../cardano/timelockScript";
 import {
   Alert,
@@ -40,6 +42,8 @@ interface Store {
   /** Next Telegram update to ask for */
   offset: number;
   subscriptions: Subscription[];
+  /** Which epochs the group has been told about, missing until the first look */
+  poolPosts?: PoolPostState;
 }
 
 interface StakeCheck extends AlertState {
@@ -53,6 +57,11 @@ const CHECK_EVERY_MS = 60 * 60 * 1000;
 const FIRST_CHECK_AFTER_MS = 2 * 60 * 1000;
 const LOCK_CHECK_EVERY_MS = 60 * 1000;
 const RETRY_LOCK_AFTER_SECONDS = 5 * 60;
+const POOL_NEWS_EVERY_MS = 5 * 60 * 1000;
+/** The one chat the posts about the pool go to. Fixed here and not by a command, so nobody can point the bot at another group. */
+const POOL_CHAT_ID = Number(process.env.TELEGRAM_POOL_CHAT_ID) || undefined;
+const PUSHGATEWAY_URL = (process.env.PUSHGATEWAY_URL || "http://prometheus-pushgateway:9091").replace(/\/$/, "");
+const OWN_URL = `http://127.0.0.1:${process.env.PORT || 3000}`;
 const POLL_SECONDS = 50;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -75,7 +84,7 @@ let saving: Promise<void> = Promise.resolve();
 async function loadStore() {
   try {
     const parsed = JSON.parse(await fs.readFile(STORE_FILE, "utf8")) as Partial<Store>;
-    store = { offset: Number(parsed.offset) || 0, subscriptions: Array.isArray(parsed.subscriptions) ? parsed.subscriptions : [] };
+    store = { offset: Number(parsed.offset) || 0, subscriptions: Array.isArray(parsed.subscriptions) ? parsed.subscriptions : [], poolPosts: parsed.poolPosts };
   } catch (error) {
     // no file yet is the normal first start, anything else must not be overwritten silently
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -127,6 +136,66 @@ async function send(chatId: number, text: string) {
       return;
     }
     throw error;
+  }
+}
+
+/** A picture with a text under it. Bots send files as a form, not as JSON. */
+async function sendPhoto(chatId: number, image: Blob, caption: string) {
+  const form = new FormData();
+  form.append("chat_id", `${chatId}`);
+  form.append("caption", caption);
+  form.append("photo", image, "pool.png");
+  let response: Response;
+  try {
+    response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: "POST", body: form, signal: AbortSignal.timeout(60_000), cache: "no-store" });
+  } catch {
+    throw new TelegramError(0, "sendPhoto: no connection to Telegram");
+  }
+  const payload = (await response.json().catch(() => null)) as { ok?: boolean; description?: string } | null;
+  if (!response.ok || !payload?.ok) throw new TelegramError(response.status, `sendPhoto: ${payload?.description ?? response.status}`);
+}
+
+/** Scheduled blocks per epoch from the leaderlog job. Empty when the Pushgateway cannot be reached. */
+async function scheduledByEpoch(): Promise<Map<number, number>> {
+  try {
+    const response = await fetch(`${PUSHGATEWAY_URL}/metrics`, { cache: "no-store", signal: AbortSignal.timeout(20_000) });
+    return response.ok ? scheduledBlocks(await response.text()) : new Map();
+  } catch {
+    return new Map();
+  }
+}
+
+/** Picture and text of a post about the pool, null when there is nothing to say about the epoch yet. */
+async function poolPost(kind: PoolPostKind, epoch: number, scheduled: Map<number, number>): Promise<{ image: Blob; caption: string } | null> {
+  const count = scheduled.get(epoch);
+  if (kind === "plan" && count == null) return null;
+  const facts = await api<PoolEpochFacts>(`/pool/${POOL_ID}/epoch/${epoch}`);
+  if (!facts) return null;
+  // the page draws the picture, the bot runs in the same process and asks it directly
+  const picture = await fetch(`${OWN_URL}/pool-post/${kind}/${epoch}${count != null ? `?scheduled=${count}` : ""}`, { cache: "no-store", signal: AbortSignal.timeout(60_000) });
+  if (!picture.ok) throw new Error(`picture of the post: ${picture.status}`);
+  const caption = kind === "plan" ? planCaption(POOL_TICKER, facts, count!, SITE_URL) : resultCaption(POOL_TICKER, facts, count, SITE_URL);
+  return { image: await picture.blob(), caption };
+}
+
+/** Posts what is due about the pool to its group. Without a configured group nothing is posted anywhere. */
+async function postPoolNews() {
+  if (!POOL_CHAT_ID) return;
+  const now = currentEpoch();
+  store.poolPosts ??= initialPoolPostState(now);
+  const tip = await api<number>("/tip");
+  if (tip == null) return;
+  const scheduled = await scheduledByEpoch();
+  for (const due of duePoolPosts(store.poolPosts, now, unixToEpoch(slotToUnix(tip)), scheduled)) {
+    if (due.post) {
+      const post = await poolPost(due.kind, due.epoch, scheduled);
+      if (!post) continue;
+      await sendPhoto(POOL_CHAT_ID, post.image, post.caption);
+      log(`posted the ${due.kind} of epoch ${due.epoch}`);
+    }
+    // ticked off after it is out: a post that fails is tried again, the group rather sees it late than never
+    store.poolPosts[due.kind] = due.epoch;
+    await saveStore();
   }
 }
 
@@ -208,6 +277,16 @@ async function handleMessage(chatId: number, text: string) {
     await send(chatId, stopped.length === 0 ? "There was nothing to stop. /list shows what I watch." : `Stopped watching ${stopped.length === 1 ? stopped[0].stakeAddress : `${stopped.length} addresses`}. Nothing about ${stopped.length === 1 ? "it" : "them"} is stored any more.`);
   } else if (command.kind === "help") {
     await send(chatId, HELP_MESSAGE);
+  } else if (command.kind === "chatid") {
+    await send(chatId, `This chat has the id ${chatId}.`);
+  } else if (command.kind === "preview") {
+    const scheduled = await scheduledByEpoch();
+    const now = currentEpoch();
+    // the newest plan there is, and the epoch that ended last
+    const planned = scheduled.has(now + 1) ? now + 1 : now;
+    const posts = [await poolPost("plan", planned, scheduled), await poolPost("result", now - 1, scheduled)].filter((post) => post != null);
+    if (posts.length === 0) await send(chatId, "There is nothing to show right now, the numbers of the pool could not be read.");
+    for (const post of posts) await sendPhoto(chatId, post.image, post.caption);
   } else {
     await send(chatId, "I did not understand that. Send me a stake address (it starts with stake1), or /list, /stop or /help.");
   }
@@ -293,10 +372,15 @@ async function checkAll(everything: boolean) {
 async function checkForever() {
   await sleep(FIRST_CHECK_AFTER_MS);
   let lastFullCheck = 0;
+  let lastPoolNews = 0;
   for (;;) {
     const everything = Date.now() - lastFullCheck >= CHECK_EVERY_MS;
     if (everything) lastFullCheck = Date.now();
     await checkAll(everything).catch((error) => log(`check failed: ${error instanceof Error ? error.message : error}`));
+    if (Date.now() - lastPoolNews >= POOL_NEWS_EVERY_MS) {
+      lastPoolNews = Date.now();
+      await postPoolNews().catch((error) => log(`pool post failed: ${error instanceof Error ? error.message : error}`));
+    }
     await sleep(LOCK_CHECK_EVERY_MS);
   }
 }

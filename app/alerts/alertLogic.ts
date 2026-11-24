@@ -17,6 +17,10 @@ export type Command =
   /** Without an index everything is stopped */
   | { kind: "stop"; index?: number }
   | { kind: "help" }
+  /** Names the chat, which is how the group for the pool's posts gets configured */
+  | { kind: "chatid" }
+  /** Sends the posts about the pool to the chat that asks, as they would look now */
+  | { kind: "preview" }
   | { kind: "unknown" };
 
 /** A message to the bot: a command, or simply a stake address to watch. */
@@ -34,6 +38,8 @@ export function parseCommand(text: string): Command {
     return /^\d+$/.test(argument) && Number(argument) >= 1 ? { kind: "stop", index: Number(argument) } : { kind: "unknown" };
   }
   if (command === "/help") return { kind: "help" };
+  if (command === "/chatid") return { kind: "chatid" };
+  if (command === "/preview") return { kind: "preview" };
   if (isStakeAddress(word)) return { kind: "subscribe", stakeAddress: word };
   return { kind: "unknown" };
 }

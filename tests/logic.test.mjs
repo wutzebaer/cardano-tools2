@@ -4,6 +4,7 @@ process.env.TZ = "UTC";
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { duePoolPosts, formatStake, initialPoolPostState, luck, planCaption, resultCaption, scheduledBlocks } from "../app/alerts/poolPosts.ts";
 import { alertMessage, alertsOf, listMessage, lockAlerts, locksOf, newAlerts, parseCommand, pendingLocksLine, watchSummary, welcomeMessage } from "../app/alerts/alertLogic.ts";
 import { groupFeed } from "../app/browse/groupTokens.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
@@ -461,6 +462,48 @@ test("the rewards report exports one line per payout", () => {
     rewardCsv(entries, "EUR"),
     "Payout date,Payout epoch,Earned in epoch,Kind,Reward ADA,Price EUR,Value EUR\r\n2024-12-30,531,529,staking reward,12.345678,0.900000,11.11"
   );
+});
+
+// ---------------------------------------------------------------------------
+// Posts about the pool
+// ---------------------------------------------------------------------------
+
+test("the bot reads the scheduled blocks per epoch from the leaderlog metrics", () => {
+  const metrics = [
+    "# TYPE cardano_leaderlog_scheduled_blocks untyped",
+    'cardano_leaderlog_scheduled_blocks{epoch="669",instance="",job="leaderlog"} 1',
+    'cardano_leaderlog_scheduled_blocks{instance="",job="leaderlog",epoch="670"} 0',
+    'cardano_leaderlog_scheduled_blocks{epoch="671",instance="",job="leaderlog"} NaN',
+    'other_metric{epoch="672"} 5',
+  ].join("\n");
+  assert.deepEqual([...scheduledBlocks(metrics)], [[669, 1], [670, 0]]);
+});
+
+test("a plan is posted once the leaderlog is there, a result once the chain has left the epoch", () => {
+  const start = initialPoolPostState(669);
+  assert.deepEqual(start, { plan: 669, result: 668 });
+  // nothing about the past, and no plan before the leaderlog
+  assert.deepEqual(duePoolPosts(start, 669, 669, new Map([[669, 1]])), []);
+  assert.deepEqual(duePoolPosts(start, 669, 669, new Map([[670, 2]])), [{ kind: "plan", epoch: 670, post: true }]);
+  // an epoch without a block is ticked off without a post
+  assert.deepEqual(duePoolPosts(start, 669, 669, new Map([[670, 0]])), [{ kind: "plan", epoch: 670, post: false }]);
+  assert.deepEqual(duePoolPosts({ plan: 670, result: 668 }, 669, 669, new Map([[670, 2]])), []);
+  // the clock is in 670, the chain data follows a moment later
+  assert.deepEqual(duePoolPosts({ plan: 670, result: 668 }, 670, 669, new Map()), []);
+  assert.deepEqual(duePoolPosts({ plan: 670, result: 668 }, 670, 670, new Map()), [{ kind: "result", epoch: 669, post: true }]);
+});
+
+test("the posts say what was scheduled and made, next to what the stake lets expect", () => {
+  const facts = { epoch: 670, blocks: 2, stake: 737_207_901_965, delegators: 209, expectedBlocks: 0.7399 };
+  assert.equal(luck(2, 0.7399), 270);
+  assert.equal(luck(2, null), undefined);
+  assert.equal(formatStake(facts.stake), "737,208 ₳");
+  assert.equal(planCaption("TOOLS", facts, 2, "https://x"), "[TOOLS] is scheduled for 2 blocks in epoch 670.\nIts stake lets expect 0.74, so the epoch is a lucky one with 270 %.\n\nhttps://x/pool");
+  assert.equal(
+    resultCaption("TOOLS", facts, 2, "https://x"),
+    "[TOOLS] made 2 of 2 scheduled blocks in epoch 670.\nIts stake let expect 0.74, that is 270 % of the average.\nThe rewards of the epoch reach the delegators in two epochs.\n\nhttps://x/pool"
+  );
+  assert.equal(resultCaption("TOOLS", { ...facts, blocks: 0, expectedBlocks: null }, undefined, "https://x"), "[TOOLS] made 0 blocks in epoch 670.\n\nhttps://x/pool");
 });
 
 // ---------------------------------------------------------------------------
