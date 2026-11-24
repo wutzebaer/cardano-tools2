@@ -62,10 +62,23 @@ function WalletOverview() {
   // Once on load: reconnect the wallet chosen on an earlier visit.
   // Must not depend on the context and must not set state without a wallet, both would re-render in an endless loop.
   const { setState } = context;
+  // An extension that was asleep adds itself to the page a moment after it has loaded, so a remembered wallet
+  // that is not there yet is looked for again for a few seconds.
   useEffect(() => {
-    getSelectedWallet(SelectionMode.IfSelected).then((fetchedWalletInfo) => {
-      if (fetchedWalletInfo) setState({ walletInfo: fetchedWalletInfo });
-    });
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let triesLeft = 25;
+    const attempt = () =>
+      getSelectedWallet(SelectionMode.IfSelected).then((fetchedWalletInfo) => {
+        if (cancelled) return;
+        if (fetchedWalletInfo) setState({ walletInfo: fetchedWalletInfo });
+        else if (localStorage.getItem("walletKey") && triesLeft-- > 0) timer = setTimeout(attempt, 200);
+      });
+    attempt();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [setState]);
 
   const reconnect = async () => {
