@@ -163,12 +163,12 @@ interface Update {
 
 /** Long polling: one request waits for up to POLL_SECONDS, so there is exactly one open connection to Telegram. */
 async function pollForever() {
-  let backoffMs = 5_000;
+  let backoffMs = 30_000;
   let connected = false;
   for (;;) {
     try {
       const updates = await telegram<Update[]>("getUpdates", { offset: store.offset, timeout: POLL_SECONDS, allowed_updates: ["message"] }, (POLL_SECONDS + 15) * 1000);
-      backoffMs = 5_000;
+      backoffMs = 30_000;
       if (!connected) {
         connected = true;
         log("connected to Telegram");
@@ -183,11 +183,14 @@ async function pollForever() {
       if (updates.length > 0) await saveStore();
     } catch (error) {
       // 409 means a second process is polling, which happens for a moment during a rollout
-      const wait = error instanceof TelegramError && error.retryAfterSeconds ? (error.retryAfterSeconds + 1) * 1000 : backoffMs;
+      // never sooner than Telegram asks for, and slower with every failure in a row: knocking on a throttled bot
+      // at the earliest allowed moment again and again only keeps the throttle up
+      const askedFor = error instanceof TelegramError && error.retryAfterSeconds ? (error.retryAfterSeconds + 1) * 1000 : 0;
+      const wait = Math.max(askedFor, backoffMs);
       connected = false;
       log(`${error instanceof Error ? error.message : error}, next try in ${Math.round(wait / 1000)} s`);
       await sleep(wait);
-      backoffMs = Math.min(backoffMs * 2, 5 * 60_000);
+      backoffMs = Math.min(backoffMs * 2, 10 * 60_000);
     }
   }
 }
