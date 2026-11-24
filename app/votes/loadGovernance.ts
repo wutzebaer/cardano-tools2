@@ -15,6 +15,8 @@ export interface GovernanceData {
     /** What was asked for, a `$handle` keeps its name. Null for the general page */
     label: string | null;
     stakeAddress: string | null;
+    /** True when a DRep was asked for instead of an address: the page shows how that DRep voted */
+    drepOnly: boolean;
     vote: DrepKind;
     drepId: string | null;
     drepName: string | null;
@@ -59,15 +61,19 @@ async function anchorTitle(url: string) {
 
 /** The actions with the votes of an address, or of this site's pool without one. */
 export async function loadGovernance(input?: string): Promise<GovernanceData | { error: string }> {
-  let voter: GovernanceData["voter"] = { label: null, stakeAddress: null, vote: "none", drepId: null, drepName: null, poolHash: POOL_ID, poolTicker: null };
+  let voter: GovernanceData["voter"] = { label: null, stakeAddress: null, drepOnly: false, vote: "none", drepId: null, drepName: null, poolHash: POOL_ID, poolTicker: null };
 
-  if (input) {
+  if (input && /^drep1[0-9a-z]{40,}$/.test(input.trim())) {
+    const drepId = input.trim();
+    voter = { label: drepId, stakeAddress: null, drepOnly: true, vote: "drep", drepId, drepName: null, poolHash: null, poolTicker: null };
+  } else if (input) {
     const { stakeAddress, error } = await resolveStakeAddress(input);
     if (!stakeAddress) return { error: error ?? "Address not found." };
     const check = await getStakeCheck(stakeAddress);
     voter = {
       label: input.trim().startsWith("$") ? input.trim().toLowerCase() : stakeAddress,
       stakeAddress,
+      drepOnly: false,
       vote: drepKind(check?.registered ? check.drepId : null),
       drepId: check?.registered ? (check.drepId ?? null) : null,
       drepName: null,

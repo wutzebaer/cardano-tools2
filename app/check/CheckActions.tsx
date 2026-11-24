@@ -8,9 +8,9 @@ import { formatAda } from "@cardano/utils";
 import { ExternalLink } from "@components/ui";
 import { watchDelegation } from "@components/useStakeInfo";
 import { ConnectedWallet, useWallet } from "@components/useWallet";
-import { CheckCircleIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon, HandThumbDownIcon, NoSymbolIcon, UserGroupIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
-import { ReactNode, useEffect, useState } from "react";
+import { ComponentType, ReactNode, SVGProps, useEffect, useState } from "react";
 import DrepPicker from "./DrepPicker";
 
 /** Follows a submitted transaction and refreshes the check once it is on chain. */
@@ -89,6 +89,19 @@ function OwnerAction({
   return <>{children(run, busy)}</>;
 }
 
+/** Icon, name and one line of explanation of one of the choices about the voting rights. */
+function OptionTitle({ icon: Icon, title, children }: { icon: ComponentType<SVGProps<SVGSVGElement>>; title: string; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-start gap-3">
+      <Icon className="mt-0.5 size-5 shrink-0 text-base-content/55" />
+      <div className="min-w-0">
+        <p className="text-sm font-medium">{title}</p>
+        <p className="mt-0.5 text-sm text-base-content/65">{children}</p>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Delegates the vote of the address: the two automatic choices as buttons, a DRep from the list or by id.
  * `suggested` is preselected in the list: the DRep the operator of the address's pool chose for themselves.
@@ -115,18 +128,13 @@ export function VoteDelegation({
         return (
           <ul className="flex flex-col gap-3">
             {/* the representative comes first and stands out: taking part is what the vote is for */}
-            <li className="flex flex-col gap-2 rounded-field border border-line-strong bg-base-300/40 p-4">
-              <div>
-                <p className="text-sm font-medium">A representative votes for me</p>
-                <p className="mt-0.5 text-sm text-base-content/65">
-                  A DRep votes with the weight of your ADA, the ADA itself stays with you. Pick one from the list, each links to a page about it, or browse who they are and
-                  what they stand for in the{" "}
-                  <a href="https://gov.tools/drep_directory" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                    DRep directory on gov.tools
-                  </a>
-                  .
-                </p>
-              </div>
+            <li className="flex flex-col gap-3 rounded-field border border-line-strong bg-base-300/40 p-4">
+              <OptionTitle icon={UserGroupIcon} title="A representative votes for me">
+                With the weight of your ADA, the ADA itself stays with you.{" "}
+                <a href="https://gov.tools/drep_directory" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  Browse all on gov.tools
+                </a>
+              </OptionTitle>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
                 <DrepPicker value={drepId} onChange={setDrepId} knownName={drepId === currentDrep ? currentName : drepId === suggested?.drepId ? suggested.name : null} />
                 <button className="btn btn-brand btn-sm shrink-0 sm:mt-1" disabled={busy || !drepId.trim().startsWith("drep1") || drepId === currentDrep} onClick={() => send(drepId)}>
@@ -135,27 +143,22 @@ export function VoteDelegation({
               </div>
               {isSuggestion ? (
                 <p className="text-xs text-base-content/55">
-                  Preselected: the representative the operator of your pool{suggested?.poolTicker ? ` [${suggested.poolTicker}]` : ""} chose for their own ADA. A starting point, not a
-                  recommendation, pick another one if you prefer.
+                  Preselected: the DRep the operator of your pool{suggested?.poolTicker ? ` [${suggested.poolTicker}]` : ""} chose. A starting point, not a recommendation.
                 </p>
               ) : null}
             </li>
             <li className="flex flex-col gap-2 rounded-field border border-line bg-base-300/40 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-medium">I do not want to take part</p>
-                <p className="mt-0.5 text-sm text-base-content/65">Your ADA is not counted in any vote. For those who only want to stake and leave the decisions to others. Called &quot;abstain&quot; on Cardano.</p>
-              </div>
+              <OptionTitle icon={NoSymbolIcon} title="I do not want to take part">
+                Your ADA is not counted in any vote. Called &quot;abstain&quot; on Cardano.
+              </OptionTitle>
               <button className="btn btn-sm shrink-0 border-line bg-base-300" disabled={busy || current === "drep_always_abstain"} onClick={() => send("abstain")}>
                 {current === "drep_always_abstain" ? "Chosen" : "Choose this"}
               </button>
             </li>
             <li className="flex flex-col gap-2 rounded-field border border-line bg-base-300/40 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-medium">I have no confidence in the current committee</p>
-                <p className="mt-0.5 text-sm text-base-content/65">
-                  Your ADA always counts as a vote to replace the committee that guards Cardano&apos;s constitution. A political statement, only for those who mean it.
-                </p>
-              </div>
+              <OptionTitle icon={HandThumbDownIcon} title="I have no confidence in the current committee">
+                Always counts as a vote to replace the committee that guards the constitution. A political statement.
+              </OptionTitle>
               <button className="btn btn-sm shrink-0 border-line bg-base-300" disabled={busy || current === "drep_always_no_confidence"} onClick={() => send("no_confidence")}>
                 {current === "drep_always_no_confidence" ? "Chosen" : "Choose this"}
               </button>

@@ -4,33 +4,45 @@ import { getDreps } from "@cardano/dbsync";
 import { shortenId } from "@cardano/utils";
 import { ExternalLink, inputClass } from "@components/ui";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 type Drep = Awaited<ReturnType<typeof getDreps>>[number];
 
-const POWER = Intl.NumberFormat("en-US", {
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
+const POWER = Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
 const power = (drep: Drep) => `${POWER.format(drep.votingPower / 1_000_000)} ₳`;
 
 /** Where a DRep is described: its statement, its votes and who delegates to it. */
-export const drepUrl = (drepId: string) =>
-  `https://gov.tools/drep_directory/${drepId}`;
+export const drepUrl = (drepId: string) => `https://gov.tools/drep_directory/${drepId}`;
+
+const votesCast = (drep: Drep) => drep.votesYes + drep.votesNo + drep.votesAbstain;
+
+/** How a DRep voted on the recent proposals, as one bar: yes, no, abstain, and the rest it did not vote on. */
+function VoteBar({ drep, className = "w-20" }: { drep: Drep; className?: string }) {
+  const total = Math.max(drep.recentActions, votesCast(drep), 1);
+  const share = (count: number) => `${(count / total) * 100}%`;
+  return (
+    <span
+      className={`flex h-1.5 shrink-0 overflow-hidden rounded-full bg-base-content/10 ${className}`}
+      title={`Voted on ${votesCast(drep)} of the last ${drep.recentActions} proposals: ${drep.votesYes} yes, ${drep.votesNo} no, ${drep.votesAbstain} abstain`}
+    >
+      <span className="bg-success" style={{ width: share(drep.votesYes) }} />
+      <span className="bg-error" style={{ width: share(drep.votesNo) }} />
+      <span className="bg-base-content/40" style={{ width: share(drep.votesAbstain) }} />
+    </span>
+  );
+}
+
+function Dot({ className }: { className: string }) {
+  return <span className={`mr-1 inline-block size-2 rounded-full ${className}`} />;
+}
 
 /**
- * Picks a DRep: from the list of the active ones, which narrows down while typing a name, or by pasting an id.
+ * Picks a DRep: from the list of the active ones, which narrows down while typing, or by pasting an id.
+ * The chosen one is shown below with its goals and how it voted lately.
  */
-export default function DrepPicker({
-  value,
-  onChange,
-  knownName,
-}: {
-  value: string;
-  onChange: (drepId: string) => void;
-  knownName?: string | null;
-}) {
+export default function DrepPicker({ value, onChange, knownName }: { value: string; onChange: (drepId: string) => void; knownName?: string | null }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [dreps, setDreps] = useState<Drep[] | null>(null);
@@ -61,11 +73,7 @@ export default function DrepPicker({
   const name = selected?.name ?? (value ? knownName : null);
   const needle = query.trim().toLowerCase();
   const matches = (dreps ?? []).filter(
-    (drep) =>
-      !needle ||
-      drep.name?.toLowerCase().includes(needle) ||
-      drep.objectives?.toLowerCase().includes(needle) ||
-      drep.drepId.includes(needle),
+    (drep) => !needle || drep.name?.toLowerCase().includes(needle) || drep.objectives?.toLowerCase().includes(needle) || drep.drepId.includes(needle)
   );
 
   const choose = (drepId: string) => {
@@ -75,34 +83,11 @@ export default function DrepPicker({
   };
 
   return (
-    <div ref={root} className="flex min-w-0 grow flex-col gap-2">
+    <div ref={root} className="flex min-w-0 grow flex-col gap-3">
       {/* the list opens right below the field, above what follows */}
       <div className="relative">
-        <button
-          type="button"
-          className="input flex w-full items-center justify-between gap-2 border-line bg-base-300 text-left"
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          onClick={() => setOpen(!open)}
-        >
-          <span className={`truncate ${value ? "" : "text-base-content/45"}`}>
-            {value ? (
-              <>
-                {name ?? "DRep without a name"}{" "}
-                <span className="font-mono text-[11px] text-base-content/45">
-                  {shortenId(value, 8)}
-                </span>
-                {selected ? (
-                  <span className="text-base-content/55">
-                    {" "}
-                    · {power(selected)} delegated
-                  </span>
-                ) : null}
-              </>
-            ) : (
-              "Pick a representative…"
-            )}
-          </span>
+        <button type="button" className="input flex w-full items-center justify-between gap-2 border-line bg-base-300 text-left" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}>
+          <span className={`truncate ${value ? "font-medium" : "text-base-content/45"}`}>{value ? (name ?? `DRep ${shortenId(value, 8)}`) : "Pick a representative…"}</span>
           <ChevronDownIcon className="size-4 shrink-0 text-base-content/55" />
         </button>
 
@@ -120,8 +105,7 @@ export default function DrepPicker({
                   e.preventDefault();
                   // an id that is not in the list can be chosen as well, e.g. a DRep that registered today
                   if (matches.length > 0) choose(matches[0].drepId);
-                  else if (query.trim().startsWith("drep1"))
-                    choose(query.trim());
+                  else if (query.trim().startsWith("drep1")) choose(query.trim());
                 }
               }}
             />
@@ -130,73 +114,92 @@ export default function DrepPicker({
                 <span className="loading loading-spinner loading-sm text-primary" />
               </div>
             ) : (
-              <ul role="listbox" className="max-h-80 overflow-y-auto">
+              <ul role="listbox" className="max-h-80 divide-y divide-line overflow-y-auto">
                 {matches.map((drep) => (
-                  <li
-                    key={drep.drepId}
-                    role="option"
-                    aria-selected={drep.drepId === value}
-                  >
+                  <li key={drep.drepId} role="option" aria-selected={drep.drepId === value}>
                     <button
                       type="button"
-                      className={`flex w-full flex-col gap-0.5 rounded-field px-2 py-1.5 text-left text-sm hover:bg-base-300 ${drep.drepId === value ? "bg-base-300" : ""}`}
+                      className={`flex w-full flex-col gap-0.5 rounded-field px-2 py-2 text-left text-sm hover:bg-base-300 ${drep.drepId === value ? "bg-base-300" : ""}`}
                       onClick={() => choose(drep.drepId)}
                     >
-                      <span className="flex w-full items-baseline justify-between gap-3">
-                        <span className="min-w-0 truncate">
-                          {drep.name ?? (
-                            <span className="text-base-content/55">
-                              no name
-                            </span>
-                          )}{" "}
-                          <span className="font-mono text-[11px] text-base-content/45">
-                            {shortenId(drep.drepId, 6)}
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-xs tabular-nums text-base-content/55">
-                          {power(drep)}
-                        </span>
+                      <span className="flex w-full items-center gap-3">
+                        <span className="min-w-0 grow truncate font-medium">{drep.name ?? <span className="font-normal text-base-content/55">no name, {shortenId(drep.drepId, 6)}</span>}</span>
+                        <VoteBar drep={drep} className="w-16" />
+                        <span className="w-16 shrink-0 text-right text-xs tabular-nums text-base-content/55">{power(drep)}</span>
                       </span>
-                      {drep.objectives ? (
-                        <span className="line-clamp-2 text-xs text-base-content/55">
-                          {drep.objectives}
-                        </span>
-                      ) : null}
+                      {drep.objectives ? <span className="truncate text-xs text-base-content/55">{drep.objectives}</span> : null}
                     </button>
                   </li>
                 ))}
                 {matches.length === 0 ? (
-                  <li className="px-2 py-1.5 text-sm text-base-content/55">
-                    {query.trim().startsWith("drep1")
-                      ? "Not among the active DReps. Press Enter to use this id anyway."
-                      : "No active DRep matches."}
-                  </li>
+                  <li className="px-2 py-1.5 text-sm text-base-content/55">{query.trim().startsWith("drep1") ? "Not among the active DReps. Press Enter to use this id anyway." : "No active DRep matches."}</li>
                 ) : null}
               </ul>
             )}
-            <p className="mt-2 px-2 text-[11px] text-base-content/45">
-              The active DReps, the one with the most ADA delegated first. Size
-              says nothing about how a DRep votes. The line below a name is what
-              the DRep says about its own goals.
+            <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-2 text-[11px] text-base-content/45">
+              <span>Bar: votes on the last {dreps?.[0]?.recentActions ?? ""} proposals</span>
+              <span>
+                <Dot className="bg-success" />
+                yes
+              </span>
+              <span>
+                <Dot className="bg-error" />
+                no
+              </span>
+              <span>
+                <Dot className="bg-base-content/40" />
+                abstain
+              </span>
+              <span className="ml-auto">₳ delegated, largest first</span>
             </p>
           </div>
         ) : null}
       </div>
 
-      {value ? (
-        <div className="flex flex-col gap-2">
-          {selected?.objectives ? (
-            <p className="text-sm text-base-content/65">
-              <span className="text-base-content/45">In its own words: </span>
+      {selected ? (
+        <div className="flex flex-col gap-3 rounded-field border border-line bg-base-300/40 p-3">
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-[auto_1fr]">
+            <div>
+              <dt className="text-[11px] uppercase tracking-wide text-base-content/45">Delegated to it</dt>
+              <dd className="text-sm font-medium tabular-nums">{power(selected)}</dd>
+            </div>
+            <div>
+              <dt className="text-[11px] uppercase tracking-wide text-base-content/45">
+                Voted on {votesCast(selected)} of the last {selected.recentActions} proposals
+              </dt>
+              <dd className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-base-content/65">
+                <VoteBar drep={selected} className="w-28" />
+                <span>
+                  <Dot className="bg-success" />
+                  {selected.votesYes} yes
+                </span>
+                <span>
+                  <Dot className="bg-error" />
+                  {selected.votesNo} no
+                </span>
+                <span>
+                  <Dot className="bg-base-content/40" />
+                  {selected.votesAbstain} abstain
+                </span>
+              </dd>
+            </div>
+          </dl>
+          {selected.objectives ? (
+            <p className="line-clamp-2 text-xs text-base-content/65" title={selected.objectives}>
+              <span className="text-base-content/45">Its goals: </span>
               {selected.objectives}
-              {selected.objectives.length >= 240 ? "…" : ""}
             </p>
           ) : null}
-          <div>
-            <ExternalLink href={drepUrl(value)}>
-              Read about this DRep on gov.tools
-            </ExternalLink>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/votes/${value}`} target="_blank" className="btn btn-xs border-line bg-base-300">
+              See each vote
+            </Link>
+            <ExternalLink href={drepUrl(value)}>gov.tools</ExternalLink>
           </div>
+        </div>
+      ) : value ? (
+        <div>
+          <ExternalLink href={drepUrl(value)}>gov.tools</ExternalLink>
         </div>
       ) : null}
     </div>

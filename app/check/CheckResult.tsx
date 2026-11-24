@@ -3,9 +3,21 @@ import { POOL_ID, POOL_TICKER, TELEGRAM_BOT } from "@cardano/pool";
 import { formatAda, formatNumber, shortenId } from "@cardano/utils";
 import CopyButton from "@components/CopyButton";
 import { ExternalLink } from "@components/ui";
-import { CheckCircleIcon, ExclamationTriangleIcon, InformationCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowRightStartOnRectangleIcon,
+  BellAlertIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  GiftIcon,
+  InformationCircleIcon,
+  ReceiptPercentIcon,
+  ScaleIcon,
+  ServerStackIcon,
+  Squares2X2Icon,
+  XCircleIcon,
+} from "@heroicons/react/24/outline";
 import Link from "next/link";
-import { ReactNode } from "react";
+import { ComponentType, ReactNode, SVGProps } from "react";
 import { DelegateToPool, StopStaking, VoteDelegation, WithdrawRewards } from "./CheckActions";
 import { drepKind, Finding, Level, marginCostPerYear, saturation } from "./checkLogic";
 import { CheckData, PoolCheck, PoolPerformance } from "./loadCheck";
@@ -21,10 +33,15 @@ const percent = (share: number) => `${formatNumber(share * 100)} %`;
 
 const poolTitle = (pool: PoolCheck) => (pool.ticker ? `[${pool.ticker}] ${pool.name ?? ""}`.trim() : shortenId(pool.poolHash, 10));
 
-function Card({ title, children }: { title: string; children: ReactNode }) {
+function Card({ title, icon: Icon, children }: { title: string; icon: ComponentType<SVGProps<SVGSVGElement>>; children: ReactNode }) {
   return (
     <section className="surface flex flex-col gap-4 p-5">
-      <h2 className="section-label">{title}</h2>
+      <div className="flex items-center gap-3">
+        <span className="icon-brand flex size-9 shrink-0 items-center justify-center rounded-field">
+          <Icon className="size-5" />
+        </span>
+        <h2 className="section-label">{title}</h2>
+      </div>
       {children}
     </section>
   );
@@ -121,7 +138,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
         <CopyButton text={`https://cardano-tools.io${sharePath}`}>Copy link to this check</CopyButton>
       </div>
 
-      <Card title="Stake pool">
+      <Card title="Stake pool" icon={ServerStackIcon}>
         {!check.registered ? (
           <ul className="flex flex-col gap-2">
             <FindingRow
@@ -153,7 +170,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
       </Card>
 
       {pool && check.registered ? (
-        <Card title="What the pool's margin costs you">
+        <Card title="What the pool's margin costs you" icon={ReceiptPercentIcon}>
           <p className="text-lg font-semibold tracking-tight">{pool.margin > 0 ? `About ${formatAda(marginCost)} per year` : "Nothing, the pool takes no margin"}</p>
           <p className="text-xs text-base-content/55">
             {pool.margin > 0
@@ -166,10 +183,10 @@ export default function CheckResult({ data }: { data: CheckData }) {
       ) : null}
 
       {check.registered ? (
-        <Card title="Your voting rights">
+        <Card title="Your voting rights" icon={ScaleIcon}>
           <p className="text-sm text-base-content/65">
-            Whoever holds ADA has a say in how Cardano develops: its rules and its shared budget are decided by vote. You do not have to vote yourself. You either hand your
-            vote to a representative, called a DRep, or you say that you do not take part.
+            Cardano&apos;s rules and its shared budget are decided by vote, and your ADA counts. You do not vote yourself: you hand your vote to a representative, called a
+            DRep, or you opt out.
           </p>
           <ul className="flex flex-col gap-2">
             {vote === "none" ? (
@@ -177,7 +194,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
                 finding={{
                   level: "warning",
                   title: "You have not made this choice yet",
-                  text: "Cardano asks for it before staking rewards can be taken out of the reward account. Until then they keep adding up but cannot be withdrawn. Choosing takes one transaction with a fee of about 0.2 ₳, the ADA stays in the wallet, and the choice can be changed at any time.",
+                  text: "Rewards can only be withdrawn once it is made. One transaction, about 0.2 ₳ fee, changeable at any time.",
                 }}
               />
             ) : (
@@ -210,7 +227,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
       ) : null}
 
       {check.registered ? (
-        <Card title="Rewards">
+        <Card title="Rewards" icon={GiftIcon}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-brand text-2xl font-semibold tracking-tight">{formatAda(check.rewardsAvailable)}</p>
@@ -225,7 +242,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
       ) : null}
 
       {alternatives.length > 0 ? (
-        <Card title={pool ? "Pools to consider instead" : "Pools to consider"}>
+        <Card title={pool ? "Pools to consider instead" : "Pools to consider"} icon={Squares2X2Icon}>
           <p className="text-sm text-base-content/65">
             A few of the pools that make blocks, are not retiring, take at most 1 % margin with the minimum fixed fee and hold 300 thousand to 30 million ₳. The selection is random
             per address, apart from [TOOLS], the pool that runs and funds this site. Switching is one transaction, the ADA never leaves the wallet.
@@ -251,7 +268,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
       ) : null}
 
       {IS_MAINNET ? (
-        <Card title="Get a message when something changes">
+        <Card title="Get a message when something changes" icon={BellAlertIcon}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-base-content/65">
               The Telegram bot of this site looks at this address once an hour and writes when the pool announces its retirement, gets oversaturated, raises its fees or stops
@@ -265,7 +282,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
       ) : null}
 
       {check.registered ? (
-        <Card title="Stop staking">
+        <Card title="Stop staking" icon={ArrowRightStartOnRectangleIcon}>
           <p className="text-sm text-base-content/65">
             For closing a wallet: deregistering the stake key ends the delegation to the pool and the choice about the voting rights, pays out the rewards and returns the 2 ₳ deposit that was
             taken when the key was registered. Many wallets have no button for this. Switching pools does not need it.

@@ -78,9 +78,9 @@ function Action({ action, data }: { action: GovAction; data: GovernanceData }) {
       </dl>
 
       <div className="flex flex-col gap-1 rounded-field border border-line bg-base-300/40 px-4 py-3">
-        {voter.stakeAddress ? (
+        {voter.stakeAddress || voter.drepOnly ? (
           <VoteLine
-            who={voter.vote === "drep" ? `Your representative${voter.drepName ? ` ${voter.drepName}` : ""}` : "Your vote"}
+            who={voter.drepOnly ? (voter.drepName ?? "This DRep") : voter.vote === "drep" ? `Your representative${voter.drepName ? ` ${voter.drepName}` : ""}` : "Your vote"}
             vote={voter.vote === "drep" ? action.drepVote : null}
             text={voteOfAddress(voter.vote, action.drepVote, status.state)}
           />
@@ -116,6 +116,16 @@ export default function GovernanceView({ data }: { data: GovernanceData }) {
 
   return (
     <div className="flex flex-col gap-8">
+      {voter.drepOnly && voter.drepId ? (
+        <div className="surface flex flex-col gap-2 p-5 text-sm">
+          <p className="text-brand truncate text-xl font-semibold tracking-tight">{voter.drepName ?? shortenId(voter.drepId, 14)}</p>
+          <p className="text-base-content/65">How this representative (DRep) voted on the open proposals and on those that ended lately.</p>
+          <div>
+            <ExternalLink href={`https://gov.tools/drep_directory/${voter.drepId}`}>gov.tools</ExternalLink>
+          </div>
+        </div>
+      ) : null}
+
       {voter.stakeAddress ? (
         <div className="surface flex flex-col gap-2 p-5 text-sm">
           <p className="text-brand truncate text-xl font-semibold tracking-tight">{voter.label?.startsWith("$") ? voter.label : shortenId(voter.stakeAddress, 14)}</p>

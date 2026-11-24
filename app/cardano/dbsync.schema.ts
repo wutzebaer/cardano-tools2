@@ -783,6 +783,14 @@ export interface components {
             objectives?: string;
             /** Format: int64 */
             votingPower: number;
+            /** Format: int32 */
+            votesYes: number;
+            /** Format: int32 */
+            votesNo: number;
+            /** Format: int32 */
+            votesAbstain: number;
+            /** Format: int32 */
+            recentActions: number;
         };
     };
     responses: never;

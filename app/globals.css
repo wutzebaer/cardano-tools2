@@ -77,6 +77,16 @@
   width: fit-content;
 }
 
+/* A small tile in a soft version of the logo's colours, behind the icon of a card. */
+@utility icon-brand {
+  background-image:
+    radial-gradient(circle at 15% 20%, rgb(34 211 238 / 0.35) 0, transparent 55%),
+    radial-gradient(circle at 85% 90%, rgb(167 139 250 / 0.4) 0, transparent 60%),
+    linear-gradient(135deg, rgb(77 124 254 / 0.22), rgb(139 92 246 / 0.22));
+  border: 1px solid rgb(139 158 255 / 0.3);
+  color: #c7d2fe;
+}
+
 /* A button in the colours of the logo, for the one action the site asks for: delegating to its pool. */
 @utility btn-brand {
   background-image:
