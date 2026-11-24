@@ -1,7 +1,7 @@
 "use client";
 
 import { assetKey, assetsInUtxos, lovelaceInUtxos, WalletAsset } from "@cardano/assets";
-import { IS_MAINNET, unixToSlot } from "@cardano/network";
+import { explorerTxUrl, IS_MAINNET, unixToSlot } from "@cardano/network";
 import { TELEGRAM_BOT } from "@cardano/pool";
 import {
   findTimelocks,
@@ -205,7 +205,7 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
             <div>
               <h2 className="font-semibold tracking-tight">Get a message when a lock opens</h2>
               <p className="mt-0.5 text-sm text-base-content/65">
-                The Telegram bot of this site writes within an hour of the date, for the locks you have now and for those you make later. It stores your Telegram chat and
+                The Telegram bot of this site writes within a few minutes of the date, for the locks you have now and for those you make later. It stores your Telegram chat and
                 your stake address, nothing else, and watches the staking of this wallet as well.
               </p>
             </div>
@@ -311,6 +311,9 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
                     <p className="truncate font-mono text-[11px] text-base-content/45" title={lock.address}>
                       {shortenId(lock.address, 14)}
                     </p>
+                    <ExternalLink href={explorerTxUrl(lock.txHash)} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                      Locking transaction
+                    </ExternalLink>
                     {busy === key && step ? <p className="mt-1 text-xs text-warning">{step}</p> : null}
                   </div>
                   {open ? (

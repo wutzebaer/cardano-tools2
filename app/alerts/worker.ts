@@ -51,6 +51,8 @@ const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://cardano-tools.io"
 const STORE_FILE = path.join(process.env.ALERTS_DIR || "/data", "alerts.json");
 const CHECK_EVERY_MS = 60 * 60 * 1000;
 const FIRST_CHECK_AFTER_MS = 2 * 60 * 1000;
+const LOCK_CHECK_EVERY_MS = 60 * 1000;
+const RETRY_LOCK_AFTER_SECONDS = 5 * 60;
 const POLL_SECONDS = 50;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -181,8 +183,10 @@ async function handleMessage(chatId: number, text: string) {
     }
     const { state, alerts, locks } = await look(command.stakeAddress);
     const known = alerts.map((alert) => alert.key);
-    if (existing) existing.alerts = known;
-    else store.subscriptions.push({ chatId, stakeAddress: command.stakeAddress, alerts: known, since: new Date().toISOString() });
+    const subscription = existing ?? { chatId, stakeAddress: command.stakeAddress, alerts: known, since: new Date().toISOString() };
+    subscription.alerts = known;
+    if (!existing) store.subscriptions.push(subscription);
+    rememberNextUnlock(subscription, locks);
     await saveStore();
     await send(chatId, welcomeMessage(command.stakeAddress, state, alerts, SITE_URL, pendingLocksLine(locks, currentSlot(), NETWORK.slotZeroUnix)));
   } else if (command.kind === "list") {
@@ -248,10 +252,23 @@ async function pollForever() {
   }
 }
 
-async function checkAll() {
-  for (const subscription of [...store.subscriptions]) {
+/** When the next lock of a subscription opens, as a slot, known from the last look at it. Gone with a restart, the first check brings it back. */
+const nextUnlock = new Map<Subscription, number>();
+
+function rememberNextUnlock(subscription: Subscription, locks: LockOutput[]) {
+  const pending = locks.map((lock) => lock.unlockSlot).filter((slot) => slot > currentSlot());
+  if (pending.length > 0) nextUnlock.set(subscription, Math.min(...pending));
+  else nextUnlock.delete(subscription);
+}
+
+/** Looks at every subscription, or only at those with a lock that has opened since the last look. */
+async function checkAll(everything: boolean) {
+  const due = [...store.subscriptions].filter((subscription) => everything || (nextUnlock.get(subscription) ?? Infinity) <= currentSlot());
+  if (due.length === 0) return;
+  for (const subscription of due) {
     try {
-      const { alerts } = await look(subscription.stakeAddress);
+      const { alerts, locks } = await look(subscription.stakeAddress);
+      rememberNextUnlock(subscription, locks);
       const fresh = newAlerts(subscription.alerts, alerts);
       // remembered before sending: an alert that cannot be delivered is not repeated every hour
       subscription.alerts = alerts.map((alert) => alert.key);
@@ -261,17 +278,26 @@ async function checkAll() {
       }
     } catch (error) {
       log(`check of one address failed: ${error instanceof Error ? error.message : error}`);
+      // an opened lock is asked for again in a few minutes, not every minute while the chain data is away
+      if (nextUnlock.has(subscription)) nextUnlock.set(subscription, currentSlot() + RETRY_LOCK_AFTER_SECONDS);
     }
     await sleep(500);
   }
   await saveStore();
 }
 
+/**
+ * Everything is looked at once an hour. In between a minute's tick only asks about the addresses whose lock has
+ * opened in the meantime: the date of a lock is known, so its message does not have to wait for the hour.
+ */
 async function checkForever() {
   await sleep(FIRST_CHECK_AFTER_MS);
+  let lastFullCheck = 0;
   for (;;) {
-    await checkAll().catch((error) => log(`hourly check failed: ${error instanceof Error ? error.message : error}`));
-    await sleep(CHECK_EVERY_MS);
+    const everything = Date.now() - lastFullCheck >= CHECK_EVERY_MS;
+    if (everything) lastFullCheck = Date.now();
+    await checkAll(everything).catch((error) => log(`check failed: ${error instanceof Error ? error.message : error}`));
+    await sleep(LOCK_CHECK_EVERY_MS);
   }
 }
 
