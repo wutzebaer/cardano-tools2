@@ -5,7 +5,7 @@ import { formatAda, shortenId } from "@cardano/utils";
 import { ExternalLink, Field, Notice, secondaryButtonClass, textareaClass } from "@components/ui";
 import { useWallet } from "@components/useWallet";
 import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Currency, loadPrices, loadStatement, PricePoint, StatementRow } from "./loadStatement";
 import { statementCsv, statementLines } from "./statement";
 
@@ -82,6 +82,15 @@ export default function WalletStatement() {
       setLoading(false);
     }
   };
+
+  // a connected wallet gets its statement without a click; whoever wants another address clears the field and types it
+  const autoLoaded = useRef(false);
+  useEffect(() => {
+    if (autoLoaded.current || !wallet || typed !== null || rows) return;
+    autoLoaded.current = true;
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the wallet arrives
+  }, [wallet]);
 
   const changeCurrency = (next: Currency) => {
     setCurrency(next);

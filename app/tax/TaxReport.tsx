@@ -5,7 +5,7 @@ import { formatAda } from "@cardano/utils";
 import { Field, Notice, secondaryButtonClass, textareaClass } from "@components/ui";
 import { useWallet } from "@components/useWallet";
 import { ArrowDownTrayIcon, PrinterIcon } from "@heroicons/react/24/outline";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Currency, loadPrices, loadStatement, PricePoint, StatementRow } from "../statement/loadStatement";
 import { priceAt } from "../statement/statement";
 import { isPaid, rewardCsv, rewardEntries, yearTotals } from "./rewardReport";
@@ -62,6 +62,15 @@ export default function TaxReport() {
       setLoading(false);
     }
   };
+
+  // a connected wallet gets its report without a click; whoever wants another address clears the field and types it
+  const autoLoaded = useRef(false);
+  useEffect(() => {
+    if (autoLoaded.current || !wallet || typed !== null || loaded) return;
+    autoLoaded.current = true;
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the wallet arrives
+  }, [wallet]);
 
   const changeCurrency = (next: Currency) => {
     setCurrency(next);

@@ -1,6 +1,7 @@
 // Tests for the logic that needs neither a wallet nor the chain. Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { alertMessage, alertsOf, listMessage, newAlerts, parseCommand, welcomeMessage } from "../app/alerts/alertLogic.ts";
 import { groupFeed } from "../app/browse/groupTokens.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
 import { drepKind, marginCostPerYear, pickAlternatives, poolFindings, suggestsAlternatives } from "../app/check/checkLogic.ts";
@@ -456,4 +457,57 @@ test("the rewards report exports one line per payout", () => {
     rewardCsv(entries, "EUR"),
     "Payout date (UTC),Payout epoch,Earned in epoch,Kind,Reward ADA,Price EUR,Value EUR\r\n2024-12-30,531,529,staking reward,12.345678,0.900000,11.11"
   );
+});
+
+// ---------------------------------------------------------------------------
+// Telegram alerts
+// ---------------------------------------------------------------------------
+
+const WATCHED = "stake1u8gnr7qurn3j0k7vmqtv8c3zunppuym0s0s0s9a7pya9pfqdjvep8";
+
+test("the bot takes a stake address from the link of the site, as a plain message and with commands", () => {
+  assert.deepEqual(parseCommand(`/start ${WATCHED}`), { kind: "subscribe", stakeAddress: WATCHED });
+  assert.deepEqual(parseCommand(`  ${WATCHED}  `), { kind: "subscribe", stakeAddress: WATCHED });
+  assert.deepEqual(parseCommand("/start"), { kind: "help" });
+  assert.deepEqual(parseCommand("/start stake1tooshort"), { kind: "unknown" });
+  assert.deepEqual(parseCommand("/LIST"), { kind: "list" });
+  assert.deepEqual(parseCommand("/list@CardanoToolsBot"), { kind: "list" });
+  assert.deepEqual(parseCommand("/stop"), { kind: "stop" });
+  assert.deepEqual(parseCommand("/stop all"), { kind: "stop" });
+  assert.deepEqual(parseCommand("/stop 2"), { kind: "stop", index: 2 });
+  assert.deepEqual(parseCommand("/stop 0"), { kind: "unknown" });
+  assert.deepEqual(parseCommand("hello"), { kind: "unknown" });
+});
+
+test("alerts are what calls for attention: pool problems and warnings, and a missing choice about the vote", () => {
+  const pool = { poolHash: "pool1a", ticker: "ABC" };
+  const findings = [
+    { level: "warning", title: "This pool retires in epoch 672", text: "soon" },
+    { level: "info", title: "This pool is close to saturation", text: "97 %" },
+  ];
+  assert.deepEqual(alertsOf({ registered: true, pool, drepId: "drep_always_abstain" }, findings).map((alert) => alert.key), ["pool:pool1a:This pool retires in epoch 672"]);
+  assert.deepEqual(alertsOf({ registered: true, pool, drepId: null }, [{ level: "ok", title: "Nothing stands out", text: "" }]).map((alert) => alert.key), ["no-vote"]);
+  assert.deepEqual(alertsOf({ registered: false }, findings).map((alert) => alert.key), ["unregistered"]);
+  assert.deepEqual(alertsOf({ registered: true, pool: null }, []).map((alert) => alert.key), ["undelegated"]);
+});
+
+test("an alert is reported once, again when it changes and again for another pool", () => {
+  const retiring = (epoch, poolHash = "pool1a") => alertsOf({ registered: true, pool: { poolHash }, drepId: "drep1x" }, [{ level: "warning", title: `This pool retires in epoch ${epoch}`, text: "" }]);
+  const known = retiring(672).map((alert) => alert.key);
+  assert.equal(newAlerts(known, retiring(672)).length, 0);
+  assert.equal(newAlerts(known, retiring(673)).length, 1);
+  assert.equal(newAlerts(known, retiring(672, "pool1b")).length, 1);
+  assert.equal(newAlerts([], retiring(672)).length, 1);
+});
+
+test("the bot's messages name the address, the pool and the page with the details", () => {
+  const alerts = alertsOf({ registered: true, pool: { poolHash: "pool1a", ticker: "ABC" }, drepId: null }, []);
+  const welcome = welcomeMessage(WATCHED, { registered: true, pool: { poolHash: "pool1a", ticker: "ABC" } }, alerts, "https://cardano-tools.io");
+  assert.match(welcome, /Watching stake1u8gnr7…djvep8, staked with \[ABC\]\./);
+  assert.match(welcome, /• The choice about the voting rights is open/);
+  assert.match(welcome, new RegExp(`https://cardano-tools.io/check/${WATCHED}`));
+  assert.match(welcomeMessage(WATCHED, { registered: true, pool: { poolHash: "pool1a" } }, [], "https://x"), /Nothing stands out right now/);
+  assert.match(alertMessage(WATCHED, alerts, "https://cardano-tools.io"), /^News for stake1u8gnr7…djvep8:\n\nThe choice about the voting rights is open\n/);
+  assert.match(listMessage([WATCHED]), /1\. stake1u8gnr7/);
+  assert.match(listMessage([]), /not watching any address/);
 });

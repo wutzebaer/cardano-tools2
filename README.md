@@ -1,5 +1,7 @@
 Cardano Tools is a [Next.js](https://nextjs.org) dApp: every transaction is built in the browser and signed by the user's CIP-30 wallet. There is no backend of its own, chain data comes from [cardano-db-sync-api](https://github.com/wutzebaer/cardano-db-sync-api).
 
+The one thing that runs on the server besides the pages is the Telegram alert bot (`app/alerts`): with `TELEGRAM_BOT_TOKEN` set, the server process polls the bot for subscriptions and checks the subscribed stake addresses once an hour, by the rules of the staking check. Subscriptions (chat id, stake address, alerts already sent) are kept in `alerts.json` in `ALERTS_DIR`, `/data` by default, which should be a volume. Run only one instance with the token.
+
 ## Pages
 
 | Route | What it does |
@@ -49,7 +51,7 @@ npm run update-schema
 
 ```bash
 npm run lint
-npm test        # reward distribution, statement, mint metadata, timelock script, staking check, rewards report
+npm test        # reward distribution, statement, mint metadata, timelock script, staking check, rewards report, alerts
 npm run build
 ```
 

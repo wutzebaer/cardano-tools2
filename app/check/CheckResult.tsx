@@ -1,5 +1,5 @@
-import { explorerPoolUrl } from "@cardano/network";
-import { POOL_ID, POOL_TICKER } from "@cardano/pool";
+import { explorerPoolUrl, IS_MAINNET } from "@cardano/network";
+import { POOL_ID, POOL_TICKER, TELEGRAM_BOT } from "@cardano/pool";
 import { formatAda, formatNumber, shortenId } from "@cardano/utils";
 import CopyButton from "@components/CopyButton";
 import { ExternalLink } from "@components/ui";
@@ -236,6 +236,20 @@ export default function CheckResult({ data }: { data: CheckData }) {
               </li>
             ))}
           </ul>
+        </Card>
+      ) : null}
+
+      {IS_MAINNET ? (
+        <Card title="Get a message when something changes">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-base-content/65">
+              The Telegram bot of this site looks at this address once an hour and writes when the pool announces its retirement, gets oversaturated, raises its fees or stops
+              making blocks, and when the choice about the voting rights is missing. It stores your Telegram chat and this address, nothing else, and /stop ends it.
+            </p>
+            <ExternalLink href={`https://t.me/${TELEGRAM_BOT}?start=${stakeAddress}`} className="btn btn-sm shrink-0 border-primary/60 bg-primary/10 text-primary hover:border-primary hover:bg-primary/20">
+              Alerts on Telegram
+            </ExternalLink>
+          </div>
         </Card>
       ) : null}
 

@@ -3,3 +3,6 @@ export const POOL_ID = "pool180fejev4xgwe2y53ky0pxvgxr3wcvkweu6feq5mdljfzcsmtg6u
 export const POOL_TICKER = "TOOLS";
 
 export const TELEGRAM_URL = "https://t.me/joinchat/XrlIF21NDzAyODUy";
+
+/** The bot that reports changes of a watched address, without the @ */
+export const TELEGRAM_BOT = "CardanoToolsBot";

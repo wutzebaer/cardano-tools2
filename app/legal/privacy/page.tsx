@@ -47,6 +47,11 @@ export default function Page() {
           The server of the site fetches prices from Kraken and information about token collections from Anvil. Neither your IP address nor your wallet address is passed on. Token images are delivered by the server of the site, even if they originally come from the IPFS network or from other addresses. The site does not embed fonts, scripts or statistics services of other providers. Only when you follow a link to another site does that site&apos;s privacy policy apply.
         </p>
 
+        <LegalHeading>Alerts on Telegram</LegalHeading>
+        <p>
+          If you ask the Telegram bot of the site (@CardanoToolsBot) to watch an address, the server stores the id of your Telegram chat, the stake addresses you named and which alerts it has already sent you. It uses this only to send you the alerts you asked for (Art. 6 (1) (b) GDPR). The bot does not store your name, your phone number or the content of your messages. The command /stop deletes your subscriptions and with them this data. Messages to and from the bot pass through Telegram, whose terms and privacy policy apply to that.
+        </p>
+
         <LegalHeading>Contact</LegalHeading>
         <p>
           If you write by email or Telegram, your details are used only to answer your request (Art. 6 (1) (f) GDPR) and are deleted as soon as they are no longer needed. For Telegram, the terms of Telegram apply in addition.
@@ -57,7 +62,7 @@ export default function Page() {
           You have the right of access, rectification, erasure, restriction of processing and data portability as well as the right to object to processing (Art. 15 to 21 GDPR). An email to the address above is sufficient. Data on the blockchain and on the IPFS network is beyond my control and cannot be deleted by me. You may also lodge a complaint with a data protection supervisory authority, for example the Hessian Commissioner for Data Protection and Freedom of Information.
         </p>
 
-        <p>Last updated on November 23, 2026</p>
+        <p>Last updated on November 24, 2026</p>
       </LegalText>
     </>
   );
