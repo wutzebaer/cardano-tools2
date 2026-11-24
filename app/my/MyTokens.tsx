@@ -1,5 +1,6 @@
 "use client";
 
+import { answered } from "@cardano/answer";
 import { formatNumber, shortenId } from "@cardano/utils";
 import { Verified } from "@components/JpgStoreIcons";
 import TokenCard from "@components/TokenCard";
@@ -30,7 +31,7 @@ export default function MyTokens() {
   useEffect(() => {
     if (!address) return;
     let cancelled = false;
-    loadAddressTokens(address)
+    answered(loadAddressTokens(address))
       .then((data) => ({ query: address, data }))
       .catch((error) => ({ query: address, error: error instanceof Error ? error.message : String(error) }))
       .then((loaded) => {

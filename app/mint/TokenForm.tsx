@@ -1,3 +1,4 @@
+import { answered } from "@cardano/answer";
 import { assetNameFor } from "@cardano/metadata";
 import { MintToken, TokenFile, TokenProperty } from "@cardano/types";
 import { toIpfsUrl } from "@cardano/utils";
@@ -44,7 +45,7 @@ async function storeFile(file: File): Promise<string> {
       reader.readAsDataURL(file);
     });
   }
-  return `ipfs://${await uploadToIpfs(file)}`;
+  return `ipfs://${await answered(uploadToIpfs(file))}`;
 }
 
 const displayUri = (uri: string) => (uri.startsWith("data:") ? "(on-chain file)" : uri);

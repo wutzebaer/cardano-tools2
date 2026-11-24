@@ -103,7 +103,8 @@ export function errorToMessage(e: unknown): string {
   const messages: string[] = [];
   // bounded, a cause chain may point back to itself
   for (let depth = 0; error != null && depth < 5; depth++) {
-    const message = String(error.digest || error.message || error.info || error.code || error);
+    // an error thrown on the live server arrives without its text, only with a number to find it in the server log
+    const message = error.digest ? `The server could not answer this request. Please try again in a moment. (error ${error.digest})` : String(error.message || error.info || error.code || error);
     if (message) messages.push(message);
     error = error.cause as Record<string, unknown> | null | undefined;
   }

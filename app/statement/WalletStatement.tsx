@@ -1,5 +1,6 @@
 "use client";
 
+import { answered } from "@cardano/answer";
 import { explorerTxUrl } from "@cardano/network";
 import { formatAda, shortenId } from "@cardano/utils";
 import { ExternalLink, Field, Notice, secondaryButtonClass, textareaClass } from "@components/ui";
@@ -46,7 +47,7 @@ function download(filename: string, content: string) {
 }
 
 export default function WalletStatement() {
-  const { wallet, connect } = useWallet();
+  const { wallet } = useWallet();
   // addresses of the last statement are remembered; null means the user has not typed yet
   const [typed, setInput] = useState<string | null>(null);
   const stored = useSyncExternalStore(subscribeNothing, () => localStorage.getItem(STORAGE_KEY) ?? "", () => "");
@@ -67,7 +68,7 @@ export default function WalletStatement() {
   const ensurePrices = async (wanted: Currency) => {
     if (prices[wanted]) return;
     try {
-      const loaded = await loadPrices(wanted);
+      const loaded = await answered(loadPrices(wanted));
       setPrices((current) => ({ ...current, [wanted]: loaded }));
       setPriceError("");
     } catch (error) {
@@ -79,8 +80,9 @@ export default function WalletStatement() {
   const load = async () => {
     setLoading(true);
     try {
+      const [statement] = await Promise.all([answered(loadStatement(addresses)), ensurePrices(currency)]);
+      // only what could be loaded is remembered, a mistyped address would fail again on every visit
       localStorage.setItem(STORAGE_KEY, input.trim());
-      const [statement] = await Promise.all([loadStatement(addresses), ensurePrices(currency)]);
       setRows(statement);
       setShowAll(false);
     } finally {
@@ -88,14 +90,15 @@ export default function WalletStatement() {
     }
   };
 
-  // a connected wallet gets its statement without a click; whoever wants another address clears the field and types it
+  // the addresses of the last statement or a connected wallet get their statement without a click;
+  // whoever wants another address clears the field and types it
   const autoLoaded = useRef(false);
   useEffect(() => {
-    if (autoLoaded.current || !wallet || typed !== null || rows) return;
+    if (autoLoaded.current || (!stored && !wallet) || typed !== null || rows) return;
     autoLoaded.current = true;
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the wallet arrives
-  }, [wallet]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when there is something to load
+  }, [wallet, stored]);
 
   const changeCurrency = (next: Currency) => {
     setCurrency(next);
@@ -123,11 +126,6 @@ export default function WalletStatement() {
             {loading ? <span className="loading loading-spinner loading-xs" /> : null}
             Create statement
           </button>
-          {!wallet && !input.trim() ? (
-            <button className={secondaryButtonClass} onClick={connect}>
-              Use my wallet
-            </button>
-          ) : null}
           <select className="select select-sm w-24 border-line bg-base-300" value={currency} onChange={(e) => changeCurrency(e.target.value as Currency)} aria-label="Currency">
             <option>EUR</option>
             <option>USD</option>

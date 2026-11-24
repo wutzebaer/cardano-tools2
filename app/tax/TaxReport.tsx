@@ -1,5 +1,6 @@
 "use client";
 
+import { answered } from "@cardano/answer";
 import { NETWORK } from "@cardano/network";
 import { formatAda } from "@cardano/utils";
 import { Field, Notice, secondaryButtonClass, textareaClass } from "@components/ui";
@@ -31,7 +32,7 @@ function download(filename: string, content: string) {
 }
 
 export default function TaxReport() {
-  const { wallet, connect } = useWallet();
+  const { wallet } = useWallet();
   // null until something is typed: the field then holds the connected wallet
   const [typed, setInput] = useState<string | null>(null);
   const walletHandle = useHandle(wallet?.stakeAddress);
@@ -48,7 +49,7 @@ export default function TaxReport() {
   const ensurePrices = async (wanted: Currency) => {
     if (prices[wanted]) return;
     try {
-      const fetched = await loadPrices(wanted);
+      const fetched = await answered(loadPrices(wanted));
       setPrices((current) => ({ ...current, [wanted]: fetched }));
       setPriceError("");
     } catch (error) {
@@ -60,7 +61,7 @@ export default function TaxReport() {
   const load = async () => {
     setLoading(true);
     try {
-      const [rows] = await Promise.all([loadStatement(addresses), ensurePrices(currency)]);
+      const [rows] = await Promise.all([answered(loadStatement(addresses)), ensurePrices(currency)]);
       setLoaded({ rows, addresses, at: Date.now() / 1000 });
       setYear(null);
     } finally {
@@ -105,11 +106,6 @@ export default function TaxReport() {
             {loading ? <span className="loading loading-spinner loading-xs" /> : null}
             Create report
           </button>
-          {!wallet && !input.trim() ? (
-            <button className={secondaryButtonClass} onClick={connect}>
-              Use my wallet
-            </button>
-          ) : null}
           <select className="select select-sm w-24 border-line bg-base-300" value={currency} onChange={(e) => changeCurrency(e.target.value as Currency)} aria-label="Currency">
             <option>EUR</option>
             <option>USD</option>

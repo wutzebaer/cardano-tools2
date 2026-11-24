@@ -1,5 +1,6 @@
 "use client";
 
+import { answered } from "@cardano/answer";
 import { assetKey, assetsInUtxos, WalletAsset } from "@cardano/assets";
 import { DEAD_ADDRESS, BurnItem, burnTokens, findReferenceUtxos, referenceNameFor } from "@cardano/burn";
 import { getTokenDetails } from "@cardano/dbsync";
@@ -30,7 +31,7 @@ async function loadWalletTokens(wallet: ConnectedWallet): Promise<WalletTokens> 
   const [utxos, listed] = await Promise.all([
     walletUtxos(wallet.connection),
     // names and images are a nicety, burning works without them
-    loadAddressTokens(wallet.stakeAddress).catch(() => null),
+    answered(loadAddressTokens(wallet.stakeAddress)).catch(() => null),
   ]);
   const info = new Map((listed?.tokens ?? []).map((token) => [assetKey(token.maPolicyId, token.maName), token]));
   return { assets: assetsInUtxos(utxos), info };

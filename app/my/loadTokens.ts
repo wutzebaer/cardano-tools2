@@ -1,5 +1,6 @@
 "use server";
 
+import { Answer, answer, UserError } from "@cardano/answer";
 import { getAddressByHandle, getAddressTokens } from "@cardano/dbsync";
 import { TokenListItem } from "@cardano/types";
 import { cip67Label } from "@cardano/utils";
@@ -15,17 +16,23 @@ export type AddressTokens = {
 };
 
 /** Tokens held by a stake address, payment address or `$handle`. */
-export async function loadAddressTokens(input: string): Promise<AddressTokens> {
-  let address = input.trim();
-  if (address.startsWith("$")) {
-    const resolved = await getAddressByHandle(address.slice(1).toLowerCase());
-    if (!resolved?.address) {
-      throw new Error(`Handle ${address} not found`);
+export async function loadAddressTokens(input: string): Promise<Answer<AddressTokens>> {
+  return answer(async () => {
+    let address = input.trim();
+    if (address.startsWith("$")) {
+      const resolved = await getAddressByHandle(address.slice(1).toLowerCase()).catch(() => null);
+      if (!resolved?.address) {
+        throw new UserError(`The handle ${address} was not found`);
+      }
+      address = resolved.address;
     }
-    address = resolved.address;
-  }
-  const tokens = (await getAddressTokens(address)).filter((token) => cip67Label(token.maName) !== 100);
-  const policyIds = [...new Set(tokens.map((token) => token.maPolicyId))].slice(0, MAX_COLLECTION_LOOKUPS);
-  const collections = Object.fromEntries(await getCollectionInfos(policyIds));
-  return { address, tokens, collections };
+    const tokens = (
+      await getAddressTokens(address).catch(() => {
+        throw new UserError(`No tokens for ${address}. Is it a stake address, a payment address or a $handle?`);
+      })
+    ).filter((token) => cip67Label(token.maName) !== 100);
+    const policyIds = [...new Set(tokens.map((token) => token.maPolicyId))].slice(0, MAX_COLLECTION_LOOKUPS);
+    const collections = Object.fromEntries(await getCollectionInfos(policyIds));
+    return { address, tokens, collections };
+  });
 }

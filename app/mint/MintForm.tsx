@@ -1,5 +1,6 @@
 "use client";
 
+import { answered } from "@cardano/answer";
 import { assetNameFor } from "@cardano/metadata";
 import { labeledAssetNameHex, mintTokens } from "@cardano/mint";
 import { explorerPolicyUrl, IS_MAINNET } from "@cardano/network";
@@ -79,7 +80,7 @@ function Mint({ wallet }: { wallet: ConnectedWallet }) {
       const added: MintToken[] = [];
       for (const [index, file] of files.entries()) {
         setUploading(`Uploading ${index + 1} of ${files.length}`);
-        const cid = await uploadToIpfs(file);
+        const cid = await answered(uploadToIpfs(file));
         const name = file.name.replace(/\.[^.]*$/, "").slice(0, 60) || numberedName(tokens.length + index + 1);
         added.push(newToken(name, { image: `ipfs://${cid}`, mediaType: file.type }));
       }
