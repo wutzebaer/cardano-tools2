@@ -7,6 +7,17 @@ const SIZE = { width: 1200, height: 630 };
 
 const BRAND = "linear-gradient(90deg, #22d3ee, #6f95ff, #a78bfa)";
 
+/** The ADA sign, drawn: the font of these pictures has no glyph for it. An A with two bars, as tall as a capital. */
+function AdaSign() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b93a7" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 22 L12 3 L19 22" />
+      <path d="M3 13 H21" />
+      <path d="M3 17.5 H21" />
+    </svg>
+  );
+}
+
 function Tile({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
     <div
@@ -79,10 +90,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
             <Tile key={tile.label} {...tile} />
           ))}
         </div>
-        {/* the font of these pictures has no ADA sign */}
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 30, color: "#8b93a7" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 30, color: "#8b93a7" }}>
           <span>cardano-tools.io/pool</span>
-          <span>{facts.stake > 0 ? `${formatStake(facts.stake).replace("₳", "ADA")} staked by ${facts.delegators.toLocaleString("en-US")} delegators` : "Stake with [TOOLS]"}</span>
+          {facts.stake > 0 ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span>{formatStake(facts.stake).replace(" ₳", "")}</span>
+              <AdaSign />
+              <span>staked by {facts.delegators.toLocaleString("en-US")} delegators</span>
+            </div>
+          ) : (
+            <span>Stake with [{POOL_TICKER}]</span>
+          )}
         </div>
       </div>
     ),
