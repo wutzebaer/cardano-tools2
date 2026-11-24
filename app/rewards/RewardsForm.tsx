@@ -76,8 +76,9 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
   const walletTokens = useMemo(() => walletFunds?.assets ?? [], [walletFunds]);
   const walletAssets = useMemo(() => new Map(walletTokens.map((asset) => [assetKey(asset.policyId, asset.name), asset])), [walletTokens]);
 
-  // the browser shows an option's value large and its label small: the ticker goes first where it names exactly one pool,
-  // a ticker several pools share cannot be resolved and keeps the pool id as value
+  // The ticker is the value where it names exactly one pool; a ticker several pools share cannot be resolved and keeps the pool id.
+  // Firefox shows and searches only the label, Chrome shows value and label: the label starts with the ticker,
+  // and carries the pool id only where the ticker alone does not say which pool.
   const poolOptions = useMemo(() => {
     const tickerCount = new Map<string, number>();
     for (const pool of pools) {
@@ -87,7 +88,8 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
     return pools.map((pool) => {
       const ticker = pool.tickerName?.trim();
       const unique = ticker && !isPoolId(ticker) && tickerCount.get(ticker.toLowerCase()) === 1;
-      return unique ? { poolHash: pool.poolHash, value: ticker, label: pool.poolHash } : { poolHash: pool.poolHash, value: pool.poolHash, label: ticker ?? "" };
+      if (unique) return { poolHash: pool.poolHash, value: ticker, label: ticker };
+      return { poolHash: pool.poolHash, value: pool.poolHash, label: ticker && !isPoolId(ticker) ? `${ticker} · ${pool.poolHash}` : pool.poolHash };
     });
   }, [pools]);
 
