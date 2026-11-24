@@ -3,6 +3,7 @@
 import { NETWORK } from "@cardano/network";
 import { formatAda } from "@cardano/utils";
 import { Field, Notice, secondaryButtonClass, textareaClass } from "@components/ui";
+import { useHandle } from "@components/useHandles";
 import { useWallet } from "@components/useWallet";
 import { ArrowDownTrayIcon, PrinterIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -33,7 +34,8 @@ export default function TaxReport() {
   const { wallet, connect } = useWallet();
   // null until something is typed: the field then holds the connected wallet
   const [typed, setInput] = useState<string | null>(null);
-  const input = typed ?? (wallet?.stakeAddress || "");
+  const walletHandle = useHandle(wallet?.stakeAddress);
+  const input = typed ?? (walletHandle || wallet?.stakeAddress || "");
   const [currency, setCurrency] = useState<Currency>("EUR");
   const [loaded, setLoaded] = useState<{ rows: StatementRow[]; addresses: string[]; at: number } | null>(null);
   const [prices, setPrices] = useState<Partial<Record<Currency, PricePoint[]>>>({});
@@ -95,7 +97,7 @@ export default function TaxReport() {
   return (
     <div className="flex flex-col gap-6">
       <div className="surface flex flex-col gap-4 p-5 print:hidden">
-        <Field label="Stake addresses, one per line" hint="Rewards belong to stake addresses. Several addresses are merged into one report.">
+        <Field label="Stake addresses or $handles, one per line" hint="Rewards belong to stake addresses. Several addresses are merged into one report.">
           <textarea className={`${textareaClass} font-mono text-xs`} rows={2} value={input} onChange={(e) => setInput(e.target.value)} placeholder="stake1…" />
         </Field>
         <div className="flex flex-wrap items-center gap-2">

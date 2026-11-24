@@ -1,7 +1,7 @@
 "use server";
 
 import { components } from "@cardano/dbsync.schema";
-import { getStatement } from "@cardano/dbsync";
+import { getAddressByHandle, getStatement } from "@cardano/dbsync";
 
 export type StatementRow = components["schemas"]["AccountStatementRow"];
 export type Currency = "EUR" | "USD";
@@ -11,12 +11,20 @@ export type PricePoint = [number, number];
 
 const MAX_ADDRESSES = 20;
 
-/** All transactions and rewards of the given stake or payment addresses, oldest first. */
+/** All transactions and rewards of the given stake or payment addresses or `$handles`, oldest first. */
 export async function loadStatement(addresses: string[]): Promise<StatementRow[]> {
   if (addresses.length > MAX_ADDRESSES) {
     throw new Error(`At most ${MAX_ADDRESSES} addresses`);
   }
-  const statements = await Promise.all(addresses.map((address) => getStatement(address)));
+  const resolved = await Promise.all(
+    addresses.map(async (address) => {
+      if (!address.startsWith("$")) return address;
+      const found = await getAddressByHandle(address.slice(1).toLowerCase()).catch(() => null);
+      if (!found?.address) throw new Error(`The handle ${address} was not found`);
+      return found.address;
+    })
+  );
+  const statements = await Promise.all([...new Set(resolved)].map((address) => getStatement(address)));
   return statements.flat().sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
 }
 

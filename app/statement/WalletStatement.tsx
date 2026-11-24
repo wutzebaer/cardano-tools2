@@ -3,6 +3,7 @@
 import { explorerTxUrl } from "@cardano/network";
 import { formatAda, shortenId } from "@cardano/utils";
 import { ExternalLink, Field, Notice, secondaryButtonClass, textareaClass } from "@components/ui";
+import { useHandle } from "@components/useHandles";
 import { useWallet } from "@components/useWallet";
 import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -49,7 +50,8 @@ export default function WalletStatement() {
   const [typed, setInput] = useState<string | null>(null);
   const stored = useSyncExternalStore(subscribeNothing, () => localStorage.getItem(STORAGE_KEY) ?? "", () => "");
   // until something is typed the field holds the addresses of the last statement or the connected wallet
-  const input = typed ?? (stored || wallet?.stakeAddress || "");
+  const walletHandle = useHandle(wallet?.stakeAddress);
+  const input = typed ?? (stored || walletHandle || wallet?.stakeAddress || "");
   const [currency, setCurrency] = useState<Currency>("EUR");
   const [rows, setRows] = useState<StatementRow[] | null>(null);
   const [prices, setPrices] = useState<Partial<Record<Currency, PricePoint[]>>>({});
@@ -57,7 +59,7 @@ export default function WalletStatement() {
   const [loading, setLoading] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
-  const addresses = useMemo(() => [...new Set((input.trim() || wallet?.stakeAddress || "").split(/[\s,;]+/).filter(Boolean))], [input, wallet]);
+  const addresses = useMemo(() => [...new Set((input.trim() || walletHandle || wallet?.stakeAddress || "").split(/[\s,;]+/).filter(Boolean))], [input, wallet, walletHandle]);
 
   const ensurePrices = async (wanted: Currency) => {
     if (prices[wanted]) return;
@@ -104,13 +106,13 @@ export default function WalletStatement() {
   return (
     <div className="flex flex-col gap-6">
       <div className="surface flex flex-col gap-4 p-5">
-        <Field label="Stake addresses or payment addresses, one per line" hint="Stake addresses include staking rewards. Several addresses are merged into one statement.">
+        <Field label="Stake addresses, payment addresses or $handles, one per line" hint="Stake addresses include staking rewards. Several addresses are merged into one statement.">
           <textarea
             className={`${textareaClass} font-mono text-xs`}
             rows={3}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={wallet?.stakeAddress || "stake1…"}
+            placeholder={walletHandle || wallet?.stakeAddress || "stake1…"}
           />
         </Field>
         <div className="flex flex-wrap items-center gap-2">
