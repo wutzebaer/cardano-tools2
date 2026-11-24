@@ -103,7 +103,7 @@ function PoolFacts({ pool, performance }: { pool: PoolCheck; performance: PoolPe
 const DISCLAIMER = "Chain data as of the current epoch. A short-term return says little about a small pool, its blocks come irregularly. This is information, not financial advice.";
 
 export default function CheckResult({ data }: { data: CheckData }) {
-  const { check, known, performance, findings, alternatives, stakeAddress, label } = data;
+  const { check, known, performance, drepName, findings, alternatives, stakeAddress, label } = data;
   const sharePath = `/check/${encodeURIComponent(label)}`;
 
   const pool = check.pool ?? null;
@@ -185,7 +185,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
                 finding={{
                   level: "ok",
                   title: vote === "abstain" ? "You do not take part in votes" : vote === "no_confidence" ? "Your ADA counts as a vote of no confidence" : "A representative votes for you",
-                  text: vote === "drep" ? `Your DRep is ${check.drepId}. The choice is made, so rewards can be withdrawn.` : "The choice is made, so rewards can be withdrawn.",
+                  text: vote === "drep" ? `Your DRep is ${drepName ?? `one without a name, ${shortenId(check.drepId ?? "", 10)}`}. The choice is made, so rewards can be withdrawn.` : "The choice is made, so rewards can be withdrawn.",
                 }}
               />
             )}
@@ -201,6 +201,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
               <VoteDelegation
                 stakeAddress={stakeAddress}
                 current={check.drepId}
+                currentName={drepName}
                 suggested={pool?.operatorDrepId?.startsWith("drep1") ? { drepId: pool.operatorDrepId, name: pool.operatorDrepName, poolTicker: pool.ticker } : null}
               />
             </div>

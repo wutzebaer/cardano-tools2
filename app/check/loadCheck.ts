@@ -1,4 +1,4 @@
-import { getAddressByHandle, getPoolAlternatives, getPoolCheck, getPoolPerformance, getStakeAddress, getStakeCheck } from "@cardano/dbsync";
+import { getAddressByHandle, getDreps, getPoolAlternatives, getPoolCheck, getPoolPerformance, getStakeAddress, getStakeCheck } from "@cardano/dbsync";
 import { POOL_ID } from "@cardano/pool";
 import { Finding, pickAlternatives, poolFindings, suggestsAlternatives } from "./checkLogic";
 
@@ -20,6 +20,8 @@ export interface CheckData {
   /** False for a stake address the chain has never seen */
   known: boolean;
   performance: PoolPerformance | null;
+  /** Name of the DRep the address delegated its vote to, null if it has none or chose no DRep */
+  drepName: string | null;
   findings: Finding[];
   /** Pools to move to, filled when the address is not staking or its pool calls for a decision */
   alternatives: PoolOption[];
@@ -60,5 +62,8 @@ export async function loadCheck(input: string): Promise<CheckData | { error: str
     alternatives = await Promise.all(picked.map(async (option) => ({ pool: option, performance: await getPoolPerformance(option.poolHash) })));
   }
 
-  return { label: input.trim().startsWith("$") ? input.trim().toLowerCase() : stakeAddress, stakeAddress, check, known: found != null, performance, findings, alternatives };
+  // the list of DReps is cached, so the name costs no request of its own most of the time
+  const drepName = check.drepId?.startsWith("drep1") ? ((await getDreps()).find((drep) => drep.drepId === check.drepId)?.name ?? null) : null;
+
+  return { label: input.trim().startsWith("$") ? input.trim().toLowerCase() : stakeAddress, stakeAddress, check, known: found != null, performance, drepName, findings, alternatives };
 }
