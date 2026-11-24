@@ -50,6 +50,37 @@ function Card({ title, icon: Icon, children }: { title: string; icon: ComponentT
   );
 }
 
+/** The offer of the page: the Telegram bot that keeps checking this address. */
+function AlertsCard({ stakeAddress }: { stakeAddress: string }) {
+  return (
+    <section className="alert-card flex flex-col gap-5 rounded-box p-5 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <span className="icon-brand flex size-12 shrink-0 items-center justify-center rounded-field">
+            <BellAlertIcon className="size-6" />
+          </span>
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">Get a message when your staking needs you</h2>
+            <p className="mt-0.5 text-sm text-base-content/65">Free alerts on Telegram, so you do not have to come back and check.</p>
+          </div>
+        </div>
+        <ExternalLink href={`https://t.me/${TELEGRAM_BOT}?start=${stakeAddress}`} className="btn btn-primary shrink-0">
+          Get alerts on Telegram
+        </ExternalLink>
+      </div>
+      <ul className="flex flex-wrap gap-2">
+        {ALERTS.map((alert) => (
+          <li key={alert} className="flex items-center gap-1.5 rounded-full border border-line bg-base-300/60 px-3 py-1 text-xs text-base-content/80">
+            <CheckCircleIcon className="size-4 text-primary" />
+            {alert}
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-base-content/50">The bot looks at this address once an hour. It stores your Telegram chat and this address, nothing else, and /stop ends it.</p>
+    </section>
+  );
+}
+
 function FindingRow({ finding }: { finding: Finding }) {
   const style = LEVEL_STYLE[finding.level];
   return (
@@ -140,6 +171,8 @@ export default function CheckResult({ data }: { data: CheckData }) {
         </div>
         <CopyButton text={`https://cardano-tools.io${sharePath}`}>Copy link to this check</CopyButton>
       </div>
+
+      {IS_MAINNET ? <AlertsCard stakeAddress={stakeAddress} /> : null}
 
       <Card title="Stake pool" icon={ServerStackIcon}>
         {!check.registered ? (
@@ -268,34 +301,6 @@ export default function CheckResult({ data }: { data: CheckData }) {
             ))}
           </ul>
         </Card>
-      ) : null}
-
-      {IS_MAINNET ? (
-        <section className="alert-card flex flex-col gap-5 rounded-box p-5 sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <span className="icon-brand flex size-12 shrink-0 items-center justify-center rounded-field">
-                <BellAlertIcon className="size-6" />
-              </span>
-              <div>
-                <h2 className="text-lg font-semibold tracking-tight">Get a message when your staking needs you</h2>
-                <p className="mt-0.5 text-sm text-base-content/65">Free alerts on Telegram, so you do not have to come back and check.</p>
-              </div>
-            </div>
-            <ExternalLink href={`https://t.me/${TELEGRAM_BOT}?start=${stakeAddress}`} className="btn btn-primary shrink-0">
-              Get alerts on Telegram
-            </ExternalLink>
-          </div>
-          <ul className="flex flex-wrap gap-2">
-            {ALERTS.map((alert) => (
-              <li key={alert} className="flex items-center gap-1.5 rounded-full border border-line bg-base-300/60 px-3 py-1 text-xs text-base-content/80">
-                <CheckCircleIcon className="size-4 text-primary" />
-                {alert}
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-base-content/50">The bot looks at this address once an hour. It stores your Telegram chat and this address, nothing else, and /stop ends it.</p>
-        </section>
       ) : null}
 
       {check.registered ? (
