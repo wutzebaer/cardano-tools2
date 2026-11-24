@@ -9,7 +9,10 @@ export const metadata: Metadata = {
   description: "What Cardano is voting on right now and what was decided lately, in plain words, and how your representative and your stake pool voted.",
 };
 
-const INTRO = "ADA holders decide how Cardano develops: proposals are put to a vote, and representatives (DReps), stake pools and a constitutional committee decide on them.";
+// rendered per request: at build time there is no chain data API, and the failure would be served as the page
+export const dynamic = "force-dynamic";
+
+const INTRO ="ADA holders decide how Cardano develops: proposals are put to a vote, and representatives (DReps), stake pools and a constitutional committee decide on them.";
 
 export default async function Page() {
   const data = await loadGovernance();
