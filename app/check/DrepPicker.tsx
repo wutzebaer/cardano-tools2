@@ -2,7 +2,7 @@
 
 import { getDreps } from "@cardano/dbsync";
 import { shortenId } from "@cardano/utils";
-import { ExternalLink, inputClass } from "@components/ui";
+import { ExternalLink, inputClass, secondaryButtonClass } from "@components/ui";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -229,8 +229,8 @@ export default function DrepPicker({ value, onChange, knownName }: { value: stri
               {selected.objectives.length >= OBJECTIVES_LENGTH ? "…" : ""}
             </p>
           ) : null}
-          <div className="flex flex-wrap gap-2">
-            <Link href={`/votes/${value}`} target="_blank" className="btn btn-xs border-line bg-base-300">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href={`/votes/${value}`} target="_blank" className={secondaryButtonClass}>
               See each vote
             </Link>
             <ExternalLink href={drepUrl(value)}>gov.tools</ExternalLink>

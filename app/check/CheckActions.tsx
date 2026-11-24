@@ -14,15 +14,16 @@ import { ComponentType, ReactNode, SVGProps, useEffect, useState } from "react";
 import DrepPicker from "./DrepPicker";
 
 /** Follows a submitted transaction and refreshes the check once it is on chain. */
-function Submitted({ txHash, label }: { txHash: string; label: string }) {
+function Submitted({ txHash, label, confirmed, onConfirmed }: { txHash: string; label: string; confirmed: boolean; onConfirmed: () => void }) {
   const router = useRouter();
-  const [confirmed, setConfirmed] = useState(false);
   useEffect(
     () =>
       watchConfirmation(txHash, () => {
-        setConfirmed(true);
+        onConfirmed();
         router.refresh();
       }),
+    // the callback changes with every render, the transaction is what is followed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [txHash, router]
   );
   return (
@@ -64,8 +65,11 @@ function OwnerAction({
   const { wallet, connect, connecting } = useWallet();
   const [busy, setBusy] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
 
-  if (txHash) return <Submitted txHash={txHash} label={done} />;
+  const submitted = txHash ? <Submitted txHash={txHash} label={done} confirmed={confirmed} onConfirmed={() => setConfirmed(true)} /> : null;
+  // while the transaction is on its way there is nothing to choose, once it is confirmed the action is back with the new state
+  if (submitted && !confirmed) return submitted;
   if (!wallet) {
     return (
       <button className={connectClass} onClick={connect} disabled={connecting}>
@@ -81,12 +85,19 @@ function OwnerAction({
   const run = async (send: (wallet: ConnectedWallet) => Promise<string>) => {
     setBusy(true);
     try {
-      setTxHash(await send(wallet));
+      const hash = await send(wallet);
+      setConfirmed(false);
+      setTxHash(hash);
     } finally {
       setBusy(false);
     }
   };
-  return <>{children(run, busy)}</>;
+  return (
+    <>
+      {submitted ? <div className="mb-3">{submitted}</div> : null}
+      {children(run, busy)}
+    </>
+  );
 }
 
 /** Icon, name and one line of explanation of one of the choices about the voting rights. */
@@ -117,14 +128,22 @@ export function VoteDelegation({
   currentName?: string | null;
   suggested?: { drepId: string; name?: string | null; poolTicker?: string | null } | null;
 }) {
+  // what was chosen here a moment ago counts before the chain data says so, which lags a little behind
+  const [sent, setSent] = useState<string | null>(null);
+  const chosen = sent ?? current;
   // the DRep the address already delegates to, else the suggestion
-  const currentDrep = current?.startsWith("drep1") ? current : null;
+  const currentDrep = chosen?.startsWith("drep1") ? chosen : null;
   const [drepId, setDrepId] = useState(currentDrep ?? suggested?.drepId ?? "");
   const isSuggestion = suggested != null && drepId === suggested.drepId && drepId !== currentDrep;
   return (
     <OwnerAction stakeAddress={stakeAddress} done="Your choice">
       {(run, busy) => {
-        const send = (target: VoteTarget) => run((wallet) => delegateVote(wallet.connection, target));
+        const send = (target: VoteTarget) =>
+          run(async (wallet) => {
+            const hash = await delegateVote(wallet.connection, target);
+            setSent(target === "abstain" ? "drep_always_abstain" : target === "no_confidence" ? "drep_always_no_confidence" : target);
+            return hash;
+          });
         return (
           <ul className="flex flex-col gap-3">
             {/* the representative comes first and stands out: taking part is what the vote is for */}
@@ -151,16 +170,16 @@ export function VoteDelegation({
               <OptionTitle icon={NoSymbolIcon} title="I do not want to take part">
                 Your ADA is not counted in any vote. Called &quot;abstain&quot; on Cardano.
               </OptionTitle>
-              <button className="btn btn-sm shrink-0 border-line bg-base-300" disabled={busy || current === "drep_always_abstain"} onClick={() => send("abstain")}>
-                {current === "drep_always_abstain" ? "Chosen" : "Choose this"}
+              <button className="btn btn-sm shrink-0 border-line bg-base-300" disabled={busy || chosen === "drep_always_abstain"} onClick={() => send("abstain")}>
+                {chosen === "drep_always_abstain" ? "Chosen" : "Choose this"}
               </button>
             </li>
             <li className="flex flex-col gap-2 rounded-field border border-line bg-base-300/40 p-4 sm:flex-row sm:items-center sm:justify-between">
               <OptionTitle icon={HandThumbDownIcon} title="I have no confidence in the current committee">
                 Always counts as a vote to replace the committee that guards the constitution. A political statement.
               </OptionTitle>
-              <button className="btn btn-sm shrink-0 border-line bg-base-300" disabled={busy || current === "drep_always_no_confidence"} onClick={() => send("no_confidence")}>
-                {current === "drep_always_no_confidence" ? "Chosen" : "Choose this"}
+              <button className="btn btn-sm shrink-0 border-line bg-base-300" disabled={busy || chosen === "drep_always_no_confidence"} onClick={() => send("no_confidence")}>
+                {chosen === "drep_always_no_confidence" ? "Chosen" : "Choose this"}
               </button>
             </li>
           </ul>
