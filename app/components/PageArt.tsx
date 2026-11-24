@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 
-export type PageArtName = "mint" | "burn" | "timelock" | "rewards" | "statement" | "royalties" | "tokens" | "check";
+export type PageArtName = "mint" | "burn" | "timelock" | "rewards" | "statement" | "royalties" | "tokens" | "check" | "governance";
 
 /** Four-pointed sparkle around a point. */
 const sparkle = (x: number, y: number, size: number) =>
@@ -143,6 +143,23 @@ const ART: Record<PageArtName, { from: string; to: string; drawing: (stroke: str
         <path d="M329 129l13 13" stroke={stroke} strokeWidth="3" strokeLinecap="round" />
         <path d={sparkle(172, 44, 8)} fill={fill} opacity="0.7" />
         <path d={sparkle(332, 46, 10)} fill={fill} opacity="0.8" />
+      </>
+    ),
+  },
+  governance: {
+    from: "#a78bfa",
+    to: "#22d3ee",
+    drawing: (stroke, fill) => (
+      <>
+        <rect x="204" y="66" width="92" height="76" rx="10" fill={fill} opacity="0.12" />
+        <rect x="204" y="66" width="92" height="76" rx="10" stroke={stroke} strokeWidth="2.5" />
+        <path d="M232 82h36" stroke={stroke} strokeWidth="3" strokeLinecap="round" />
+        <rect x="226" y="20" width="48" height="58" rx="6" fill="#12151b" transform="rotate(8 250 49)" />
+        <rect x="226" y="20" width="48" height="58" rx="6" stroke={stroke} strokeWidth="2.5" transform="rotate(8 250 49)" />
+        <path d="M238 46l9 9 16-18" stroke={stroke} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" transform="rotate(8 250 49)" />
+        <path d={sparkle(326, 44, 10)} fill={fill} opacity="0.8" />
+        <path d={sparkle(176, 108, 8)} fill={fill} opacity="0.65" />
+        <path d={sparkle(322, 124, 6)} fill={fill} opacity="0.5" />
       </>
     ),
   },

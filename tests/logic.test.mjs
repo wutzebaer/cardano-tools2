@@ -5,6 +5,7 @@ import { alertMessage, alertsOf, listMessage, newAlerts, parseCommand, welcomeMe
 import { groupFeed } from "../app/browse/groupTokens.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
 import { drepKind, marginCostPerYear, pickAlternatives, poolFindings, suggestsAlternatives } from "../app/check/checkLogic.ts";
+import { actionStatus, actionTitle, poolsVoteOn, sortActions, voteOfAddress, voteOfPool } from "../app/votes/governanceLogic.ts";
 import { assetNameFor, tokenMetadata, tokensFromMetadata, tokensMetadata } from "../app/cardano/metadata.ts";
 import { NETWORK, NETWORKS, unixToEpoch, unixToSlot } from "../app/cardano/network.ts";
 import { candidateUnlockTimes, DAY_SECONDS, FIRST_UNLOCK_UNIX, MAX_LOCK_DAYS, timelockMetadata, timeScriptHash, unlockSlotsFromMetadata, unlockTimeError } from "../app/cardano/timelockScript.ts";
@@ -510,4 +511,53 @@ test("the bot's messages name the address, the pool and the page with the detail
   assert.match(alertMessage(WATCHED, alerts, "https://cardano-tools.io"), /^News for stake1u8gnr7…djvep8:\n\nThe choice about the voting rights is open\n/);
   assert.match(listMessage([WATCHED]), /1\. stake1u8gnr7/);
   assert.match(listMessage([]), /not watching any address/);
+});
+
+// ---------------------------------------------------------------------------
+// Governance
+// ---------------------------------------------------------------------------
+
+const govAction = (patch = {}) => ({ type: "InfoAction", submittedEpoch: 664, expiresEpoch: 671, ...patch });
+
+test("an action is open until it expires, and its outcome counts once it has one", () => {
+  assert.equal(actionStatus(govAction(), 669).state, "open");
+  assert.match(actionStatus(govAction(), 669).text, /2 epochs, about 10 days/);
+  assert.match(actionStatus(govAction(), 671).text, /ends with this epoch/);
+  assert.equal(actionStatus(govAction(), 672).state, "expired");
+  assert.equal(actionStatus(govAction({ expiredEpoch: 671, droppedEpoch: 672 }), 673).label, "Not approved");
+  assert.equal(actionStatus(govAction({ ratifiedEpoch: 670 }), 670).label, "Approved");
+  assert.equal(actionStatus(govAction({ ratifiedEpoch: 670, enactedEpoch: 671 }), 672).state, "enacted");
+  assert.equal(actionStatus(govAction({ droppedEpoch: 668 }), 669).state, "dropped");
+});
+
+test("an action without readable metadata is described by what it is", () => {
+  assert.equal(actionTitle({ type: "ParameterChange", title: "  Reduce minPoolCost  " }), "Reduce minPoolCost");
+  assert.equal(actionTitle({ type: "TreasuryWithdrawals", title: null, withdrawal: 600_000_000_000 }), "Treasury withdrawal of 600,000 ₳");
+  assert.equal(actionTitle({ type: "InfoAction", title: "" }), "Poll without a readable title");
+});
+
+test("a vote reads differently for who votes and for what is voted on", () => {
+  assert.equal(voteOfAddress("drep", "Yes", "open"), "voted yes");
+  assert.equal(voteOfAddress("drep", "Abstain", "enacted"), "abstained");
+  assert.equal(voteOfAddress("drep", null, "open"), "has not voted yet");
+  assert.equal(voteOfAddress("drep", null, "expired"), "did not vote");
+  assert.equal(voteOfAddress("abstain", null, "open"), "does not take part");
+  assert.match(voteOfAddress("none", null, "open"), /not counted/);
+
+  assert.equal(poolsVoteOn("TreasuryWithdrawals"), false);
+  assert.equal(poolsVoteOn("HardForkInitiation"), true);
+  assert.equal(voteOfPool("TreasuryWithdrawals", null, "open"), "pools do not vote on this");
+  assert.equal(voteOfPool("InfoAction", "Abstain", "open"), "abstained");
+  assert.equal(voteOfPool("InfoAction", null, "open"), "has not voted yet");
+  assert.equal(voteOfPool("InfoAction", null, "expired"), "did not vote");
+});
+
+test("open actions come first, the one ending soonest on top, then the closed ones newest first", () => {
+  const actions = [
+    govAction({ title: "closed old", expiresEpoch: 660, expiredEpoch: 660 }),
+    govAction({ title: "open late", expiresEpoch: 675 }),
+    govAction({ title: "closed new", expiresEpoch: 668, enactedEpoch: 669 }),
+    govAction({ title: "open soon", expiresEpoch: 671 }),
+  ];
+  assert.deepEqual(sortActions(actions, 669).map((action) => action.title), ["open soon", "open late", "closed new", "closed old"]);
 });

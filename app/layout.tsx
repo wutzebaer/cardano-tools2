@@ -3,7 +3,7 @@ import ErrorBoundary from "@components/ErrorBoundary";
 import ErrorToast from "@components/ErrorToast";
 import { IS_MAINNET, NETWORK } from "@cardano/network";
 import { POOL_TICKER, TELEGRAM_URL } from "@cardano/pool";
-import { ArrowRightStartOnRectangleIcon, BanknotesIcon,CalculatorIcon,DocumentTextIcon, FireIcon, GiftIcon, LockClosedIcon, ShieldCheckIcon, SparklesIcon, Squares2X2Icon, WalletIcon } from "@heroicons/react/24/outline";
+import { ArrowRightStartOnRectangleIcon, BanknotesIcon,CalculatorIcon,DocumentTextIcon, FireIcon, GiftIcon, LockClosedIcon, ScaleIcon, ShieldCheckIcon, SparklesIcon, Squares2X2Icon, WalletIcon } from "@heroicons/react/24/outline";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Image from "next/image";
@@ -60,6 +60,9 @@ export default function RootLayout({
                   <p className="section-label mb-2 px-3">Tools</p>
                   <NavLink href="/check" icon={<ShieldCheckIcon className="size-5" />}>
                     Staking check
+                  </NavLink>
+                  <NavLink href="/votes" icon={<ScaleIcon className="size-5" />}>
+                    Governance
                   </NavLink>
                   <NavLink href="/browse" icon={<Squares2X2Icon className="size-5" />}>
                     Browse

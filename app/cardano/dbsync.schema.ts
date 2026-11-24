@@ -497,6 +497,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/governance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open and recently closed governance actions with the votes cast, and how one DRep and one pool voted on each */
+        get: operations["getGovernance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/epochStake/{poolHash}/{epoch}": {
         parameters: {
             query?: never;
@@ -687,6 +704,54 @@ export interface components {
             nameB?: string;
             /** Format: int64 */
             quantityB?: number;
+        };
+        GovAction: {
+            txHash: string;
+            /** Format: int32 */
+            index: number;
+            type: string;
+            title?: string;
+            summary?: string;
+            anchorUrl?: string;
+            /** Format: int32 */
+            submittedEpoch: number;
+            /** Format: int32 */
+            expiresEpoch: number;
+            /** Format: int32 */
+            ratifiedEpoch?: number;
+            /** Format: int32 */
+            enactedEpoch?: number;
+            /** Format: int32 */
+            droppedEpoch?: number;
+            /** Format: int32 */
+            expiredEpoch?: number;
+            /** Format: int64 */
+            withdrawal?: number;
+            /** Format: int32 */
+            drepYes: number;
+            /** Format: int32 */
+            drepNo: number;
+            /** Format: int32 */
+            drepAbstain: number;
+            /** Format: int32 */
+            poolYes: number;
+            /** Format: int32 */
+            poolNo: number;
+            /** Format: int32 */
+            poolAbstain: number;
+            /** Format: int32 */
+            committeeYes: number;
+            /** Format: int32 */
+            committeeNo: number;
+            drepVote?: string;
+            poolVote?: string;
+            poolVoteAnchorUrl?: string;
+        };
+        GovernanceOverview: {
+            /** Format: int32 */
+            currentEpoch: number;
+            drepName?: string;
+            actions: components["schemas"]["GovAction"][];
         };
         EpochStake: {
             stakeAddress: string;
@@ -1364,6 +1429,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StakeAddress"];
+                };
+            };
+        };
+    };
+    getGovernance: {
+        parameters: {
+            query?: {
+                /** @example drep13d6sxkyz6st9h65qqrzd8ukpywhr8swe9f6357qntgjqye0gttd */
+                drepId?: string;
+                /** @example pool180fejev4xgwe2y53ky0pxvgxr3wcvkweu6feq5mdljfzcsmtg6u */
+                poolHash?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GovernanceOverview"];
                 };
             };
         };

@@ -199,3 +199,13 @@ export async function getPoolAlternatives() {
     return [];
   }
 }
+
+/** Open and recently closed governance actions, with the votes of a DRep and a pool on each if given. */
+export async function getGovernance(drepId?: string | null, poolHash?: string | null) {
+  return optional(
+    client.GET("/governance", {
+      params: { query: { drepId: drepId ?? undefined, poolHash: poolHash ?? undefined } },
+      next: { revalidate: 300 },
+    })
+  );
+}

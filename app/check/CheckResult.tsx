@@ -4,6 +4,7 @@ import { formatAda, formatNumber, shortenId } from "@cardano/utils";
 import CopyButton from "@components/CopyButton";
 import { ExternalLink } from "@components/ui";
 import { CheckCircleIcon, ExclamationTriangleIcon, InformationCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
+import Link from "next/link";
 import { ReactNode } from "react";
 import { DelegateToPool, StopStaking, VoteDelegation, WithdrawRewards } from "./CheckActions";
 import { drepKind, Finding, Level, marginCostPerYear, saturation } from "./checkLogic";
@@ -189,6 +190,11 @@ export default function CheckResult({ data }: { data: CheckData }) {
               />
             )}
           </ul>
+          <p className="text-sm">
+            <Link href={`/votes/${encodeURIComponent(label)}`} className="text-primary hover:underline">
+              {vote === "drep" ? "See what is being voted on and how your representative voted" : "See what Cardano is voting on right now"}
+            </Link>
+          </p>
           <details className="text-sm" open={vote === "none"}>
             <summary className="cursor-pointer text-base-content/65">{vote === "none" ? "Make the choice now" : "Change the choice"}</summary>
             <div className="mt-3">

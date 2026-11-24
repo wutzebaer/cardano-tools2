@@ -7,6 +7,7 @@ The one thing that runs on the server besides the pages is the Telegram alert bo
 | Route | What it does |
 | --- | --- |
 | `/check` | Staking check of any address: pool status and fees, governance vote, rewards, with a shareable page per address |
+| `/votes` | Open and recent governance actions in plain words, with the votes of an address's DRep and pool (`/governance/` is taken by the static rationale files) |
 | `/browse` | Latest tokens, search by policy id, fingerprint or `$handle`, token details with policy lock status |
 | `/my` | Tokens of the connected wallet or any address |
 | `/mint` | Mint CIP-68 NFTs and fungible tokens, one or many per transaction, with additional files and a JSON editor for the metadata |
@@ -51,7 +52,7 @@ npm run update-schema
 
 ```bash
 npm run lint
-npm test        # reward distribution, statement, mint metadata, timelock script, staking check, rewards report, alerts
+npm test        # reward distribution, statement, mint metadata, timelock script, staking check, rewards report, alerts, governance
 npm run build
 ```
 
