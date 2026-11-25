@@ -1,11 +1,10 @@
 "use client";
 
 import { createPolicy, policySecondsLeft } from "@cardano/mint";
-import { importPolicy } from "@cardano/policies";
 import { collectionNameError } from "@cardano/registration";
 import { MintPolicy } from "@cardano/types";
-import { Field, inputClass, secondaryButtonClass, textareaClass } from "@components/ui";
-import { ArrowDownTrayIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { Field, inputClass, secondaryButtonClass } from "@components/ui";
+import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useState, ReactNode } from "react";
 import { PolicySelection } from "./usePolicies";
 
@@ -24,7 +23,7 @@ function policyLabel(policy: MintPolicy, minted: boolean) {
   return `${name}${policy.policyId} · ${status}${policy.skey ? " · imported" : ""}`;
 }
 
-type Mode = "select" | "create" | "import";
+type Mode = "select" | "create";
 
 /** `step` shows the policy as a numbered step of a longer form. `children` is shown below the selected policy, for what belongs to it. */
 export default function PolicySelector({ keyHash, selection, step, children }: { keyHash: string; selection: PolicySelection; step?: number; children?: ReactNode }) {
@@ -33,30 +32,15 @@ export default function PolicySelector({ keyHash, selection, step, children }: {
   const [name, setName] = useState("");
   const [days, setDays] = useState("365");
   const [noLock, setNoLock] = useState(false);
-  const [script, setScript] = useState("");
-  const [signingKey, setSigningKey] = useState("");
-  const [importError, setImportError] = useState("");
 
   const close = () => {
     setMode("select");
     setName("");
-    setScript("");
-    setSigningKey("");
-    setImportError("");
   };
 
   const create = () => {
     add({ ...createPolicy(keyHash, noLock ? null : Number(days)), name: name.trim() || undefined });
     close();
-  };
-
-  const doImport = () => {
-    try {
-      add(importPolicy(name, script, signingKey));
-      close();
-    } catch (error) {
-      setImportError(error instanceof Error ? error.message : String(error));
-    }
   };
 
   const removeSelected = () => {
@@ -77,16 +61,10 @@ export default function PolicySelector({ keyHash, selection, step, children }: {
           <p className="section-label">Policy</p>
         )}
         {mode === "select" ? (
-          <div className="flex gap-2">
-            <button type="button" className={secondaryButtonClass} onClick={() => setMode("import")}>
-              <ArrowDownTrayIcon className="size-4" />
-              Import
-            </button>
-            <button type="button" className={secondaryButtonClass} onClick={() => setMode("create")}>
-              <PlusIcon className="size-4" />
-              New policy
-            </button>
-          </div>
+          <button type="button" className={secondaryButtonClass} onClick={() => setMode("create")}>
+            <PlusIcon className="size-4" />
+            New policy
+          </button>
         ) : null}
       </div>
 
@@ -141,32 +119,6 @@ export default function PolicySelector({ keyHash, selection, step, children }: {
           <div className="flex gap-2">
             <button type="button" className="btn btn-primary btn-sm" onClick={create} disabled={!!collectionNameError(name) || (!noLock && !(Number(days) >= 1 && Number(days) <= 10000))}>
               Create
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={close}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {mode === "import" ? (
-        <div className="flex flex-col gap-4 rounded-field border border-line bg-base-300 p-4">
-          <p className="text-xs text-base-content/55">
-            Import a policy created elsewhere, e.g. with the previous Cardano Tools or cardano-cli. Script and signing key are kept only in this browser and are
-            used to sign next to your wallet.
-          </p>
-          <Field label="Name (optional)">
-            <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="My old policy" />
-          </Field>
-          <Field label="Policy script (JSON)">
-            <textarea className={`${textareaClass} font-mono text-xs`} rows={5} value={script} onChange={(e) => setScript(e.target.value)} placeholder='{"type": "all", "scripts": [{"type": "before", "slot": 1}, {"type": "sig", "keyHash": "…"}]}' />
-          </Field>
-          <Field label="Policy signing key (.skey file content or hex)" error={importError}>
-            <textarea className={`${textareaClass} font-mono text-xs`} rows={3} value={signingKey} onChange={(e) => setSigningKey(e.target.value)} placeholder='{"type": "PaymentSigningKeyShelley_ed25519", "cborHex": "5820…"}' />
-          </Field>
-          <div className="flex gap-2">
-            <button type="button" className="btn btn-primary btn-sm" onClick={doImport} disabled={!script.trim() || !signingKey.trim()}>
-              Import
             </button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={close}>
               Cancel

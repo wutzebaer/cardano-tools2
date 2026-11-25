@@ -133,7 +133,7 @@ function Burn({ wallet }: { wallet: ConnectedWallet }) {
         </div>
       ) : groups.length === 0 ? (
         <div className="surface px-6 py-16 text-center text-sm text-base-content/55">
-          Your wallet holds no tokens of a policy you can still sign for. Policies imported on the Mint page show up here as well.
+          Your wallet holds no tokens of a policy you can still sign for.
         </div>
       ) : null}
 
