@@ -33,7 +33,7 @@ function Tile({ label, value, accent = false }: { label: string; value: string; 
         background: accent ? "rgba(77, 124, 254, 0.16)" : "rgba(255, 255, 255, 0.04)",
       }}
     >
-      <div style={{ display: "flex", fontSize: 24, letterSpacing: 3, color: "#8b93a7" }}>{label}</div>
+      <div style={{ display: "flex", fontSize: 20, letterSpacing: 2, whiteSpace: "nowrap", color: "#8b93a7" }}>{label}</div>
       <div style={{ display: "flex", fontSize: 76, fontWeight: 700, color: accent ? "#ffffff" : "#e6e8ee" }}>{value}</div>
     </div>
   );
