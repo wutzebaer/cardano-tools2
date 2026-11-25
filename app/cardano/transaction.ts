@@ -8,6 +8,7 @@ import {
   Certificate,
   Certificates,
   CoinSelectionStrategyCIP2,
+  DataCost,
   DRep,
   Ed25519KeyHash,
   FixedTransaction,
@@ -35,6 +36,7 @@ import {
   Value,
   VoteDelegation,
   Withdrawals,
+  min_ada_for_output,
 } from "@emurgo/cardano-serialization-lib-browser";
 
 export { currentEpoch, currentSlot, unixToSlot } from "@cardano/network";
@@ -106,6 +108,7 @@ export const buildTransaction = async (
   const spendable = available.filter((utxo) => utxo !== signerUtxo);
 
   let firstError: unknown;
+  let lastError: unknown;
   for (const strategy of INPUT_STRATEGIES) {
     try {
       const txBuilder = TransactionBuilder.new(txBuilderConfig);
@@ -132,31 +135,65 @@ export const buildTransaction = async (
       return txBuilder.build_tx();
     } catch (error) {
       firstError ??= error;
+      lastError = error;
     }
   }
-  if (/insufficient/i.test(String((firstError as Error | undefined)?.message ?? firstError))) {
-    throw new Error(shortfallMessage(configure, available));
+  // the last try spent everything: if even that is short of ADA, the wallet holds too little
+  if (isShortOfAda(firstError) || isShortOfAda(lastError)) {
+    throw new Error(shortfallMessage(configure, available, changeAddress));
   }
   throw firstError;
 };
 
+/** The library's two ways to say that the ADA does not suffice: for the outputs, or for the change that holds the tokens. */
+const isShortOfAda = (error: unknown) => /insufficient|not enough ada/i.test(String((error as Error | undefined)?.message ?? error));
+
 const coinOf = (value: Value) => Number(value.coin().to_str());
 
+/** Used where the fee cannot be calculated, a transaction of this site rarely costs more. */
+const ASSUMED_FEE = 500_000;
+
 /**
- * Why the inputs do not cover a transaction, in words: what its outputs and deposits need against what the wallet
- * offers. The library only says "UTxO Balance Insufficient".
+ * Why the inputs do not cover a transaction, in words: what it needs against what the wallet offers. The library only
+ * says "UTxO Balance Insufficient" or "Not enough ADA leftover to include non-ADA assets in a change address".
+ * What it needs is the ADA of its outputs and deposits, the fee, and the minimum of ADA for the change, which takes
+ * all tokens of the wallet and the minted ones back.
  */
-function shortfallMessage(configure: (txBuilder: TransactionBuilder) => void, available: TransactionUnspentOutput[]) {
+function shortfallMessage(configure: (txBuilder: TransactionBuilder) => void, available: TransactionUnspentOutput[], changeAddress: Address) {
   const advice = "Add ADA to the wallet and try again. Nothing was submitted.";
   try {
     const txBuilder = TransactionBuilder.new(txBuilderConfig);
     txBuilder.set_ttl(currentSlot() + TTL_SECONDS);
     configure(txBuilder);
-    const needed = coinOf(txBuilder.get_explicit_output()) + Number(txBuilder.get_deposit().to_str()) - coinOf(txBuilder.get_implicit_input());
+    for (const utxo of available) {
+      txBuilder.add_regular_input(utxo.output().address(), utxo.input(), utxo.output().amount());
+    }
     const offered = available.reduce((sum, utxo) => sum + coinOf(utxo.output().amount()), 0);
+    const totalInput = txBuilder.get_total_input();
+    const totalOutput = txBuilder.get_total_output();
+    // what the outputs and deposits take, less what a withdrawal or a returned deposit brings in
+    const spent = coinOf(totalOutput) - (coinOf(totalInput) - offered);
+
+    const changeTokens = totalInput.clamped_sub(totalOutput).multiasset();
+    const changeMinimum =
+      changeTokens && changeTokens.len() > 0
+        ? Number(min_ada_for_output(TransactionOutput.new(changeAddress, Value.new_with_assets(BigNum.from_str("2000000"), changeTokens)), DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE)).to_str())
+        : 0;
+
+    let fee = ASSUMED_FEE;
+    try {
+      fee = Number(txBuilder.min_fee().to_str());
+    } catch {
+      // stays the assumed one
+    }
+
+    const needed = spent + changeMinimum + fee;
+    const missing = needed - offered;
     return (
-      `Your wallet holds too little ADA for this transaction: it needs about ${formatAda(needed)} plus the fee, the wallet offers ${formatAda(offered)}. ` +
-      `Every output on Cardano has to carry a minimum of ADA, which stays with the tokens it holds. ${advice}`
+      `Your wallet holds too little ADA for this transaction: it needs about ${formatAda(needed)}, the wallet offers ${formatAda(offered)}` +
+      (missing > 0 ? `, so about ${formatAda(missing)} are missing. ` : ". ") +
+      (changeMinimum > 0 ? `Of that, about ${formatAda(changeMinimum)} stay in your wallet: tokens can only be held together with a minimum of ADA. ` : "") +
+      advice
     );
   } catch {
     return `Your wallet holds too little ADA for this transaction. ${advice}`;
