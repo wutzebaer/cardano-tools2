@@ -24,6 +24,7 @@ function Tile({ label, value, accent = false }: { label: string; value: string; 
       style={{
         display: "flex",
         flexDirection: "column",
+        alignItems: "center",
         flexGrow: 1,
         flexBasis: 0,
         gap: 10,
