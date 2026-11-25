@@ -1,7 +1,7 @@
-import { getPoolCheck, getPoolEpoch } from "@cardano/dbsync";
+import { getPoolCheck, getPoolEpoch, getPoolEpochFacts } from "@cardano/dbsync";
 import { POOL_ID, POOL_TICKER } from "@cardano/pool";
 import { ImageResponse } from "next/og";
-import { battleNote, battlesByEpoch, formatExpected, formatStake, luck } from "../../../alerts/poolPosts";
+import { battleNote, battlesByEpoch, formatExpected, formatStake, funFact, luck } from "../../../alerts/poolPosts";
 import { pushgatewayMetrics } from "../../../alerts/pushgateway";
 
 const SIZE = { width: 1200, height: 630 };
@@ -73,12 +73,12 @@ function Tile({ label, value, accent = false, note = "" }: { label: string; valu
       }}
     >
       <div style={{ display: "flex", fontSize: 20, letterSpacing: 2, whiteSpace: "nowrap", color: "#8b93a7" }}>{label}</div>
-      <div style={{ display: "flex", fontSize: 76, fontWeight: 700, color: accent ? "#ffffff" : "#e6e8ee" }}>{value}</div>
+      <div style={{ display: "flex", fontSize: value.length <= 6 ? 76 : value.length <= 8 ? 60 : 48, fontWeight: 700, color: accent ? "#ffffff" : "#e6e8ee" }}>{value}</div>
       {note ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 22, color: "#fdba74" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 22, color: note.includes("lost to") || note.includes("missed") ? "#fdba74" : "#8b93a7" }}>
           {note.includes("lost to") ? <AngryMob /> : null}
           {/* several winners take two lines rather than leave the tile */}
-          <span style={{ display: "flex", maxWidth: 150 }}>{note}</span>
+          <span style={{ display: "flex", textAlign: "center", maxWidth: note.includes("lost to") ? 150 : 270 }}>{note}</span>
         </div>
       ) : null}
     </div>
@@ -97,7 +97,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
   const scheduled = scheduledText != null && /^\d{1,4}$/.test(scheduledText) ? Number(scheduledText) : undefined;
   if (kind === "plan" && scheduled == null) return new Response("Not found", { status: 404 });
 
-  const [facts, pool, metrics] = await Promise.all([getPoolEpoch(POOL_ID, epoch), getPoolCheck(POOL_ID), kind === "result" ? pushgatewayMetrics() : Promise.resolve("")]);
+  const [facts, pool, metrics, numbers] = await Promise.all([
+    getPoolEpoch(POOL_ID, epoch),
+    getPoolCheck(POOL_ID),
+    kind === "result" ? pushgatewayMetrics() : Promise.resolve(""),
+    kind === "result" ? getPoolEpochFacts(POOL_ID, epoch) : Promise.resolve(null),
+  ]);
   if (!facts) return new Response("Not found", { status: 404 });
 
   const battles = kind === "result" ? battlesByEpoch(metrics).get(epoch) : undefined;
@@ -114,8 +119,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
             note: battleNote(battles),
           },
         ];
-  if (facts.expectedBlocks != null) tiles.push({ label: "EXPECTED BY STAKE", value: formatExpected(facts.expectedBlocks), accent: false });
-  if (percent != null) tiles.push({ label: "OF THE AVERAGE", value: `${percent} %`, accent: false });
+  // the result tells a different little fact each epoch; the expectation moves under the percentage
+  const fact = kind === "result" ? funFact(numbers, facts.stake, facts.delegators) : null;
+  if (fact) tiles.push({ label: fact.label, value: fact.value, accent: false, note: fact.note });
+  else if (facts.expectedBlocks != null) tiles.push({ label: "EXPECTED BY STAKE", value: formatExpected(facts.expectedBlocks), accent: false });
+  if (percent != null) tiles.push({ label: "OF THE AVERAGE", value: `${percent} %`, accent: false, note: fact && facts.expectedBlocks != null ? `expected ${formatExpected(facts.expectedBlocks)}` : undefined });
 
   return new ImageResponse(
     (

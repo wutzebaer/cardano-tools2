@@ -4,7 +4,7 @@ process.env.TZ = "UTC";
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { battleLines, battleNote, battlesByEpoch, duePoolPosts, formatStake, initialPoolPostState, luck, planCaption, resultCaption, scheduledBlocks } from "../app/alerts/poolPosts.ts";
+import { battleLines, battleNote, battlesByEpoch, duePoolPosts, FUN_FACTS, funFact, shortAda, formatStake, initialPoolPostState, luck, planCaption, resultCaption, scheduledBlocks } from "../app/alerts/poolPosts.ts";
 import { alertMessage, alertsOf, listMessage, lockAlerts, locksOf, newAlerts, parseCommand, pendingLocksLine, watchSummary, welcomeMessage } from "../app/alerts/alertLogic.ts";
 import { groupFeed } from "../app/browse/groupTokens.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
@@ -617,6 +617,29 @@ test("the bot reads the battles of finished epochs and names who took a block", 
     resultCaption("TOOLS", facts, 2, "https://x", { lost: [{ kind: "slot", winner: "CF3", count: 1 }], missed: 0 }),
     "[TOOLS] forged 1 of 2 scheduled blocks in epoch 669.\nOne block went to [CF3] in a slot battle: both pools were leader in the same slot and the draw favoured them.\n🔥🔱 Pitchforks are being sharpened in the direction of [CF3].\nIts stake let expect 0.74, that is 135 % of the average.\nThe rewards of the epoch reach the delegators in two epochs.\n\nhttps://x/pool"
   );
+});
+
+test("every epoch tells another little fact, and a fact without anything to say passes on", () => {
+  const numbers = {
+    epoch: 669, blocks: 1, transactions: 10, lovelaceMoved: 574_185_199_826, fees: 3_732_476, largestTransaction: 517_823_218_595, blockFill: 0.2506,
+    lastBlockNo: 14_228_406, tokenOutputs: 75, scriptRuns: 12, tokensMinted: 3, networkBlocks: 21_516, registeredEpoch: 255, lifetimeBlocks: 577,
+    epochsWithBlocks: 193, blockStreak: 1, previousStake: 736_929_848_031, previousDelegators: 209, stakeRank: 966, rankedPools: 2666, delegatorRewards: 185_639_630_110,
+  };
+  assert.equal(FUN_FACTS.length, 20);
+  assert.equal(shortAda(574_185_199_826), "574.2K");
+  assert.equal(shortAda(3_732_476), "3.73");
+  // with a block every fact but the streak and the delegators has something to say
+  const told = FUN_FACTS.map((make) => make(numbers, 736_926_000_000, 209)).filter(Boolean);
+  assert.equal(told.length, 18);
+  for (const fact of told) assert.ok(fact.value.length <= 11 && fact.label === fact.label.toUpperCase() && fact.sentence.startsWith("Fun fact: "), JSON.stringify(fact));
+  // 669 % 20 = 9: the block height
+  assert.deepEqual(funFact(numbers, 736_926_000_000, 209), { label: "BLOCK HEIGHT", value: "#14,228,406", note: "our latest block", sentence: "Fun fact: our latest block is number 14,228,406 of the Cardano chain." });
+  // 671 % 20 = 11 is the streak, too short here: the next fact speaks
+  assert.equal(funFact(numbers, 736_926_000_000, 209, 671).label, "EPOCHS WITH A BLOCK");
+  // an epoch without a block skips the facts about blocks
+  const empty = { ...numbers, blocks: 0, transactions: 0, lovelaceMoved: 0, fees: 0, largestTransaction: null, blockFill: null, lastBlockNo: null, tokenOutputs: 0, scriptRuns: 0, tokensMinted: 0 };
+  assert.equal(funFact(empty, 736_926_000_000, 209, 660).label, "LIFETIME BLOCKS");
+  assert.equal(funFact(null, 1, 1), null);
 });
 
 // ---------------------------------------------------------------------------

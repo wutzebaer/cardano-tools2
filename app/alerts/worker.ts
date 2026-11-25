@@ -8,7 +8,7 @@ import path from "node:path";
 import { poolFindings, PoolFacts, PoolResults } from "../check/checkLogic";
 import { currentEpoch, currentSlot, epochStartUnix, NETWORK, slotToUnix, unixToEpoch } from "../cardano/network";
 import { POOL_ID, POOL_TICKER } from "../cardano/pool";
-import { battlesByEpoch, duePoolPosts, EpochBattles, initialPoolPostState, planCaption, PoolEpochFacts, PoolPostKind, PoolPostState, resultCaption, scheduledBlocks } from "./poolPosts";
+import { battlesByEpoch, duePoolPosts, EpochBattles, EpochNumbers, funFact, initialPoolPostState, planCaption, PoolEpochFacts, PoolPostKind, PoolPostState, resultCaption, scheduledBlocks } from "./poolPosts";
 import { pushgatewayMetrics } from "./pushgateway";
 import { unlockSlotsFromMetadata } from "../cardano/timelockScript";
 import {
@@ -172,7 +172,9 @@ async function poolPost(kind: PoolPostKind, epoch: number, scheduled: Map<number
   // the page draws the picture, the bot runs in the same process and asks it directly
   const picture = await fetch(`${OWN_URL}/pool-post/${kind}/${epoch}${count != null ? `?scheduled=${count}` : ""}`, { cache: "no-store", signal: AbortSignal.timeout(60_000) });
   if (!picture.ok) throw new Error(`picture of the post: ${picture.status}`);
-  const caption = kind === "plan" ? planCaption(POOL_TICKER, facts, count!, SITE_URL) : resultCaption(POOL_TICKER, facts, count, SITE_URL, battles.get(epoch));
+  const numbers = kind === "result" ? await api<EpochNumbers>(`/pool/${POOL_ID}/epoch/${epoch}/facts`).catch(() => null) : null;
+  const caption =
+    kind === "plan" ? planCaption(POOL_TICKER, facts, count!, SITE_URL) : resultCaption(POOL_TICKER, facts, count, SITE_URL, battles.get(epoch), funFact(numbers, facts.stake, facts.delegators));
   return { image: await picture.blob(), caption };
 }
 

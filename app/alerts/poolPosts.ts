@@ -130,6 +130,89 @@ export function battleLines(epoch: number, battles: EpochBattles | undefined) {
   return lines;
 }
 
+/** Numbers around one epoch of the pool, as the chain data API reports them. Amounts in lovelace. */
+export interface EpochNumbers {
+  epoch: number;
+  blocks: number;
+  transactions: number;
+  lovelaceMoved: number;
+  fees: number;
+  largestTransaction?: number | null;
+  blockFill?: number | null;
+  lastBlockNo?: number | null;
+  tokenOutputs: number;
+  scriptRuns: number;
+  tokensMinted: number;
+  networkBlocks: number;
+  registeredEpoch?: number | null;
+  lifetimeBlocks: number;
+  epochsWithBlocks: number;
+  blockStreak: number;
+  previousStake: number;
+  previousDelegators: number;
+  stakeRank?: number | null;
+  rankedPools: number;
+  delegatorRewards: number;
+}
+
+/** One little fact for the picture and the text: a heading, a short value, a line under it and a sentence. */
+export interface FunFact {
+  label: string;
+  value: string;
+  note: string;
+  sentence: string;
+}
+
+const EPOCH_DAYS = 5;
+const count = (value: number) => value.toLocaleString("en-US");
+/** ADA in few characters: 574K, 1.2M, 3.73 */
+export const shortAda = (lovelace: number) => {
+  const ada = lovelace / 1_000_000;
+  if (Math.abs(ada) < 1000) return ada.toLocaleString("en-US", { maximumFractionDigits: Math.abs(ada) < 10 ? 2 : 0 });
+  return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(ada);
+};
+const signed = (text: string, value: number) => (value > 0 ? `+${text}` : value < 0 ? text : `±${text}`);
+const inOurBlocks = (numbers: EpochNumbers) => (numbers.blocks === 1 ? "in our block" : `in our ${numbers.blocks} blocks`);
+
+type FactMaker = (numbers: EpochNumbers, stake: number, delegators: number) => FunFact | null;
+
+/**
+ * Twenty facts; an epoch shows one of them, the next epoch the next one. A fact that has nothing to say about the
+ * epoch (no block, no change) gives way to the following one. The first eight need a block of the pool.
+ */
+export const FUN_FACTS: FactMaker[] = [
+  (n) => (n.blocks > 0 ? { label: "TRANSACTIONS", value: count(n.transactions), note: inOurBlocks(n), sentence: `Fun fact: ${inOurBlocks(n).replace("in our", "Our")} carried ${count(n.transactions)} transactions.` } : null),
+  (n) => (n.blocks > 0 && n.lovelaceMoved > 0 ? { label: "ADA MOVED", value: shortAda(n.lovelaceMoved), note: `ADA ${inOurBlocks(n)}`, sentence: `Fun fact: ${shortAda(n.lovelaceMoved)} ADA changed hands ${inOurBlocks(n)}.` } : null),
+  (n) => (n.blocks > 0 && n.fees > 0 ? { label: "FEES", value: shortAda(n.fees), note: `ADA ${inOurBlocks(n)}`, sentence: `Fun fact: the transactions ${inOurBlocks(n)} paid ${shortAda(n.fees)} ADA in fees, they go to the rewards of all stakers.` } : null),
+  (n) => (n.largestTransaction ? { label: "LARGEST TRANSFER", value: shortAda(n.largestTransaction), note: "ADA in one transaction", sentence: `Fun fact: the largest transaction ${inOurBlocks(n)} moved ${shortAda(n.largestTransaction)} ADA at once.` } : null),
+  (n) => (n.blockFill != null && n.blockFill >= 0.01 && n.blocks > 0 ? { label: "BLOCK FILL", value: `${Math.round(n.blockFill * 100)} %`, note: "of the size limit", sentence: `Fun fact: ${n.blocks === 1 ? "our block was" : "our blocks were"} ${Math.round(n.blockFill * 100)} % full.` } : null),
+  (n) => (n.tokenOutputs > 0 ? { label: "TOKEN OUTPUTS", value: count(n.tokenOutputs), note: `with native tokens`, sentence: `Fun fact: ${count(n.tokenOutputs)} outputs ${inOurBlocks(n)} carried native tokens.` } : null),
+  (n) => (n.scriptRuns > 0 ? { label: "SMART CONTRACTS", value: count(n.scriptRuns), note: `runs ${inOurBlocks(n)}`, sentence: `Fun fact: smart contracts ran ${count(n.scriptRuns)} times ${inOurBlocks(n)}.` } : null),
+  (n) => (n.tokensMinted > 0 ? { label: "TOKENS MINTED", value: count(n.tokensMinted), note: `born ${inOurBlocks(n)}`, sentence: `Fun fact: ${count(n.tokensMinted)} new ${n.tokensMinted === 1 ? "token was" : "tokens were"} minted ${inOurBlocks(n)}.` } : null),
+  (n) => (n.lifetimeBlocks > 0 ? { label: "LIFETIME BLOCKS", value: count(n.lifetimeBlocks), note: n.registeredEpoch != null ? `since epoch ${n.registeredEpoch}` : "so far", sentence: `Fun fact: that makes ${count(n.lifetimeBlocks)} blocks in the life of the pool.` } : null),
+  (n) => (n.lastBlockNo ? { label: "BLOCK HEIGHT", value: `#${count(n.lastBlockNo)}`, note: "our latest block", sentence: `Fun fact: our latest block is number ${count(n.lastBlockNo)} of the Cardano chain.` } : null),
+  (n) => (n.registeredEpoch != null && n.epoch > n.registeredEpoch ? { label: "POOL AGE", value: count((n.epoch - n.registeredEpoch) * EPOCH_DAYS), note: `days, since epoch ${n.registeredEpoch}`, sentence: `Fun fact: the pool has been making blocks for ${count((n.epoch - n.registeredEpoch) * EPOCH_DAYS)} days.` } : null),
+  (n) => (n.blockStreak >= 2 ? { label: "BLOCK STREAK", value: count(n.blockStreak), note: "epochs in a row", sentence: `Fun fact: ${n.blockStreak} epochs in a row with a block.` } : null),
+  (n) => (n.registeredEpoch != null && n.epochsWithBlocks > 0 ? { label: "EPOCHS WITH A BLOCK", value: count(n.epochsWithBlocks), note: `of ${count(n.epoch - n.registeredEpoch + 1)} epochs`, sentence: `Fun fact: the pool made blocks in ${count(n.epochsWithBlocks)} of its ${count(n.epoch - n.registeredEpoch + 1)} epochs.` } : null),
+  (n, _stake, delegators) => (n.previousDelegators > 0 && delegators !== n.previousDelegators ? { label: "NEW DELEGATORS", value: signed(count(delegators - n.previousDelegators), delegators - n.previousDelegators), note: `now ${count(delegators)}`, sentence: `Fun fact: ${delegators > n.previousDelegators ? `${delegators - n.previousDelegators} more` : `${n.previousDelegators - delegators} fewer`} delegators than the epoch before, ${count(delegators)} in all.` } : null),
+  (n, stake) => (n.previousStake > 0 && Math.abs(stake - n.previousStake) >= 1_000_000 ? { label: "STAKE CHANGE", value: signed(shortAda(stake - n.previousStake), stake - n.previousStake), note: "ADA since last epoch", sentence: `Fun fact: the stake ${stake > n.previousStake ? "grew" : "shrank"} by ${shortAda(Math.abs(stake - n.previousStake))} ADA since the epoch before.` } : null),
+  (_n, stake, delegators) => (delegators > 0 ? { label: "AVERAGE DELEGATION", value: shortAda(stake / delegators), note: "ADA per delegator", sentence: `Fun fact: our delegators stake ${shortAda(stake / delegators)} ADA on average, small and large are equally welcome.` } : null),
+  (n) => (n.stakeRank != null && n.rankedPools > 0 ? { label: "STAKE RANK", value: `#${count(n.stakeRank)}`, note: `of ${count(n.rankedPools)} pools`, sentence: `Fun fact: by stake the pool is number ${count(n.stakeRank)} of ${count(n.rankedPools)} pools.` } : null),
+  (n) => (n.blocks > 0 && n.networkBlocks > 0 ? { label: "SHARE OF BLOCKS", value: `1 in ${count(Math.round(n.networkBlocks / n.blocks))}`, note: `of ${count(n.networkBlocks)} blocks`, sentence: `Fun fact: ${n.blocks === 1 ? "one" : count(n.blocks)} of the ${count(n.networkBlocks)} blocks of the epoch ${n.blocks === 1 ? "was" : "were"} ours.` } : null),
+  (n) => (n.delegatorRewards > 0 ? { label: "PAID TO DELEGATORS", value: shortAda(n.delegatorRewards), note: "ADA in rewards so far", sentence: `Fun fact: the pool has paid its delegators ${shortAda(n.delegatorRewards)} ADA in rewards so far.` } : null),
+  (n) => (n.transactions > 0 ? { label: "AVERAGE TRANSACTION", value: shortAda(n.lovelaceMoved / n.transactions), note: `ADA ${inOurBlocks(n)}`, sentence: `Fun fact: a transaction ${inOurBlocks(n)} moved ${shortAda(n.lovelaceMoved / n.transactions)} ADA on average.` } : null),
+];
+
+/** The fact of an epoch: the epoch picks where to start, a fact without anything to say passes on to the next. */
+export function funFact(numbers: EpochNumbers | null | undefined, stake: number, delegators: number, epoch = numbers?.epoch ?? 0): FunFact | null {
+  if (!numbers) return null;
+  for (let step = 0; step < FUN_FACTS.length; step++) {
+    const fact = FUN_FACTS[(epoch + step) % FUN_FACTS.length](numbers, stake, delegators);
+    if (fact) return fact;
+  }
+  return null;
+}
+
 /** Text under the picture of the plan: how many blocks the coming epoch holds for the pool. */
 export function planCaption(ticker: string, facts: PoolEpochFacts, scheduled: number, siteUrl: string) {
   const lines = [`[${ticker}] is scheduled for ${plural(scheduled, "block")} in epoch ${facts.epoch}.`];
@@ -142,12 +225,13 @@ export function planCaption(ticker: string, facts: PoolEpochFacts, scheduled: nu
 }
 
 /** Text under the picture of the result: what the pool made of the epoch that just ended. */
-export function resultCaption(ticker: string, facts: PoolEpochFacts, scheduled: number | undefined, siteUrl: string, battles?: EpochBattles) {
+export function resultCaption(ticker: string, facts: PoolEpochFacts, scheduled: number | undefined, siteUrl: string, battles?: EpochBattles, fact?: FunFact | null) {
   const made = scheduled != null ? `${facts.blocks} of ${plural(scheduled, "scheduled block")}` : plural(facts.blocks, "block");
   const lines = [`[${ticker}] forged ${made} in epoch ${facts.epoch}.`, ...battleLines(facts.epoch, battles)];
   const percent = luck(facts.blocks, facts.expectedBlocks);
   if (facts.expectedBlocks != null && percent != null) lines.push(`Its stake let expect ${formatExpected(facts.expectedBlocks)}, that is ${percent} % of the average.`);
   if (facts.blocks > 0) lines.push("The rewards of the epoch reach the delegators in two epochs.");
+  if (fact) lines.push(fact.sentence);
   lines.push("", `${siteUrl}/pool`);
   return lines.join("\n");
 }

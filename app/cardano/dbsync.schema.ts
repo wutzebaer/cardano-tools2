@@ -113,7 +113,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get all handles from a stakeAddress */
+        /** Get all handles from a stakeAddress, the default one first and marked with default=true */
         get: operations["getHandles"];
         put?: never;
         post?: never;
@@ -293,6 +293,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/token/{policyId}/{assetName}/holders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get who holds a token right now, the largest holders first, 21 at most. Outputs of one stake address count as one holder */
+        get: operations["getTokenHolders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/token/{policyId}/holders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get who holds a token right now, the largest holders first, 21 at most. Outputs of one stake address count as one holder */
+        get: operations["getTokenHolders_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/token/{fingerprint}/": {
         parameters: {
             query?: never;
@@ -353,6 +387,40 @@ export interface paths {
         };
         /** Find stakeAddress by stakeAddressHash */
         get: operations["getStakeAddressByHash"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/script/{scriptHash}/outputs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Unspent outputs at a script that hold a token of the script's own policy whose name starts with the prefix, with their inline datum. One row for the ADA of an output and one per token */
+        get: operations["getScriptOutputs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/script/{scriptHash}/firstOutputs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Outputs of the first transaction that paid to a script, spent or not, with their inline datum */
+        get: operations["getScriptFirstOutputs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -429,6 +497,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pool/{poolHash}/epoch/{epoch}/facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Numbers around one epoch of a pool: what its blocks carried, its history and its place among the pools. Empty for an unknown pool */
+        get: operations["getPoolEpochFacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pool/{poolHash}/check": {
         parameters: {
             query?: never;
@@ -472,6 +557,23 @@ export interface paths {
         };
         /** Get all token owners of a policyId, values get updated twice a day */
         get: operations["getOwners"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/policy/{policyId}/collection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the collection a policy registered on chain (CIP-88), empty if it did not */
+        get: operations["getPolicyCollection"];
         put?: never;
         post?: never;
         delete?: never;
@@ -565,6 +667,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/costModel/plutusV3": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Plutus V3 cost model of the current epoch */
+        get: operations["getPlutusV3CostModel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/block/from/{slot}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The first block in or after a slot and the pool that made it. Empty while the chain has not reached the slot */
+        get: operations["getBlockFrom"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -642,8 +778,10 @@ export interface components {
             /** Format: int64 */
             totalSupply: number;
         };
-        StakeAddress: {
-            address?: string;
+        WalletHandle: {
+            address: string;
+            /** @description The handle wallets show for this stake address, exactly one per stake address. Same order as handle.me: the default set in the handle, then the OG number, the shortest, the first minted and the alphabetically first. */
+            default?: boolean;
         };
         Utxo: {
             txHash: string;
@@ -691,10 +829,29 @@ export interface components {
             sum: number;
             operations: string[];
         };
+        StakeAddress: {
+            address?: string;
+        };
         TxOut: {
             targetAddress: string;
             /** Format: int64 */
             value: number;
+        };
+        TokenHolder: {
+            address: string;
+            /** Format: int64 */
+            quantity: number;
+        };
+        ScriptOutput: {
+            txHash: string;
+            /** Format: int32 */
+            txIndex: number;
+            maPolicyId?: string;
+            maName?: string;
+            /** Format: int64 */
+            value: number;
+            datum?: string;
+            spent: boolean;
         };
         PoolInfo: {
             tickerName: string;
@@ -735,6 +892,51 @@ export interface components {
             /** Format: double */
             expectedBlocks?: number;
         };
+        PoolEpochFacts: {
+            poolHash: string;
+            /** Format: int32 */
+            epoch: number;
+            /** Format: int32 */
+            blocks: number;
+            /** Format: int64 */
+            transactions: number;
+            /** Format: int64 */
+            lovelaceMoved: number;
+            /** Format: int64 */
+            fees: number;
+            /** Format: int64 */
+            largestTransaction?: number;
+            /** Format: double */
+            blockFill?: number;
+            /** Format: int64 */
+            lastBlockNo?: number;
+            /** Format: int64 */
+            tokenOutputs: number;
+            /** Format: int64 */
+            scriptRuns: number;
+            /** Format: int64 */
+            tokensMinted: number;
+            /** Format: int64 */
+            networkBlocks: number;
+            /** Format: int32 */
+            registeredEpoch?: number;
+            /** Format: int64 */
+            lifetimeBlocks: number;
+            /** Format: int32 */
+            epochsWithBlocks: number;
+            /** Format: int32 */
+            blockStreak: number;
+            /** Format: int64 */
+            previousStake: number;
+            /** Format: int32 */
+            previousDelegators: number;
+            /** Format: int32 */
+            stakeRank?: number;
+            /** Format: int32 */
+            rankedPools: number;
+            /** Format: int64 */
+            delegatorRewards: number;
+        };
         PolicyRoyalties: {
             rate?: string;
             address?: string;
@@ -745,6 +947,11 @@ export interface components {
             /** Format: int64 */
             amount: number;
             maNames: string[];
+        };
+        PolicyCollection: {
+            name?: string;
+            description?: string;
+            image?: string;
         };
         LiquidityPool: {
             policyA?: string;
@@ -825,6 +1032,14 @@ export interface components {
             votesAbstain: number;
             /** Format: int32 */
             recentActions: number;
+        };
+        SlotBlock: {
+            /** Format: int64 */
+            slot: number;
+            /** Format: int64 */
+            blockNo: number;
+            poolHash?: string;
+            ticker?: string;
         };
     };
     responses: never;
@@ -993,7 +1208,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StakeAddress"][];
+                    "application/json": components["schemas"]["WalletHandle"][];
                 };
             };
         };
@@ -1232,6 +1447,54 @@ export interface operations {
             };
         };
     };
+    getTokenHolders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982 */
+                policyId: string;
+                /** @example 436176616c6965724b696e67436861726c6573 */
+                assetName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenHolder"][];
+                };
+            };
+        };
+    };
+    getTokenHolders_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982 */
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenHolder"][];
+                };
+            };
+        };
+    };
     getTokenDetails_1: {
         parameters: {
             query?: never;
@@ -1317,6 +1580,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StakeAddress"];
+                };
+            };
+        };
+    };
+    getScriptOutputs: {
+        parameters: {
+            query: {
+                /**
+                 * @description Start of the token name as hex
+                 * @example 677270
+                 */
+                namePrefix: string;
+            };
+            header?: never;
+            path: {
+                /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982 */
+                scriptHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptOutput"][];
+                };
+            };
+        };
+    };
+    getScriptFirstOutputs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982 */
+                scriptHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptOutput"][];
                 };
             };
         };
@@ -1409,6 +1724,31 @@ export interface operations {
             };
         };
     };
+    getPoolEpochFacts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example pool180fejev4xgwe2y53ky0pxvgxr3wcvkweu6feq5mdljfzcsmtg6u */
+                poolHash: string;
+                /** @example 668 */
+                epoch: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoolEpochFacts"];
+                };
+            };
+        };
+    };
     getPoolCheck: {
         parameters: {
             query?: never;
@@ -1474,6 +1814,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OwnerInfo"][];
+                };
+            };
+        };
+    };
+    getPolicyCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 89267e9a35153a419e1b8ffa23e511ac39ea4e3b00452e9d500f2982 */
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyCollection"];
                 };
             };
         };
@@ -1592,6 +1955,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DRepInfo"][];
+                };
+            };
+        };
+    };
+    getPlutusV3CostModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number[];
+                };
+            };
+        };
+    };
+    getBlockFrom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 175000000 */
+                slot: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlotBlock"];
                 };
             };
         };
