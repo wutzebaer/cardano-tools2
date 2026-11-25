@@ -432,17 +432,21 @@ export const MAX_BURNS = 10;
  * Burns tokens of the wallet together with their metadata, whose deposits come back to the wallet. Only for a
  * burnable drop. Every metadata output is checked by a script run of its own, and each of them looks at all that is
  * burned, so the runs get a little more to do with every token.
+ * With `royaltyToken` the royalty token of the drop is burned along, or alone: it has no metadata output, the contract
+ * lets whoever holds it burn it. The royalties and the registered collection stay as its mint set them.
  */
-export function burnTokensTx(context: DropTxContext, drop: Drop, items: { metadata: DropOutput; assetName: string }[]) {
-  if (items.length === 0 || items.length > MAX_BURNS) throw new Error(`Burn 1 to ${MAX_BURNS} tokens of a drop at a time`);
+export function burnTokensTx(context: DropTxContext, drop: Drop, items: { metadata: DropOutput; assetName: string }[], royaltyToken = false) {
+  const burned = items.length + (royaltyToken ? 1 : 0);
+  if (burned === 0 || items.length > MAX_BURNS) throw new Error(`Burn 1 to ${MAX_BURNS} tokens of a drop at a time`);
   const script = plutusScript(drop);
   const names = items.map((item) => utf8Hex(item.assetName));
-  const holders = new Map(names.map((name) => holderOf(context, drop.policyId, USER_LABEL + name)).map((utxo) => [utxo.input().to_hex(), utxo]));
-  const more = 1 + (items.length - 1) / 4;
+  const held = [...names.map((name) => USER_LABEL + name), ...(royaltyToken ? [ROYALTY_TOKEN] : [])];
+  const holders = new Map(held.map((name) => holderOf(context, drop.policyId, name)).map((utxo) => [utxo.input().to_hex(), utxo]));
+  const more = 1 + (burned - 1) / 4;
   const spendBudget = { mem: Math.ceil(BUDGET.burnSpend.mem * more), steps: Math.ceil(BUDGET.burnSpend.steps * more) };
-  const mintBudget = { mem: BUDGET.burnMint.mem * items.length, steps: BUDGET.burnMint.steps * items.length };
+  const mintBudget = { mem: BUDGET.burnMint.mem * burned, steps: BUDGET.burnMint.steps * burned };
   return build(context, {
-    collateral: items.length === 1 ? "small" : "large",
+    collateral: burned === 1 ? "small" : "large",
     mustSpend: [...holders.values()],
     configure: (txBuilder, inputs) => {
       const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.burn, mintBudget));
@@ -456,6 +460,7 @@ export function burnTokensTx(context: DropTxContext, drop: Drop, items: { metada
         mint.add_asset(witness, AssetName.new(hexBytes(REFERENCE_LABEL + names[index])), Int.new_i32(-1));
         mint.add_asset(witness, AssetName.new(hexBytes(USER_LABEL + names[index])), Int.new_i32(-1));
       });
+      if (royaltyToken) mint.add_asset(witness, AssetName.new(hexBytes(ROYALTY_TOKEN)), Int.new_i32(-1));
       txBuilder.set_mint_builder(mint);
     },
   });

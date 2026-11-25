@@ -153,8 +153,8 @@ export async function buyToken(connection: WalletConnection, policyId: string, t
   return signAndSubmitTransaction(connection, tx).catch(withCollisionHint);
 }
 
-/** Burns tokens of the wallet with their metadata, the deposits of the metadata return to the wallet. */
-export async function burnTokens(connection: WalletConnection, state: DropState, assetNames: string[]) {
+/** Burns tokens of the wallet with their metadata, the deposits of the metadata return to the wallet. `royaltyToken` burns the royalty token of the drop as well. */
+export async function burnTokens(connection: WalletConnection, state: DropState, assetNames: string[], royaltyToken = false) {
   const items = await Promise.all(
     assetNames.map(async (assetName) => {
       const [metadata] = outputsOf(await answered(getDropOutputs(state.drop.policyId, REFERENCE_LABEL + utf8Hex(assetName))));
@@ -162,7 +162,7 @@ export async function burnTokens(connection: WalletConnection, state: DropState,
       return { metadata, assetName };
     })
   );
-  return signAndSubmitTransaction(connection, burnTokensTx(await txContext(connection), state.drop, items));
+  return signAndSubmitTransaction(connection, burnTokensTx(await txContext(connection), state.drop, items, royaltyToken));
 }
 
 /** Closes the next groups of a drop, as many as one transaction takes. Returns how many are left after it. */
