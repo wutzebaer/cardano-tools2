@@ -236,6 +236,11 @@ export async function getPoolEpoch(poolHash: string, epoch: number) {
   return optional(client.GET("/pool/{poolHash}/epoch/{epoch}", { params: { path: { poolHash, epoch } }, cache: "no-store" }));
 }
 
+/** Numbers around one epoch of a pool for the facts in its posts, null when the API cannot tell. */
+export async function getPoolEpochFacts(poolHash: string, epoch: number) {
+  return optional(client.GET("/pool/{poolHash}/epoch/{epoch}/facts", { params: { path: { poolHash, epoch } }, cache: "no-store" }));
+}
+
 export async function getPoolAlternatives() {
   try {
     return await handleRequest(client.GET("/poolAlternatives", { next: { revalidate: 3600 } }));
