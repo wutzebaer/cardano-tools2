@@ -1,6 +1,7 @@
 import { getStakeInfo } from "@cardano/dbsync";
 import { currentSlot } from "@cardano/network";
 import { SimpleScript, WalletConnection } from "@cardano/types";
+import { formatAda } from "@cardano/utils";
 import {
   Address,
   BigNum,
@@ -133,8 +134,34 @@ export const buildTransaction = async (
       firstError ??= error;
     }
   }
+  if (/insufficient/i.test(String((firstError as Error | undefined)?.message ?? firstError))) {
+    throw new Error(shortfallMessage(configure, available));
+  }
   throw firstError;
 };
+
+const coinOf = (value: Value) => Number(value.coin().to_str());
+
+/**
+ * Why the inputs do not cover a transaction, in words: what its outputs and deposits need against what the wallet
+ * offers. The library only says "UTxO Balance Insufficient".
+ */
+function shortfallMessage(configure: (txBuilder: TransactionBuilder) => void, available: TransactionUnspentOutput[]) {
+  const advice = "Add ADA to the wallet and try again. Nothing was submitted.";
+  try {
+    const txBuilder = TransactionBuilder.new(txBuilderConfig);
+    txBuilder.set_ttl(currentSlot() + TTL_SECONDS);
+    configure(txBuilder);
+    const needed = coinOf(txBuilder.get_explicit_output()) + Number(txBuilder.get_deposit().to_str()) - coinOf(txBuilder.get_implicit_input());
+    const offered = available.reduce((sum, utxo) => sum + coinOf(utxo.output().amount()), 0);
+    return (
+      `Your wallet holds too little ADA for this transaction: it needs about ${formatAda(needed)} plus the fee, the wallet offers ${formatAda(offered)}. ` +
+      `Every output on Cardano has to carry a minimum of ADA, which stays with the tokens it holds. ${advice}`
+    );
+  } catch {
+    return `Your wallet holds too little ADA for this transaction. ${advice}`;
+  }
+}
 
 /** A node's rejection in words where the cause is a known one, otherwise null. */
 export function rejectionReason(nodeAnswer: string): string | null {
