@@ -103,11 +103,15 @@ export const BUDGET = {
 /** Groups closed by one transaction, so their script runs stay within what one transaction may use. */
 export const GROUPS_PER_CLOSE = 16;
 
-/** ADA put up as collateral. It is only taken if a script fails after the transaction was accepted, which the node checks before. */
-const COLLATERAL_LOVELACE = 4_000_000n;
+/**
+ * ADA put up as collateral. It is only taken if a script fails after the transaction was accepted, which the node
+ * checks before. The ledger wants one and a half times the fee: a purchase or a burn costs well below 1 ADA, creating
+ * and closing run the contract once per group and cost more.
+ */
+const COLLATERAL_LOVELACE = { small: 1_500_000n, large: 4_000_000n };
 
-/** ADA the rest of a collateral output with tokens keeps, enough for an output with many of them. */
-const RETURN_WITH_TOKENS_LOVELACE = 4_000_000n;
+/** Outputs a transaction may put up as collateral at most. */
+const MAX_COLLATERAL_INPUTS = 3;
 
 export interface DropTxContext {
   /** Outputs of the wallet the transaction may spend */
@@ -224,23 +228,42 @@ function plutusScript(drop: Drop) {
 }
 
 /**
- * The output put up as collateral. One with only ADA is taken first, the smallest that is enough. Without one, any
- * output with enough ADA serves: its tokens and the rest of its ADA come straight back in the collateral return,
- * so nobody has to prepare their wallet for a purchase.
+ * The outputs put up as collateral, and whether what is left of them comes back in a return output. Nobody has to
+ * prepare their wallet for it: an output with only ADA is taken first, the smallest that is enough. Without one, any
+ * output serves whose ADA cover the collateral and the minimum for the return of its tokens, and if no single one
+ * does, up to three together.
  */
-function collateralOf(utxos: TransactionUnspentOutput[]) {
+function collateralOf(utxos: TransactionUnspentOutput[], changeAddress: Address, amount: bigint): { inputs: TransactionUnspentOutput[]; withReturn: boolean } {
   const smallestFirst = (a: TransactionUnspentOutput, b: TransactionUnspentOutput) => (lovelaceOf(a) < lovelaceOf(b) ? -1 : 1);
-  const pure = utxos.filter((utxo) => isAdaOnly(utxo) && lovelaceOf(utxo) >= COLLATERAL_LOVELACE).sort(smallestFirst)[0];
-  if (pure) return pure;
-  // the return output carries the tokens, which takes more ADA than a plain one
-  const mixed = utxos.filter((utxo) => lovelaceOf(utxo) >= COLLATERAL_LOVELACE + RETURN_WITH_TOKENS_LOVELACE).sort(smallestFirst)[0];
-  if (mixed) return mixed;
-  throw new Error("Your wallet holds too little ADA in one place for this purchase. It needs about 8 ADA in a single output, send yourself 10 ADA and try again.");
+  /** ADA the return output of these collateral inputs has to hold at the least. */
+  const returnMinimum = (inputs: TransactionUnspentOutput[]) => {
+    let value = Value.new(big(2_000_000n));
+    for (const input of inputs) {
+      const assets = input.output().amount().multiasset();
+      if (assets) value = value.checked_add(Value.new_with_assets(big(0), assets));
+    }
+    return BigInt(min_ada_for_output(TransactionOutput.new(changeAddress, value), DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE)).to_str());
+  };
+  const covers = (inputs: TransactionUnspentOutput[]) => inputs.reduce((sum, input) => sum + lovelaceOf(input), 0n) >= amount + returnMinimum(inputs);
+
+  const pure = utxos.filter((utxo) => isAdaOnly(utxo) && lovelaceOf(utxo) >= amount).sort(smallestFirst)[0];
+  // one that is too small to leave a return output is put up as a whole
+  if (pure) return { inputs: [pure], withReturn: covers([pure]) };
+  const single = utxos.filter((utxo) => covers([utxo])).sort(smallestFirst)[0];
+  if (single) return { inputs: [single], withReturn: true };
+  const richest = [...utxos].sort((a, b) => smallestFirst(b, a));
+  for (let count = 2; count <= Math.min(MAX_COLLATERAL_INPUTS, richest.length); count++) {
+    if (covers(richest.slice(0, count))) return { inputs: richest.slice(0, count), withReturn: true };
+  }
+  const needed = Number(amount + returnMinimum(richest.slice(0, MAX_COLLATERAL_INPUTS))) / 1_000_000;
+  throw new Error(`Your wallet holds too little ADA for this transaction. About ${needed.toFixed(1)} ADA have to be there as a security the network asks for, which you keep. Add some ADA and try again.`);
 }
 
 interface Parts {
   /** Outputs of the wallet that have to be spent, whatever else gets picked */
   mustSpend?: TransactionUnspentOutput[];
+  /** How much collateral the transaction needs, by what its script runs cost */
+  collateral: keyof typeof COLLATERAL_LOVELACE;
   configure: (txBuilder: TransactionBuilder, inputs: TxInputsBuilder) => void;
 }
 
@@ -252,7 +275,8 @@ interface Parts {
 function build(context: DropTxContext, parts: Parts): Transaction {
   const mustSpend = parts.mustSpend ?? [];
   const spendable = context.utxos.filter((utxo) => !mustSpend.some((must) => sameOutput(must, utxo))).sort((a, b) => (lovelaceOf(a) > lovelaceOf(b) ? -1 : 1));
-  const collateral = collateralOf(context.utxos);
+  const amount = COLLATERAL_LOVELACE[parts.collateral];
+  const collateral = collateralOf(context.utxos, context.changeAddress, amount);
   let lastError: unknown;
   for (let count = 0; count <= spendable.length; count++) {
     try {
@@ -263,12 +287,10 @@ function build(context: DropTxContext, parts: Parts): Transaction {
       for (const utxo of [...mustSpend, ...spendable.slice(0, count)]) inputs.add_regular_utxo(utxo);
       txBuilder.set_inputs(inputs);
       const collateralInputs = TxInputsBuilder.new();
-      collateralInputs.add_regular_utxo(collateral);
+      for (const input of collateral.inputs) collateralInputs.add_regular_utxo(input);
       txBuilder.set_collateral(collateralInputs);
-      // what is left of the collateral output has to be an output of its own, which needs about 1 ADA
-      if (!isAdaOnly(collateral) || lovelaceOf(collateral) >= COLLATERAL_LOVELACE + 1_500_000n) {
-        txBuilder.set_total_collateral_and_return(big(COLLATERAL_LOVELACE), context.changeAddress);
-      }
+      // what is left of the collateral comes back in an output of its own
+      if (collateral.withReturn) txBuilder.set_total_collateral_and_return(big(amount), context.changeAddress);
       txBuilder.calc_script_data_hash(costModels(context.costModel));
       const hasChange = txBuilder.add_change_if_needed(context.changeAddress);
       if (!hasChange && count < spendable.length) continue;
@@ -324,6 +346,7 @@ export function createDropTx(context: DropTxContext, networkId: number, drop: Ne
   const address = dropAddress(created, networkId);
   const script = plutusScript(created);
   const tx = build(context, {
+    collateral: "large",
     mustSpend: [seedUtxo],
     configure: (txBuilder) => {
       const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.create(config), BUDGET.create(drop.groups)));
@@ -369,6 +392,7 @@ export function buyTokenTx(context: DropTxContext, networkId: number, drop: Drop
   const address = dropAddress(drop, networkId);
   const script = plutusScript(drop);
   return build(context, {
+    collateral: "small",
     configure: (txBuilder, inputs) => {
       inputs.add_plutus_script_input(
         PlutusWitness.new_with_ref_without_datum(
@@ -406,6 +430,7 @@ export function burnTokenTx(context: DropTxContext, drop: Drop, metadata: DropOu
   const name = utf8Hex(assetName);
   const script = plutusScript(drop);
   return build(context, {
+    collateral: "small",
     mustSpend: [holderOf(context, drop.policyId, USER_LABEL + name)],
     configure: (txBuilder, inputs) => {
       inputs.add_plutus_script_input(
@@ -426,6 +451,7 @@ export function burnTokenTx(context: DropTxContext, drop: Drop, metadata: DropOu
 export function closeGroupsTx(context: DropTxContext, drop: Drop, groups: DropGroup[]) {
   const script = plutusScript(drop);
   return build(context, {
+    collateral: "large",
     configure: (txBuilder, inputs) => {
       const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.withOutput, BUDGET.closeMint));
       const mint = MintBuilder.new();
