@@ -22,7 +22,7 @@ function AdaSign() {
 /** An angry mob with torches and a pitchfork, for the pool that took one of our blocks. Drawn, the font has no emoji. */
 function AngryMob() {
   return (
-    <svg width="216" height="108" viewBox="0 0 96 48" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="108" height="54" viewBox="0 0 96 48" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <path d="M8 40 L6 13" stroke="#b07a45" strokeWidth="2.6" />
       <path d="M6 2 C10 6 10.5 9 9 11.5 C8 13 4.5 13 3.6 11.5 C2.4 9.3 3.6 6 6 2 Z" fill="#f97316" />
       <path d="M6 5.8 C7.6 7.6 7.8 9.4 7 10.6 C6.4 11.3 5.3 11.2 4.9 10.5 C4.4 9.5 5 7.8 6 5.8 Z" fill="#facc15" />
@@ -75,9 +75,10 @@ function Tile({ label, value, accent = false, note = "" }: { label: string; valu
       <div style={{ display: "flex", fontSize: 20, letterSpacing: 2, whiteSpace: "nowrap", color: "#8b93a7" }}>{label}</div>
       <div style={{ display: "flex", fontSize: 76, fontWeight: 700, color: accent ? "#ffffff" : "#e6e8ee" }}>{value}</div>
       {note ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 22, color: "#fdba74" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 22, color: "#fdba74" }}>
+          {note.includes("lost to") ? <AngryMob /> : null}
           {/* several winners take two lines rather than leave the tile */}
-          <span style={{ display: "flex", textAlign: "center", maxWidth: 220 }}>{note}</span>
+          <span style={{ display: "flex", maxWidth: 150 }}>{note}</span>
         </div>
       ) : null}
     </div>
@@ -100,7 +101,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
   if (!facts) return new Response("Not found", { status: 404 });
 
   const battles = kind === "result" ? battlesByEpoch(metrics).get(epoch) : undefined;
-  const lostBattle = (battles?.lost.length ?? 0) > 0;
   const counted = kind === "plan" ? scheduled! : facts.blocks;
   const percent = luck(counted, facts.expectedBlocks);
   const tiles: { label: string; value: string; accent: boolean; note?: string }[] =
@@ -135,12 +135,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
           <span>{kind === "plan" ? "COMING EPOCH" : "EPOCH RESULT"}</span>
           <span>{pool?.name ? pool.name.toUpperCase() : "STAKE POOL"}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 28 }}>
-            <div style={{ display: "flex", fontSize: 104, fontWeight: 700, backgroundImage: BRAND, backgroundClip: "text", color: "transparent" }}>[{POOL_TICKER}]</div>
-            <div style={{ display: "flex", fontSize: 64, fontWeight: 600, color: "#c9cdd8" }}>Epoch {epoch}</div>
-          </div>
-          {lostBattle ? <AngryMob /> : null}
+        <div style={{ display: "flex", alignItems: "baseline", gap: 28 }}>
+          <div style={{ display: "flex", fontSize: 104, fontWeight: 700, backgroundImage: BRAND, backgroundClip: "text", color: "transparent" }}>[{POOL_TICKER}]</div>
+          <div style={{ display: "flex", fontSize: 64, fontWeight: 600, color: "#c9cdd8" }}>Epoch {epoch}</div>
         </div>
         <div style={{ display: "flex", gap: 24 }}>
           {tiles.map((tile) => (
