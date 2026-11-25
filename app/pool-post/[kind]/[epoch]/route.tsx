@@ -60,7 +60,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
   const tiles =
     kind === "plan"
       ? [{ label: "SCHEDULED BLOCKS", value: `${scheduled}`, accent: true }]
-      : [{ label: scheduled != null ? "BLOCKS MADE" : "BLOCKS", value: scheduled != null ? `${facts.blocks} / ${scheduled}` : `${facts.blocks}`, accent: true }];
+      : [{ label: scheduled != null ? "BLOCKS FORGED" : "BLOCKS", value: scheduled != null ? `${facts.blocks} / ${scheduled}` : `${facts.blocks}`, accent: true }];
   if (facts.expectedBlocks != null) tiles.push({ label: "EXPECTED BY STAKE", value: formatExpected(facts.expectedBlocks), accent: false });
   if (percent != null) tiles.push({ label: "OF THE AVERAGE", value: `${percent} %`, accent: false });
 
