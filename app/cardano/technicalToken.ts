@@ -15,6 +15,16 @@ export interface TechnicalToken {
   note: string;
 }
 
+/**
+ * Whether a token stays out of the lists of tokens: the reference NFT of CIP-68 would show its token a second time,
+ * and the marker of a drop group never leaves the contract. Nobody can own either. The royalty token is listed, it
+ * lies in a wallet and its owner wants to find it.
+ */
+export function isListed(nameHex: string | null | undefined) {
+  const kind = technicalToken(nameHex)?.kind;
+  return kind !== "reference" && kind !== "group";
+}
+
 /** What a token is by its asset name (hex), undefined for an ordinary one. */
 export function technicalToken(nameHex: string | null | undefined): TechnicalToken | undefined {
   // CIP-27: the token without a name is the one whose mint set the royalties of its policy

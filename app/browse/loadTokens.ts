@@ -2,7 +2,7 @@
 
 import { getTokenFeed, getTokenSearch } from "@cardano/dbsync";
 import { TokenListItem } from "@cardano/types";
-import { cip67Label } from "@cardano/utils";
+import { isListed } from "@cardano/technicalToken";
 import { CollectionInfo, getCollectionInfos } from "@cardano/wayup";
 
 const PAGE_SIZE = 100;
@@ -16,7 +16,7 @@ export type TokenPage = {
 };
 
 async function toPage(page: TokenListItem[], cursor?: number | string): Promise<TokenPage> {
-  const tokens = page.filter((token) => cip67Label(token.maName) !== 100);
+  const tokens = page.filter((token) => isListed(token.maName));
   const collections = Object.fromEntries(await getCollectionInfos(tokens.map((token) => token.maPolicyId)));
   return {
     tokens,

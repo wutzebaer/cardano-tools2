@@ -3,7 +3,7 @@
 import { Answer, answer, UserError } from "@cardano/answer";
 import { getAddressByHandle, getAddressTokens } from "@cardano/dbsync";
 import { TokenListItem } from "@cardano/types";
-import { cip67Label } from "@cardano/utils";
+import { isListed } from "@cardano/technicalToken";
 import { CollectionInfo, getCollectionInfos } from "@cardano/wayup";
 
 /** Collection names are looked up one request per policy, so only for the first few. */
@@ -30,7 +30,7 @@ export async function loadAddressTokens(input: string): Promise<Answer<AddressTo
       await getAddressTokens(address).catch(() => {
         throw new UserError(`No tokens for ${address}. Is it a stake address, a payment address or a $handle?`);
       })
-    ).filter((token) => cip67Label(token.maName) !== 100);
+    ).filter((token) => isListed(token.maName));
     const policyIds = [...new Set(tokens.map((token) => token.maPolicyId))].slice(0, MAX_COLLECTION_LOOKUPS);
     const collections = Object.fromEntries(await getCollectionInfos(policyIds));
     return { address, tokens, collections };
