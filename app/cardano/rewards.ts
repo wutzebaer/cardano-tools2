@@ -71,7 +71,7 @@ function spentInputs(tx: Transaction) {
 }
 
 /** Waits until the wallet no longer offers the inputs of `tx`, i.e. it has noticed the transaction. */
-async function waitUntilSpent(connection: WalletConnection, tx: Transaction) {
+export async function waitUntilSpent(connection: WalletConnection, tx: Transaction) {
   const spent = new Set(spentInputs(tx));
   for (let attempt = 0; attempt < 240; attempt++) {
     await sleep(5000);

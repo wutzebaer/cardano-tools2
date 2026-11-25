@@ -4,14 +4,14 @@ import { SellAsDrop, YourDrops } from "@/app/drop/CreateDrop";
 import DropTokenEditor from "@/app/drop/DropTokenEditor";
 import { DropToken } from "@cardano/dropScript";
 import { assetNameFor, tokensFromMetadata } from "@cardano/metadata";
-import { MintCosts, mintCosts, mintedAssetNameHex, MintFormat, mintTokens } from "@cardano/mint";
+import { MintCosts, mintCosts, mintedAssetNameHex, MintFormat, MintProgress, mintTokens, PartialMintError } from "@cardano/mint";
 import CostTable, { shown } from "@components/CostTable";
 import { formatAda } from "@cardano/utils";
 import { explorerPolicyUrl, IS_MAINNET } from "@cardano/network";
 import { MintPolicy, MintToken } from "@cardano/types";
 import ConnectWallet from "@components/ConnectWallet";
 import TxResult from "@components/TxResult";
-import { ExternalLink, secondaryButtonClass } from "@components/ui";
+import { ExternalLink, Notice, secondaryButtonClass } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
 import { CodeBracketIcon, ExclamationTriangleIcon, MinusIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useState } from "react";
@@ -22,11 +22,17 @@ import TokenForm, { tokenErrors } from "./TokenForm";
 import { usePolicies } from "./usePolicies";
 
 interface MintResult {
-  txHash: string;
+  txHashes: string[];
   policy: MintPolicy;
+  /** The tokens that were minted */
   tokens: MintToken[];
   format: MintFormat;
+  /** Set when a mint of several transactions stopped on the way: how many tokens it left out, and why */
+  stopped?: { left: number; reason: string };
 }
+
+/** Tokens listed with their link after a mint, a long list is cut there. */
+const LISTED_TOKENS = 50;
 
 function newFungible(name: string): MintToken {
   return {
@@ -51,9 +57,15 @@ const numberedName = (index: number) => `Token${String(index).padStart(3, "0")}`
 
 function Minted({ result, onReset }: { result: MintResult; onReset: () => void }) {
   return (
-    <TxResult title="Mint submitted" txHashes={[result.txHash]} onReset={onReset} resetLabel="Mint more">
+    <TxResult title={result.stopped ? "Mint stopped on the way" : "Mint submitted"} txHashes={result.txHashes} onReset={onReset} resetLabel="Mint more">
+      {result.stopped ? (
+        <Notice tone="warning">
+          {result.tokens.length} token{result.tokens.length === 1 ? " is" : "s are"} minted, {result.stopped.left} {result.stopped.left === 1 ? "is" : "are"} not: {result.stopped.reason} Mint only the
+          missing ones next time, a token minted twice exists twice.
+        </Notice>
+      ) : null}
       <ul className="flex flex-col gap-1 text-sm">
-        {result.tokens.map((token) => (
+        {result.tokens.slice(0, LISTED_TOKENS).map((token) => (
           <li key={token.id}>
             <ExternalLink
               href={IS_MAINNET ? `https://pool.pm/${result.policy.policyId}.${mintedAssetNameHex(token, result.format)}` : explorerPolicyUrl(result.policy.policyId)}
@@ -63,6 +75,7 @@ function Minted({ result, onReset }: { result: MintResult; onReset: () => void }
             </ExternalLink>
           </li>
         ))}
+        {result.tokens.length > LISTED_TOKENS ? <li className="text-base-content/55">and {(result.tokens.length - LISTED_TOKENS).toLocaleString("en")} more</li> : null}
       </ul>
     </TxResult>
   );
@@ -119,6 +132,7 @@ const FORMATS: { format: MintFormat; title: string; pros: string[]; cons: string
 function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatus = "settled", formats, step, onMinted }: { wallet: ConnectedWallet; selection: Policies; tokens: MintToken[] | null; summary: string; disabled?: boolean; royaltyStatus?: RoyaltyStatus; formats?: boolean; step?: number; onMinted: (result: MintResult) => void }) {
   const policy = selection.selected;
   const [minting, setMinting] = useState(false);
+  const [progress, setProgress] = useState<MintProgress | null>(null);
   const [format, setFormat] = useState<MintFormat>("cip68");
   const royaltyWarning = ROYALTY_WARNINGS[royaltyStatus];
   // said before the wallet does: it shows the deposit as spent, which surprises those who expect only a fee
@@ -144,9 +158,14 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
     if (!policy || !tokens) return;
     setMinting(true);
     try {
-      onMinted({ txHash: await mintTokens(wallet.connection, policy, tokens, wallet.keyHashes, format), policy, tokens, format });
+      onMinted({ txHashes: await mintTokens(wallet.connection, policy, tokens, wallet.keyHashes, format, setProgress), policy, tokens, format });
+    } catch (error) {
+      // what is minted is shown as minted, so that nobody mints it a second time
+      if (!(error instanceof PartialMintError)) throw error;
+      onMinted({ txHashes: error.txHashes, policy, tokens: error.minted, format, stopped: { left: tokens.length - error.minted.length, reason: error.message } });
     } finally {
       setMinting(false);
+      setProgress(null);
     }
   };
 
@@ -199,12 +218,15 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
         ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex grow flex-col gap-2 text-sm text-base-content/55">
-            <p>{summary}</p>
+            <p>
+              {summary}
+              {costs && costs.transactions > 1 ? ` They take ${costs.transactions} transactions, which you sign one after another.` : ""}
+            </p>
             {costs ? (
               <CostTable
                 rows={[
                   ...(costs.deposit > 0 ? [{ label: "Deposit for the metadata", hint: "back when you burn", lovelace: costs.deposit }] : []),
-                  { label: "Transaction fee", lovelace: costs.fee, about: true },
+                  { label: costs.transactions > 1 ? `Fees of ${costs.transactions} transactions` : "Transaction fee", lovelace: costs.fee, about: true },
                   { label: "Leaves your wallet", lovelace: shown(costs.deposit) + shown(costs.fee), sum: true },
                   { label: "Minimum ADA beside your tokens", hint: "stays yours", lovelace: costs.kept },
                   {
@@ -222,7 +244,7 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
           </div>
           <button className="btn btn-primary" disabled={!tokens || !policy || minting || disabled} onClick={mint}>
             {minting ? <span className="loading loading-spinner loading-sm" /> : null}
-            Mint
+            {progress && progress.batches > 1 ? (progress.state === "signing" ? `Sign ${progress.batch} of ${progress.batches}` : `Waiting for ${progress.batch} of ${progress.batches}`) : "Mint"}
           </button>
         </div>
       </div>

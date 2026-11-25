@@ -1,4 +1,5 @@
-import { buildTransaction, COINS_PER_UTXO_BYTE, currentSlot, hexToBytes, sendTransaction, toNativeScript, transactionNeeds, TTL_SECONDS, TxOptions, walletChangeAddress, walletUtxos } from "@cardano/transaction";
+import { waitUntilSpent } from "@cardano/rewards";
+import { buildTransaction, COINS_PER_UTXO_BYTE, currentSlot, hexToBytes, signAndSubmitTransaction, toNativeScript, transactionNeeds, TTL_SECONDS, TxOptions, walletChangeAddress, walletUtxos } from "@cardano/transaction";
 import { MintPolicy, MintToken, SimpleScript, TokenDetails, WalletConnection } from "@cardano/types";
 import { cip25Metadata, MetaValue, tokenMetadata } from "@cardano/metadata";
 import { crc8, scriptLockSlot } from "@cardano/utils";
@@ -275,9 +276,80 @@ function mintConfigure(policy: MintPolicy, tokens: MintToken[], keyHashes: strin
   };
 }
 
-export async function mintTokens(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[], format: MintFormat = "cip68") {
+/**
+ * Bytes the tokens of one mint transaction may take. A transaction holds 16 kB, the rest is left for its inputs,
+ * signatures, the script and the change with the other tokens of the wallet.
+ */
+const MINT_BATCH_BYTES = 13_000;
+
+/** About what a token adds to its mint transaction, rather too much than too little. */
+function tokenBytes(policy: MintPolicy, token: MintToken, format: MintFormat, reference: Address) {
+  // the entries of the mint and of the output with the minted tokens
+  const names = 2 * (utf8Bytes(token.assetName).length + 12);
+  if (format === "cip25") return names + utf8Bytes(JSON.stringify(cip25Metadata(policy.policyId, [token])[policy.policyId])).length;
+  return 2 * names + referenceOutput(reference, policyScript(policy).hash(), token).to_bytes().length;
+}
+
+/** The tokens in the order given, cut into as many transactions as it takes to fit them. */
+function mintBatches(policy: MintPolicy, tokens: MintToken[], keyHashes: string[], changeAddress: Address, format: MintFormat) {
+  const reference = referenceAddress(changeAddress, referenceKeyHash(policy, keyHashes, changeAddress));
+  const batches: MintToken[][] = [[]];
+  let bytes = 0;
+  for (const token of tokens) {
+    const size = tokenBytes(policy, token, format, reference);
+    if (bytes + size > MINT_BATCH_BYTES && batches[batches.length - 1].length > 0) {
+      batches.push([]);
+      bytes = 0;
+    }
+    batches[batches.length - 1].push(token);
+    bytes += size;
+  }
+  return batches;
+}
+
+export interface MintProgress {
+  /** The transaction that is being signed or waited for, counted from 1 */
+  batch: number;
+  batches: number;
+  state: "signing" | "waiting";
+}
+
+/** Thrown when a mint of several transactions stops on the way: what is minted stays minted. */
+export class PartialMintError extends Error {
+  constructor(
+    readonly txHashes: string[],
+    readonly minted: MintToken[],
+    readonly cause: unknown
+  ) {
+    super(cause instanceof Error ? cause.message : String(cause));
+  }
+}
+
+/**
+ * Mints the tokens, in several transactions if one does not hold them. They are signed one after another, each once
+ * the wallet has seen the one before. Returns the hashes of the transactions.
+ */
+export async function mintTokens(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[], format: MintFormat = "cip68", onProgress?: (progress: MintProgress) => void) {
   const changeAddress = await walletChangeAddress(connection);
-  return sendTransaction(connection, mintConfigure(policy, tokens, keyHashes, changeAddress, format), policyTxOptions(policy, keyHashes));
+  const batches = mintBatches(policy, tokens, keyHashes, changeAddress, format);
+  const txHashes: string[] = [];
+  const minted: MintToken[] = [];
+  try {
+    for (let index = 0; index < batches.length; index++) {
+      onProgress?.({ batch: index + 1, batches: batches.length, state: "signing" });
+      const tx = await buildTransaction(connection, mintConfigure(policy, batches[index], keyHashes, changeAddress, format), undefined, policyTxOptions(policy, keyHashes).signerKeyHash);
+      txHashes.push(await signAndSubmitTransaction(connection, tx, policyTxOptions(policy, keyHashes).signingKeys));
+      minted.push(...batches[index]);
+      if (index < batches.length - 1) {
+        onProgress?.({ batch: index + 1, batches: batches.length, state: "waiting" });
+        await waitUntilSpent(connection, tx);
+      }
+    }
+  } catch (error) {
+    if (txHashes.length > 0) throw new PartialMintError(txHashes, minted, error);
+    throw error;
+  }
+  return txHashes;
 }
 
 /** What a mint takes from the wallet and what the wallet has to hold for it, in lovelace. */
@@ -291,19 +363,25 @@ export interface MintCosts {
   needed: number;
   /** What the wallet holds */
   held: number;
+  /** Transactions the mint takes, each signed on its own */
+  transactions: number;
 }
 
 export async function mintCosts(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[], format: MintFormat = "cip68"): Promise<MintCosts> {
   const [changeAddress, utxos] = await Promise.all([walletChangeAddress(connection), walletUtxos(connection)]);
-  const configure = mintConfigure(policy, tokens, keyHashes, changeAddress, format);
-  const needs = transactionNeeds(configure, utxos, changeAddress);
-  // the fee of the transaction as it would be signed; the estimate stands in while the wallet holds too little to build it
-  const fee = await buildTransaction(connection, configure, utxos, policyTxOptions(policy, keyHashes).signerKeyHash)
-    .then((tx) => Number(tx.body().fee().to_str()))
-    .catch(() => needs.fee);
+  const batches = mintBatches(policy, tokens, keyHashes, changeAddress, format);
+  const needs = batches.map((batch) => transactionNeeds(mintConfigure(policy, batch, keyHashes, changeAddress, format), utxos, changeAddress));
+  let fee = needs.reduce((sum, need) => sum + need.fee, 0);
+  if (batches.length === 1) {
+    // the fee of the transaction as it would be signed; the estimate stands in while the wallet holds too little to build it
+    fee = await buildTransaction(connection, mintConfigure(policy, batches[0], keyHashes, changeAddress, format), utxos, policyTxOptions(policy, keyHashes).signerKeyHash)
+      .then((tx) => Number(tx.body().fee().to_str()))
+      .catch(() => fee);
+  }
   const address = referenceAddress(changeAddress, referenceKeyHash(policy, keyHashes, changeAddress));
   const policyHash = policyScript(policy).hash();
   const deposit = format === "cip68" ? tokens.reduce((sum, token) => sum + Number(referenceOutput(address, policyHash, token).amount().coin().to_str()), 0) : 0;
-  const kept = needs.total - deposit - needs.fee;
-  return { deposit, fee, kept, needed: deposit + fee + kept, held: needs.offered };
+  // every transaction leaves its tokens in an output of their own, the change with the other tokens is there once
+  const kept = needs.reduce((sum, need) => sum + need.spent, 0) - deposit + needs[0].changeMinimum;
+  return { deposit, fee, kept, needed: deposit + fee + kept, held: needs[0].offered, transactions: batches.length };
 }
