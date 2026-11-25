@@ -103,13 +103,13 @@ const ROYALTY_WARNINGS: Record<RoyaltyStatus, string | null> = {
 const FORMATS: { format: MintFormat; title: string; pros: string[]; cons: string[] }[] = [
   {
     format: "cip68",
-    title: "CIP-68",
+    title: "CIP-68 · readable by smart contracts",
     pros: ["Metadata can still be changed while the policy is open", "Smart contracts can read it"],
     cons: ["A deposit of about 2 ₳ per token, back when you burn it"],
   },
   {
     format: "cip25",
-    title: "CIP-25",
+    title: "CIP-25 · less ADA bound",
     pros: ["Costs only the fee", "The format every wallet and marketplace has known longest"],
     cons: ["Metadata is fixed with the mint", "Smart contracts cannot read it"],
   },
