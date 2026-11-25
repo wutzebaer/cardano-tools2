@@ -23,7 +23,14 @@ type Royalties = Awaited<ReturnType<typeof getPolicyRoyalties>>;
  * them as long as it has none. Both travel with the royalty token, the name as a CIP-88 registration. Marketplaces only honour a royalty token that is the very first token of its policy, so the form is open for a
  * policy that has not minted yet and folded away, with a warning, for one that has. Give it a `key` per policy.
  */
-export default function RoyaltyPrompt({ wallet, policy, minted }: { wallet: ConnectedWallet; policy: MintPolicy; minted: boolean }) {
+/**
+ * Where a policy stands with its royalty token, for the warning at the mint button: "open" while it has none and has
+ * not minted yet, so the next mint decides that there will never be one that counts everywhere, "pending" while the
+ * token is submitted but not confirmed, "settled" in every other case.
+ */
+export type RoyaltyStatus = "open" | "pending" | "settled";
+
+export default function RoyaltyPrompt({ wallet, policy, minted, onStatus }: { wallet: ConnectedWallet; policy: MintPolicy; minted: boolean; onStatus?: (status: RoyaltyStatus) => void }) {
   const [percent, setPercent] = useState("5");
   const [address, setAddress] = useState(wallet.changeAddress);
   const [collectionName, setCollectionName] = useState(policy.name ?? "");
@@ -63,6 +70,15 @@ export default function RoyaltyPrompt({ wallet, policy, minted }: { wallet: Conn
       cancelled = true;
     };
   }, [policy.policyId, minted]);
+
+  const status: RoyaltyStatus = txHash
+    ? confirmed
+      ? "settled"
+      : "pending"
+    : royalties === null && !minted && !foundTokens && policySecondsLeft(policy) > 0
+      ? "open"
+      : "settled";
+  useEffect(() => onStatus?.(status), [status, onStatus]);
 
   if (txHash) {
     return (

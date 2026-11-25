@@ -11,11 +11,11 @@ import ConnectWallet from "@components/ConnectWallet";
 import TxResult from "@components/TxResult";
 import { ExternalLink, secondaryButtonClass } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
-import { CodeBracketIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { CodeBracketIcon, ExclamationTriangleIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import MetadataEditor from "./MetadataEditor";
 import PolicySelector from "./PolicySelector";
-import RoyaltyPrompt from "./RoyaltyPrompt";
+import RoyaltyPrompt, { RoyaltyStatus } from "./RoyaltyPrompt";
 import TokenForm, { tokenErrors } from "./TokenForm";
 import { usePolicies } from "./usePolicies";
 
@@ -78,20 +78,28 @@ function MintNow(props: { wallet: ConnectedWallet; tokens: MintToken[] | null; s
 
 type Policies = ReturnType<typeof usePolicies>;
 
-function PolicyChoice({ wallet, selection, step }: { wallet: ConnectedWallet; selection: Policies; step?: number }) {
+function PolicyChoice({ wallet, selection, step, onRoyaltyStatus }: { wallet: ConnectedWallet; selection: Policies; step?: number; onRoyaltyStatus?: (status: RoyaltyStatus) => void }) {
   const policy = selection.selected;
   return (
     <>
       <PolicySelector keyHash={wallet.keyHash} selection={selection} step={step}>
-        {policy && !selection.loading ? <RoyaltyPrompt key={policy.policyId} wallet={wallet} policy={policy} minted={selection.minted.has(policy.policyId)} /> : null}
+        {policy && !selection.loading ? <RoyaltyPrompt key={policy.policyId} wallet={wallet} policy={policy} minted={selection.minted.has(policy.policyId)} onStatus={onRoyaltyStatus} /> : null}
       </PolicySelector>
     </>
   );
 }
 
-function MintButton({ wallet, selection, tokens, summary, disabled, onMinted }: { wallet: ConnectedWallet; selection: Policies; tokens: MintToken[] | null; summary: string; disabled?: boolean; onMinted: (result: MintResult) => void }) {
+/** Said at the mint button, where the decision is made: the first mint of a policy settles whether its royalties count everywhere. */
+const ROYALTY_WARNINGS: Record<RoyaltyStatus, string | null> = {
+  open: "This policy has no royalty token yet. It only counts on every marketplace as the very first token of a policy, so after this mint it is too late. If sales should pay royalties or the collection should have a name on chain, mint the royalty token under “Policy” first.",
+  pending: "The royalty token is not confirmed yet. Wait for it before you mint, it has to be the first token of the policy.",
+  settled: null,
+};
+
+function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatus = "settled", onMinted }: { wallet: ConnectedWallet; selection: Policies; tokens: MintToken[] | null; summary: string; disabled?: boolean; royaltyStatus?: RoyaltyStatus; onMinted: (result: MintResult) => void }) {
   const policy = selection.selected;
   const [minting, setMinting] = useState(false);
+  const royaltyWarning = ROYALTY_WARNINGS[royaltyStatus];
 
   const mint = async () => {
     if (!policy || !tokens) return;
@@ -105,12 +113,20 @@ function MintButton({ wallet, selection, tokens, summary, disabled, onMinted }: 
 
   return (
     <>
-      <div className="surface flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-base-content/55">{summary} Your wallet shows the fee before signing.</p>
-        <button className="btn btn-primary" disabled={!tokens || !policy || minting || disabled} onClick={mint}>
-          {minting ? <span className="loading loading-spinner loading-sm" /> : null}
-          Mint
-        </button>
+      <div className="surface flex flex-col gap-3 p-5">
+        {policy && royaltyWarning ? (
+          <p className="flex items-start gap-2 border-l-2 border-warning/60 pl-3 text-sm text-warning">
+            <ExclamationTriangleIcon className="mt-0.5 size-4 shrink-0" />
+            {royaltyWarning}
+          </p>
+        ) : null}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-base-content/55">{summary} Your wallet shows the fee before signing.</p>
+          <button className="btn btn-primary" disabled={!tokens || !policy || minting || disabled} onClick={mint}>
+            {minting ? <span className="loading loading-spinner loading-sm" /> : null}
+            Mint
+          </button>
+        </div>
       </div>
     </>
   );
@@ -129,6 +145,7 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
   const [target, setTarget] = useState<Target>("mint");
   const [result, setResult] = useState<MintResult | null>(null);
   const selection = usePolicies(wallet);
+  const [royaltyStatus, setRoyaltyStatus] = useState<RoyaltyStatus>("settled");
 
   if (result) return <Minted result={result} onReset={() => setResult(null)} />;
 
@@ -161,7 +178,7 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
       </div>
       </div>
 
-      {target === "mint" ? <PolicyChoice wallet={wallet} selection={selection} step={2} /> : null}
+      {target === "mint" ? <PolicyChoice wallet={wallet} selection={selection} step={2} onRoyaltyStatus={setRoyaltyStatus} /> : null}
 
       <div className="surface p-6">
         <DropTokenEditor onChange={setTokens} firstStep={target === "mint" ? 3 : 2} />
@@ -173,6 +190,7 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
           selection={selection}
           tokens={mintTokensList}
           summary={tokens ? `Mints ${tokens.length} CIP-68 NFT${tokens.length === 1 ? "" : "s"} plus reference NFTs with on-chain metadata.` : "Add the tokens above first."}
+          royaltyStatus={royaltyStatus}
           onMinted={setResult}
         />
       ) : (
