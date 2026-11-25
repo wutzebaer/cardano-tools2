@@ -4,7 +4,8 @@ import { SellAsDrop, YourDrops } from "@/app/drop/CreateDrop";
 import DropTokenEditor from "@/app/drop/DropTokenEditor";
 import { DropToken } from "@cardano/dropScript";
 import { assetNameFor, tokensFromMetadata } from "@cardano/metadata";
-import { labeledAssetNameHex, mintTokens, referenceLovelace } from "@cardano/mint";
+import { labeledAssetNameHex, MintCosts, mintCosts, mintTokens } from "@cardano/mint";
+import CostTable, { shown } from "@components/CostTable";
 import { formatAda } from "@cardano/utils";
 import { explorerPolicyUrl, IS_MAINNET } from "@cardano/network";
 import { MintPolicy, MintToken } from "@cardano/types";
@@ -13,7 +14,7 @@ import TxResult from "@components/TxResult";
 import { ExternalLink, secondaryButtonClass } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
 import { CodeBracketIcon, ExclamationTriangleIcon, PlusIcon } from "@heroicons/react/24/outline";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import MetadataEditor from "./MetadataEditor";
 import PolicySelector from "./PolicySelector";
 import RoyaltyPrompt, { RoyaltyStatus } from "./RoyaltyPrompt";
@@ -101,15 +102,24 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
   const policy = selection.selected;
   const [minting, setMinting] = useState(false);
   const royaltyWarning = ROYALTY_WARNINGS[royaltyStatus];
-  // said before the wallet does: it shows this ADA as spent, which surprises those who expect only a fee
-  const bound = useMemo(() => {
-    if (!policy || !tokens?.length) return null;
-    try {
-      return referenceLovelace(policy, tokens, wallet.keyHashes, wallet.changeAddress);
-    } catch {
-      return null;
-    }
-  }, [policy, tokens, wallet.keyHashes, wallet.changeAddress]);
+  // said before the wallet does: it shows the deposit as spent, which surprises those who expect only a fee
+  const [costs, setCosts] = useState<MintCosts | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    // waits for a pause in typing, the transaction is put together for it
+    const timer = setTimeout(() => {
+      (policy && tokens?.length ? mintCosts(wallet.connection, policy, tokens, wallet.keyHashes) : Promise.resolve(null))
+        .catch(() => null)
+        .then((found) => {
+          if (!cancelled) setCosts(found);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [policy, tokens, wallet.connection, wallet.keyHashes]);
+  const short = costs != null && costs.held < costs.needed;
 
   const mint = async () => {
     if (!policy || !tokens) return;
@@ -130,13 +140,25 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
             {royaltyWarning}
           </p>
         ) : null}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col gap-1 text-sm text-base-content/55">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex grow flex-col gap-2 text-sm text-base-content/55">
             <p>{summary}</p>
-            {bound ? (
-              <p title="Every token keeps its metadata in an output of its own, which has to hold some ADA. Your wallet shows it as spent. Burning a token before the policy locks brings its share back.">
-                <span className="font-medium text-base-content">{formatAda(bound)}</span> deposit, back when you burn · plus the fee your wallet shows
-              </p>
+            {costs ? (
+              <CostTable
+                rows={[
+                  { label: "Deposit for the metadata", hint: "back when you burn", lovelace: costs.deposit },
+                  { label: "Transaction fee", lovelace: costs.fee, about: true },
+                  { label: "Leaves your wallet", lovelace: shown(costs.deposit) + shown(costs.fee), sum: true },
+                  { label: "Minimum ADA beside your tokens", hint: "stays yours", lovelace: costs.kept },
+                  {
+                    label: "Your wallet needs",
+                    hint: short ? `it holds ${formatAda(costs.held)}` : undefined,
+                    lovelace: shown(costs.deposit) + shown(costs.fee) + shown(costs.kept),
+                    sum: true,
+                    tone: short ? "error" : undefined,
+                  },
+                ]}
+              />
             ) : (
               <p>Your wallet shows the fee before signing.</p>
             )}

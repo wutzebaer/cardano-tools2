@@ -1,4 +1,4 @@
-import { COINS_PER_UTXO_BYTE, currentSlot, hexToBytes, sendTransaction, toNativeScript, TTL_SECONDS, TxOptions, walletChangeAddress } from "@cardano/transaction";
+import { buildTransaction, COINS_PER_UTXO_BYTE, currentSlot, hexToBytes, sendTransaction, toNativeScript, transactionNeeds, TTL_SECONDS, TxOptions, walletChangeAddress, walletUtxos } from "@cardano/transaction";
 import { MintPolicy, MintToken, SimpleScript, TokenDetails, WalletConnection } from "@cardano/types";
 import { MetaValue, tokenMetadata } from "@cardano/metadata";
 import { crc8, scriptLockSlot } from "@cardano/utils";
@@ -229,50 +229,66 @@ function referenceOutput(address: Address, policyHash: ScriptHash, token: MintTo
     .build();
 }
 
-/**
- * Lovelace a mint leaves with the reference NFTs, one output per token. A wallet shows them as spent, because the
- * address of the reference NFTs is not one of its own. Burning a token with its reference NFT brings its share back.
- */
-export function referenceLovelace(policy: MintPolicy, tokens: MintToken[], keyHashes: string[], changeAddressBech32: string) {
-  const changeAddress = Address.from_bech32(changeAddressBech32);
-  const address = referenceAddress(changeAddress, referenceKeyHash(policy, keyHashes, changeAddress));
-  const policyHash = policyScript(policy).hash();
-  return tokens.reduce((sum, token) => sum + Number(referenceOutput(address, policyHash, token).amount().coin().to_str()), 0);
-}
-
-export async function mintTokens(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[]) {
-  const changeAddress = await walletChangeAddress(connection);
+/** What a mint puts into its transaction: a reference NFT with the metadata per token, and the tokens themselves for the wallet. */
+function mintConfigure(policy: MintPolicy, tokens: MintToken[], keyHashes: string[], changeAddress: Address) {
   const script = policyScript(policy);
   const policyHash = script.hash();
   const referenceOutputAddress = referenceAddress(changeAddress, referenceKeyHash(policy, keyHashes, changeAddress));
   const dataCost = DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE);
 
-  return sendTransaction(
-    connection,
-    (txBuilder) => {
-      const mintBuilder = MintBuilder.new();
-      const witness = MintWitness.new_native_script(NativeScriptSource.new(script));
-      const userAssets = MultiAsset.new();
+  return (txBuilder: TransactionBuilder) => {
+    const mintBuilder = MintBuilder.new();
+    const witness = MintWitness.new_native_script(NativeScriptSource.new(script));
+    const userAssets = MultiAsset.new();
 
-      for (const token of tokens) {
-        const assetName = token.assetName;
-        const referenceName = labeledAssetName(REFERENCE_LABEL, assetName);
-        const userName = labeledAssetName(token.standard, assetName);
+    for (const token of tokens) {
+      const assetName = token.assetName;
+      const referenceName = labeledAssetName(REFERENCE_LABEL, assetName);
+      const userName = labeledAssetName(token.standard, assetName);
 
-        mintBuilder.add_asset(witness, referenceName, Int.new_i32(1));
-        mintBuilder.add_asset(witness, userName, Int.from_str(token.amount));
+      mintBuilder.add_asset(witness, referenceName, Int.new_i32(1));
+      mintBuilder.add_asset(witness, userName, Int.from_str(token.amount));
 
-        txBuilder.add_output(referenceOutput(referenceOutputAddress, policyHash, token));
+      txBuilder.add_output(referenceOutput(referenceOutputAddress, policyHash, token));
 
-        userAssets.set_asset(policyHash, userName, BigNum.from_str(token.amount));
-      }
+      userAssets.set_asset(policyHash, userName, BigNum.from_str(token.amount));
+    }
 
-      txBuilder.add_output(
-        TransactionOutputBuilder.new().with_address(changeAddress).next().with_asset_and_min_required_coin_by_utxo_cost(userAssets, dataCost).build()
-      );
-      txBuilder.set_mint_builder(mintBuilder);
-      applyPolicy(txBuilder, policy, keyHashes);
-    },
-    policyTxOptions(policy, keyHashes)
-  );
+    txBuilder.add_output(TransactionOutputBuilder.new().with_address(changeAddress).next().with_asset_and_min_required_coin_by_utxo_cost(userAssets, dataCost).build());
+    txBuilder.set_mint_builder(mintBuilder);
+    applyPolicy(txBuilder, policy, keyHashes);
+  };
+}
+
+export async function mintTokens(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[]) {
+  const changeAddress = await walletChangeAddress(connection);
+  return sendTransaction(connection, mintConfigure(policy, tokens, keyHashes, changeAddress), policyTxOptions(policy, keyHashes));
+}
+
+/** What a mint takes from the wallet and what the wallet has to hold for it, in lovelace. */
+export interface MintCosts {
+  /** Stays with the reference NFTs, one output per token. Wallets show it as spent, burning a token brings its share back. */
+  deposit: number;
+  fee: number;
+  /** Minimum of ADA beside the minted tokens and the other tokens of the wallet, which stays in the wallet */
+  kept: number;
+  /** All of the above */
+  needed: number;
+  /** What the wallet holds */
+  held: number;
+}
+
+export async function mintCosts(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[]): Promise<MintCosts> {
+  const [changeAddress, utxos] = await Promise.all([walletChangeAddress(connection), walletUtxos(connection)]);
+  const configure = mintConfigure(policy, tokens, keyHashes, changeAddress);
+  const needs = transactionNeeds(configure, utxos, changeAddress);
+  // the fee of the transaction as it would be signed; the estimate stands in while the wallet holds too little to build it
+  const fee = await buildTransaction(connection, configure, utxos, policyTxOptions(policy, keyHashes).signerKeyHash)
+    .then((tx) => Number(tx.body().fee().to_str()))
+    .catch(() => needs.fee);
+  const address = referenceAddress(changeAddress, referenceKeyHash(policy, keyHashes, changeAddress));
+  const policyHash = policyScript(policy).hash();
+  const deposit = tokens.reduce((sum, token) => sum + Number(referenceOutput(address, policyHash, token).amount().coin().to_str()), 0);
+  const kept = needs.total - deposit - needs.fee;
+  return { deposit, fee, kept, needed: deposit + fee + kept, held: needs.offered };
 }

@@ -153,46 +153,60 @@ const coinOf = (value: Value) => Number(value.coin().to_str());
 /** Used where the fee cannot be calculated, a transaction of this site rarely costs more. */
 const ASSUMED_FEE = 500_000;
 
+/** What a transaction takes in lovelace, worked out as if it spent everything the wallet offers. */
+export interface TransactionNeeds {
+  /** The ADA of its outputs and deposits, less what a withdrawal or a returned deposit brings in */
+  spent: number;
+  fee: number;
+  /** The minimum of ADA for the change, which takes all tokens of the wallet and the minted ones back */
+  changeMinimum: number;
+  /** All of the above: what the wallet has to hold */
+  total: number;
+  /** What the wallet holds */
+  offered: number;
+}
+
+export function transactionNeeds(configure: (txBuilder: TransactionBuilder) => void, available: TransactionUnspentOutput[], changeAddress: Address): TransactionNeeds {
+  const txBuilder = TransactionBuilder.new(txBuilderConfig);
+  txBuilder.set_ttl(currentSlot() + TTL_SECONDS);
+  configure(txBuilder);
+  for (const utxo of available) {
+    txBuilder.add_regular_input(utxo.output().address(), utxo.input(), utxo.output().amount());
+  }
+  const offered = available.reduce((sum, utxo) => sum + coinOf(utxo.output().amount()), 0);
+  const totalInput = txBuilder.get_total_input();
+  const totalOutput = txBuilder.get_total_output();
+  const spent = coinOf(totalOutput) - (coinOf(totalInput) - offered);
+
+  const changeTokens = totalInput.clamped_sub(totalOutput).multiasset();
+  const change = TransactionOutput.new(changeAddress, changeTokens && changeTokens.len() > 0 ? Value.new_with_assets(BigNum.from_str("2000000"), changeTokens) : Value.new(BigNum.from_str("2000000")));
+  const changeMinimum = changeTokens && changeTokens.len() > 0 ? Number(min_ada_for_output(change, DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE)).to_str()) : 0;
+
+  let fee = ASSUMED_FEE;
+  try {
+    // the change is part of what the fee pays for
+    txBuilder.add_output(change);
+    fee = Number(txBuilder.min_fee().to_str());
+  } catch {
+    // stays the assumed one
+  }
+  return { spent, fee, changeMinimum, total: spent + changeMinimum + fee, offered };
+}
+
 /**
  * Why the inputs do not cover a transaction, in words: what it needs against what the wallet offers. The library only
  * says "UTxO Balance Insufficient" or "Not enough ADA leftover to include non-ADA assets in a change address".
- * What it needs is the ADA of its outputs and deposits, the fee, and the minimum of ADA for the change, which takes
- * all tokens of the wallet and the minted ones back.
  */
 function shortfallMessage(configure: (txBuilder: TransactionBuilder) => void, available: TransactionUnspentOutput[], changeAddress: Address) {
   const advice = "Add ADA to the wallet and try again. Nothing was submitted.";
   try {
-    const txBuilder = TransactionBuilder.new(txBuilderConfig);
-    txBuilder.set_ttl(currentSlot() + TTL_SECONDS);
-    configure(txBuilder);
-    for (const utxo of available) {
-      txBuilder.add_regular_input(utxo.output().address(), utxo.input(), utxo.output().amount());
-    }
-    const offered = available.reduce((sum, utxo) => sum + coinOf(utxo.output().amount()), 0);
-    const totalInput = txBuilder.get_total_input();
-    const totalOutput = txBuilder.get_total_output();
-    // what the outputs and deposits take, less what a withdrawal or a returned deposit brings in
-    const spent = coinOf(totalOutput) - (coinOf(totalInput) - offered);
-
-    const changeTokens = totalInput.clamped_sub(totalOutput).multiasset();
-    const changeMinimum =
-      changeTokens && changeTokens.len() > 0
-        ? Number(min_ada_for_output(TransactionOutput.new(changeAddress, Value.new_with_assets(BigNum.from_str("2000000"), changeTokens)), DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE)).to_str())
-        : 0;
-
-    let fee = ASSUMED_FEE;
-    try {
-      fee = Number(txBuilder.min_fee().to_str());
-    } catch {
-      // stays the assumed one
-    }
-
-    const needed = spent + changeMinimum + fee;
-    const missing = needed - offered;
+    const { total, offered, changeMinimum } = transactionNeeds(configure, available, changeAddress);
+    const missing = total - offered;
     return (
-      `Your wallet holds too little ADA for this transaction: it needs about ${formatAda(needed)}, the wallet offers ${formatAda(offered)}` +
+      `Your wallet holds too little ADA for this transaction: it needs about ${formatAda(total)}, the wallet offers ${formatAda(offered)}` +
       (missing > 0 ? `, so about ${formatAda(missing)} are missing. ` : ". ") +
-      (changeMinimum > 0 ? `Of that, about ${formatAda(changeMinimum)} stay in your wallet: tokens can only be held together with a minimum of ADA. ` : "") +
+      // outputs to the wallet itself stay as well, they are not told apart here
+      (changeMinimum > 0 ? `At least ${formatAda(changeMinimum)} of that stay in your wallet: tokens can only be held together with a minimum of ADA. ` : "") +
       advice
     );
   } catch {

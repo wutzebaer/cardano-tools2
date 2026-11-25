@@ -19,7 +19,7 @@ import {
   USER_LABEL,
   utf8Hex,
 } from "@cardano/dropScript";
-import { burnTokenTx, buyTokenTx, closeGroupsTx, createDropTx, Drop, DropGroup, dropOf, DropOutput, DropTxContext, GROUPS_PER_CLOSE, NewDrop } from "@cardano/dropTx";
+import { burnTokenTx, buyTokenTx, closeGroupsTx, createDropTx, Drop, dropAddress, DropGroup, dropOf, DropOutput, DropTxContext, GROUPS_PER_CLOSE, NewDrop } from "@cardano/dropTx";
 import { NETWORK } from "@cardano/network";
 import { royaltyMetadata } from "@cardano/royalties";
 import { currentSlot, signAndSubmitTransaction, TTL_SECONDS, walletChangeAddress, walletUtxos } from "@cardano/transaction";
@@ -111,6 +111,32 @@ export async function createDrop(connection: WalletConnection, drop: Omit<NewDro
   const hash = await answered(uploadToIpfs(new File([JSON.stringify(published)], "drop.json", { type: "application/json" })));
   const { tx, drop: created } = createDropTx(await txContext(connection), NETWORK.id, { ...drop, list: `ipfs://${hash}`, royalty: royalty ? royaltyMetadata(royalty.percent, royalty.address) : undefined });
   return { txHash: await signAndSubmitTransaction(connection, tx), policyId: created.policyId };
+}
+
+/** What creating a drop takes from the wallet, in lovelace. */
+export interface DropCosts {
+  /** Stays with the groups at the contract until the drop is closed */
+  deposit: number;
+  fee: number;
+}
+
+/** A list address as long as a real one, for a transaction that is only put together to see what it costs. */
+const LIST_PLACEHOLDER = `ipfs://${"Q".repeat(46)}`;
+
+/**
+ * Puts the transaction of a new drop together without publishing or signing anything and reads from it what it costs.
+ * Fails like the real one, for example when the wallet holds too little.
+ */
+export async function dropCosts(connection: WalletConnection, drop: Omit<NewDrop, "list" | "royalty">, royalty?: { percent: number; address: string }): Promise<DropCosts> {
+  const { tx, drop: created } = createDropTx(await txContext(connection), NETWORK.id, { ...drop, list: LIST_PLACEHOLDER, royalty: royalty ? royaltyMetadata(royalty.percent, royalty.address) : undefined });
+  const address = dropAddress(created, NETWORK.id).to_hex();
+  const outputs = tx.body().outputs();
+  let deposit = 0;
+  for (let index = 0; index < outputs.len(); index++) {
+    const output = outputs.get(index);
+    if (output.address().to_hex() === address) deposit += Number(output.amount().coin().to_str());
+  }
+  return { deposit, fee: Number(tx.body().fee().to_str()) };
 }
 
 /** Buys one token. The group is read again right before, so a purchase made meanwhile is seen. */

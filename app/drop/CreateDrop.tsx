@@ -1,6 +1,7 @@
 "use client";
 
-import { createDrop } from "@cardano/drop";
+import { createDrop, DropCosts, dropCosts } from "@cardano/drop";
+import CostTable, { shown } from "@components/CostTable";
 import { DropToken, suggestedGroups } from "@cardano/dropScript";
 import { isValidAddress } from "@cardano/royalties";
 import { formatAda, shortenId } from "@cardano/utils";
@@ -13,6 +14,9 @@ import { useEffect, useState } from "react";
 /** ADA a group binds until the drop is closed, and what a buyer leaves with the metadata of a token. Both rounded up. */
 const GROUP_DEPOSIT_ADA = 2.1;
 const METADATA_DEPOSIT_ADA = 1.5;
+/** Fees as they came out on the chain, rounded up: of creating a drop, and of a purchase, which runs the contract. */
+const CREATE_FEE_ADA = 0.6;
+const BUY_FEE_ADA = 0.45;
 
 const KNOWN_DROPS = "drops";
 
@@ -47,6 +51,30 @@ export function SellAsDrop({ wallet, tokens }: { wallet: ConnectedWallet; tokens
   const withRoyalty = !royaltyError && royaltyPercent > 0;
   const royaltyAddressError = withRoyalty && !isValidAddress(royaltyAddress) ? "Not a valid address" : undefined;
   const ready = tokens != null && !priceError && !royaltyError && !royaltyAddressError && !busy;
+
+  // what creating costs, read from the transaction as it would be built; a rough figure stands in until then or if that fails
+  const [costs, setCosts] = useState<DropCosts | null>(null);
+  const royaltyTarget = withRoyalty && !royaltyAddressError ? royaltyAddress.trim() : null;
+  useEffect(() => {
+    let cancelled = false;
+    // waits for a pause in typing, the transaction is put together for it
+    const timer = setTimeout(() => {
+      (tokens && !priceError
+        ? dropCosts(wallet.connection, { tokens, groups: groupCount, price: BigInt(Math.round(priceAda * 1_000_000)), burnable }, royaltyTarget ? { percent: royaltyPercent, address: royaltyTarget } : undefined)
+        : Promise.resolve(null)
+      )
+        .catch(() => null)
+        .then((found) => {
+          if (!cancelled) setCosts(found);
+        });
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [wallet.connection, tokens, groupCount, priceAda, priceError, burnable, royaltyPercent, royaltyTarget]);
+  const deposit = costs?.deposit ?? Math.round(groupCount * GROUP_DEPOSIT_ADA * 1_000_000);
+  const fee = costs?.fee ?? CREATE_FEE_ADA * 1_000_000;
 
   const create = async () => {
     if (!tokens) return;
@@ -108,12 +136,31 @@ export function SellAsDrop({ wallet, tokens }: { wallet: ConnectedWallet; tokens
         </span>
       </label>
 
-      <Notice>
-        Nothing is minted now. A token is minted when somebody buys it, and the buyer pays for it: your price, the transaction fee (about 0.45 ADA) and about{" "}
-        {METADATA_DEPOSIT_ADA} ADA that stay with the token&apos;s metadata. Creating the drop
-        {tokens ? ` takes about ${formatAda(Math.round((groupCount * GROUP_DEPOSIT_ADA + 1) * 1_000_000))} from your wallet` : " takes a deposit from your wallet"}, which you get back
-        except for about 1 ADA when you close it. Tokens nobody bought then never exist.
-      </Notice>
+      <Notice>Nothing is minted now. A token is minted when somebody buys it, and the buyer pays for it. Tokens nobody bought never exist.</Notice>
+
+      {tokens ? (
+        <div className="grid gap-6 sm:grid-cols-2">
+          <CostTable
+            title="Creating the drop"
+            rows={[
+              { label: `Deposit for ${groupCount} group${groupCount === 1 ? "" : "s"}`, hint: "back when you close", lovelace: deposit, about: !costs },
+              { label: "Transaction fee", lovelace: fee, about: !costs },
+              { label: "Leaves your wallet", lovelace: shown(deposit) + shown(fee), sum: true, about: !costs },
+            ]}
+          />
+          {!priceError ? (
+            <CostTable
+              title="A buyer pays per token"
+              rows={[
+                { label: "Your price", hint: "goes to you", lovelace: Math.round(priceAda * 1_000_000) },
+                { label: "Deposit for the metadata", hint: burnable ? "back when burned" : undefined, lovelace: METADATA_DEPOSIT_ADA * 1_000_000, about: true },
+                { label: "Transaction fee", lovelace: BUY_FEE_ADA * 1_000_000, about: true },
+                { label: "Leaves the buyer's wallet", lovelace: Math.round((priceAda + METADATA_DEPOSIT_ADA + BUY_FEE_ADA) * 1_000_000), sum: true, about: true },
+              ]}
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex items-center gap-4">
         <button className="btn btn-primary" disabled={!ready} onClick={create}>
