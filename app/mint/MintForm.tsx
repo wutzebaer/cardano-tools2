@@ -92,8 +92,8 @@ function PolicyChoice({ wallet, selection, step, onRoyaltyStatus }: { wallet: Co
 
 /** Said at the mint button, where the decision is made: the first mint of a policy settles whether its royalties count everywhere. */
 const ROYALTY_WARNINGS: Record<RoyaltyStatus, string | null> = {
-  open: "This policy has no royalty token yet. It only counts on every marketplace as the very first token of a policy, so after this mint it is too late. If sales should pay royalties or the collection should have a name on chain, mint the royalty token under “Policy” first.",
-  pending: "The royalty token is not confirmed yet. Wait for it before you mint, it has to be the first token of the policy.",
+  open: "No royalty token yet. It has to be the first token of the policy: set royalties under “Policy” before you mint, afterwards it is too late.",
+  pending: "The royalty token is not confirmed yet. Wait for it before you mint.",
   settled: null,
 };
 
@@ -132,13 +132,14 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
         ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1 text-sm text-base-content/55">
-            <p>{summary} Your wallet shows the fee before signing.</p>
+            <p>{summary}</p>
             {bound ? (
-              <p>
-                Your wallet will show about <span className="text-base-content">{formatAda(bound)}</span> leaving besides the fee: every token keeps its metadata in an output of its own, which has to hold
-                some ADA. It is yours again when you burn the token before the policy locks.
+              <p title="Every token keeps its metadata in an output of its own, which has to hold some ADA. Your wallet shows it as spent. Burning a token before the policy locks brings its share back.">
+                <span className="font-medium text-base-content">{formatAda(bound)}</span> deposit, back when you burn · plus the fee your wallet shows
               </p>
-            ) : null}
+            ) : (
+              <p>Your wallet shows the fee before signing.</p>
+            )}
           </div>
           <button className="btn btn-primary" disabled={!tokens || !policy || minting || disabled} onClick={mint}>
             {minting ? <span className="loading loading-spinner loading-sm" /> : null}
@@ -210,7 +211,7 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
           wallet={wallet}
           selection={selection}
           tokens={mintTokensList}
-          summary={tokens ? `Mints ${tokens.length} CIP-68 NFT${tokens.length === 1 ? "" : "s"} plus reference NFTs with on-chain metadata.` : "Add the tokens above first."}
+          summary={tokens ? `Mints ${tokens.length} CIP-68 NFT${tokens.length === 1 ? "" : "s"} with on-chain metadata.` : "Add the tokens above first."}
           royaltyStatus={royaltyStatus}
           onMinted={setResult}
         />
@@ -274,7 +275,7 @@ function Fungible({ wallet }: { wallet: ConnectedWallet }) {
         wallet={wallet}
         tokens={valid ? tokens : null}
         disabled={editing}
-        summary={`Mints ${tokens.length} CIP-68 token${tokens.length === 1 ? "" : "s"} plus reference NFTs with on-chain metadata.`}
+        summary={`Mints ${tokens.length} CIP-68 token${tokens.length === 1 ? "" : "s"} with on-chain metadata.`}
         onMinted={setResult}
       />
     </div>
