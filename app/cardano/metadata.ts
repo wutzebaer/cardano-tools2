@@ -38,6 +38,44 @@ export function tokenMetadata(token: MintToken): Record<string, MetaValue> {
   return { ...metadata, ...token.extra };
 }
 
+/** A text in the metadata of a transaction holds 64 bytes at most. */
+const METADATA_TEXT_BYTES = 64;
+
+/** Cuts a text into pieces of at most 64 bytes, never inside a character. */
+function textPieces(text: string) {
+  const pieces: string[] = [];
+  let piece = "";
+  let size = 0;
+  for (const character of text) {
+    const bytes = utf8Length(character);
+    if (size + bytes > METADATA_TEXT_BYTES) {
+      pieces.push(piece);
+      piece = "";
+      size = 0;
+    }
+    piece += character;
+    size += bytes;
+  }
+  pieces.push(piece);
+  return pieces;
+}
+
+/** Metadata as it fits into a transaction: a longer text becomes a list of its pieces, which readers of CIP-25 join again. */
+function inPieces(value: MetaValue): MetaValue {
+  if (typeof value === "string") return utf8Length(value) > METADATA_TEXT_BYTES ? textPieces(value) : value;
+  if (typeof value === "number") return value;
+  if (Array.isArray(value)) return value.map(inPieces);
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, inPieces(item)]));
+}
+
+/**
+ * The CIP-25 metadata of a mint, which goes under label 721 of its transaction: the tokens of the policy by their
+ * asset name. Version 1, where policy id and asset name are written as text.
+ */
+export function cip25Metadata(policyId: string, tokens: MintToken[]): Record<string, MetaValue> {
+  return { [policyId]: Object.fromEntries(tokens.map((token) => [token.assetName, inPieces(tokenMetadata(token))])) };
+}
+
 /** Metadata of all tokens keyed by asset name, the shape the JSON editor works on. */
 export function tokensMetadata(tokens: MintToken[]) {
   return Object.fromEntries(tokens.map((token) => [token.assetName, tokenMetadata(token)]));

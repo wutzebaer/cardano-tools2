@@ -1,6 +1,6 @@
 import { buildTransaction, COINS_PER_UTXO_BYTE, currentSlot, hexToBytes, sendTransaction, toNativeScript, transactionNeeds, TTL_SECONDS, TxOptions, walletChangeAddress, walletUtxos } from "@cardano/transaction";
 import { MintPolicy, MintToken, SimpleScript, TokenDetails, WalletConnection } from "@cardano/types";
-import { MetaValue, tokenMetadata } from "@cardano/metadata";
+import { cip25Metadata, MetaValue, tokenMetadata } from "@cardano/metadata";
 import { crc8, scriptLockSlot } from "@cardano/utils";
 import {
   Address,
@@ -14,6 +14,7 @@ import {
   Ed25519KeyHash,
   EnterpriseAddress,
   Int,
+  MetadataJsonSchema,
   MintBuilder,
   MintWitness,
   MultiAsset,
@@ -229,8 +230,21 @@ function referenceOutput(address: Address, policyHash: ScriptHash, token: MintTo
     .build();
 }
 
-/** What a mint puts into its transaction: a reference NFT with the metadata per token, and the tokens themselves for the wallet. */
-function mintConfigure(policy: MintPolicy, tokens: MintToken[], keyHashes: string[], changeAddress: Address) {
+/**
+ * Where the metadata of minted tokens goes. "cip68": into the datum of a reference NFT per token, which takes an output
+ * with a deposit each. "cip25": into the metadata of the mint transaction, which costs no deposit and stays as it is.
+ */
+export type MintFormat = "cip68" | "cip25";
+
+const CIP25_LABEL = 721;
+
+/** The asset name (hex) a token gets on chain: with the label of its standard for CIP-68, as it is for CIP-25. */
+export function mintedAssetNameHex(token: MintToken, format: MintFormat) {
+  return format === "cip25" ? Buffer.from(utf8Bytes(token.assetName)).toString("hex") : labeledAssetNameHex(token.standard, token.assetName);
+}
+
+/** What a mint puts into its transaction: the tokens for the wallet, and their metadata where the format wants it. */
+function mintConfigure(policy: MintPolicy, tokens: MintToken[], keyHashes: string[], changeAddress: Address, format: MintFormat) {
   const script = policyScript(policy);
   const policyHash = script.hash();
   const referenceOutputAddress = referenceAddress(changeAddress, referenceKeyHash(policy, keyHashes, changeAddress));
@@ -242,16 +256,17 @@ function mintConfigure(policy: MintPolicy, tokens: MintToken[], keyHashes: strin
     const userAssets = MultiAsset.new();
 
     for (const token of tokens) {
-      const assetName = token.assetName;
-      const referenceName = labeledAssetName(REFERENCE_LABEL, assetName);
-      const userName = labeledAssetName(token.standard, assetName);
-
-      mintBuilder.add_asset(witness, referenceName, Int.new_i32(1));
+      const userName = AssetName.new(hexToBytes(mintedAssetNameHex(token, format)));
       mintBuilder.add_asset(witness, userName, Int.from_str(token.amount));
-
-      txBuilder.add_output(referenceOutput(referenceOutputAddress, policyHash, token));
-
       userAssets.set_asset(policyHash, userName, BigNum.from_str(token.amount));
+
+      if (format === "cip68") {
+        mintBuilder.add_asset(witness, labeledAssetName(REFERENCE_LABEL, token.assetName), Int.new_i32(1));
+        txBuilder.add_output(referenceOutput(referenceOutputAddress, policyHash, token));
+      }
+    }
+    if (format === "cip25") {
+      txBuilder.add_json_metadatum_with_schema(BigNum.from_str(`${CIP25_LABEL}`), JSON.stringify(cip25Metadata(policy.policyId, tokens)), MetadataJsonSchema.NoConversions);
     }
 
     txBuilder.add_output(TransactionOutputBuilder.new().with_address(changeAddress).next().with_asset_and_min_required_coin_by_utxo_cost(userAssets, dataCost).build());
@@ -260,14 +275,14 @@ function mintConfigure(policy: MintPolicy, tokens: MintToken[], keyHashes: strin
   };
 }
 
-export async function mintTokens(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[]) {
+export async function mintTokens(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[], format: MintFormat = "cip68") {
   const changeAddress = await walletChangeAddress(connection);
-  return sendTransaction(connection, mintConfigure(policy, tokens, keyHashes, changeAddress), policyTxOptions(policy, keyHashes));
+  return sendTransaction(connection, mintConfigure(policy, tokens, keyHashes, changeAddress, format), policyTxOptions(policy, keyHashes));
 }
 
 /** What a mint takes from the wallet and what the wallet has to hold for it, in lovelace. */
 export interface MintCosts {
-  /** Stays with the reference NFTs, one output per token. Wallets show it as spent, burning a token brings its share back. */
+  /** Stays with the reference NFTs of CIP-68, one output per token. Wallets show it as spent, burning a token brings its share back. */
   deposit: number;
   fee: number;
   /** Minimum of ADA beside the minted tokens and the other tokens of the wallet, which stays in the wallet */
@@ -278,9 +293,9 @@ export interface MintCosts {
   held: number;
 }
 
-export async function mintCosts(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[]): Promise<MintCosts> {
+export async function mintCosts(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[], format: MintFormat = "cip68"): Promise<MintCosts> {
   const [changeAddress, utxos] = await Promise.all([walletChangeAddress(connection), walletUtxos(connection)]);
-  const configure = mintConfigure(policy, tokens, keyHashes, changeAddress);
+  const configure = mintConfigure(policy, tokens, keyHashes, changeAddress, format);
   const needs = transactionNeeds(configure, utxos, changeAddress);
   // the fee of the transaction as it would be signed; the estimate stands in while the wallet holds too little to build it
   const fee = await buildTransaction(connection, configure, utxos, policyTxOptions(policy, keyHashes).signerKeyHash)
@@ -288,7 +303,7 @@ export async function mintCosts(connection: WalletConnection, policy: MintPolicy
     .catch(() => needs.fee);
   const address = referenceAddress(changeAddress, referenceKeyHash(policy, keyHashes, changeAddress));
   const policyHash = policyScript(policy).hash();
-  const deposit = tokens.reduce((sum, token) => sum + Number(referenceOutput(address, policyHash, token).amount().coin().to_str()), 0);
+  const deposit = format === "cip68" ? tokens.reduce((sum, token) => sum + Number(referenceOutput(address, policyHash, token).amount().coin().to_str()), 0) : 0;
   const kept = needs.total - deposit - needs.fee;
   return { deposit, fee, kept, needed: deposit + fee + kept, held: needs.offered };
 }

@@ -4,7 +4,7 @@ import { SellAsDrop, YourDrops } from "@/app/drop/CreateDrop";
 import DropTokenEditor from "@/app/drop/DropTokenEditor";
 import { DropToken } from "@cardano/dropScript";
 import { assetNameFor, tokensFromMetadata } from "@cardano/metadata";
-import { labeledAssetNameHex, MintCosts, mintCosts, mintTokens } from "@cardano/mint";
+import { MintCosts, mintCosts, mintedAssetNameHex, MintFormat, mintTokens } from "@cardano/mint";
 import CostTable, { shown } from "@components/CostTable";
 import { formatAda } from "@cardano/utils";
 import { explorerPolicyUrl, IS_MAINNET } from "@cardano/network";
@@ -13,7 +13,7 @@ import ConnectWallet from "@components/ConnectWallet";
 import TxResult from "@components/TxResult";
 import { ExternalLink, secondaryButtonClass } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
-import { CodeBracketIcon, ExclamationTriangleIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { CodeBracketIcon, ExclamationTriangleIcon, MinusIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useState } from "react";
 import MetadataEditor from "./MetadataEditor";
 import PolicySelector from "./PolicySelector";
@@ -25,6 +25,7 @@ interface MintResult {
   txHash: string;
   policy: MintPolicy;
   tokens: MintToken[];
+  format: MintFormat;
 }
 
 function newFungible(name: string): MintToken {
@@ -55,7 +56,7 @@ function Minted({ result, onReset }: { result: MintResult; onReset: () => void }
         {result.tokens.map((token) => (
           <li key={token.id}>
             <ExternalLink
-              href={IS_MAINNET ? `https://pool.pm/${result.policy.policyId}.${labeledAssetNameHex(token.standard, token.assetName)}` : explorerPolicyUrl(result.policy.policyId)}
+              href={IS_MAINNET ? `https://pool.pm/${result.policy.policyId}.${mintedAssetNameHex(token, result.format)}` : explorerPolicyUrl(result.policy.policyId)}
               className="inline-flex items-center gap-1 text-primary hover:underline"
             >
               {token.name || token.assetName}
@@ -98,9 +99,27 @@ const ROYALTY_WARNINGS: Record<RoyaltyStatus, string | null> = {
   settled: null,
 };
 
-function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatus = "settled", onMinted }: { wallet: ConnectedWallet; selection: Policies; tokens: MintToken[] | null; summary: string; disabled?: boolean; royaltyStatus?: RoyaltyStatus; onMinted: (result: MintResult) => void }) {
+/** How the metadata of NFTs is stored, with what speaks for and against each. The site itself offers no page to change metadata. */
+const FORMATS: { format: MintFormat; title: string; pros: string[]; cons: string[] }[] = [
+  {
+    format: "cip68",
+    title: "CIP-68 · metadata on chain",
+    pros: ["Metadata can still be changed while the policy is open", "Smart contracts can read it"],
+    cons: ["A deposit of about 2 ₳ per token, back when you burn it"],
+  },
+  {
+    format: "cip25",
+    title: "CIP-25 · no deposit",
+    pros: ["Costs only the fee", "The format every wallet and marketplace has known longest"],
+    cons: ["Metadata is fixed with the mint", "Smart contracts cannot read it"],
+  },
+];
+
+/** `formats` lets the user choose how the metadata is stored, which is a choice for NFTs only. */
+function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatus = "settled", formats, onMinted }: { wallet: ConnectedWallet; selection: Policies; tokens: MintToken[] | null; summary: string; disabled?: boolean; royaltyStatus?: RoyaltyStatus; formats?: boolean; onMinted: (result: MintResult) => void }) {
   const policy = selection.selected;
   const [minting, setMinting] = useState(false);
+  const [format, setFormat] = useState<MintFormat>("cip68");
   const royaltyWarning = ROYALTY_WARNINGS[royaltyStatus];
   // said before the wallet does: it shows the deposit as spent, which surprises those who expect only a fee
   const [costs, setCosts] = useState<MintCosts | null>(null);
@@ -108,7 +127,7 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
     let cancelled = false;
     // waits for a pause in typing, the transaction is put together for it
     const timer = setTimeout(() => {
-      (policy && tokens?.length ? mintCosts(wallet.connection, policy, tokens, wallet.keyHashes) : Promise.resolve(null))
+      (policy && tokens?.length ? mintCosts(wallet.connection, policy, tokens, wallet.keyHashes, format) : Promise.resolve(null))
         .catch(() => null)
         .then((found) => {
           if (!cancelled) setCosts(found);
@@ -118,14 +137,14 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [policy, tokens, wallet.connection, wallet.keyHashes]);
+  }, [policy, tokens, wallet.connection, wallet.keyHashes, format]);
   const short = costs != null && costs.held < costs.needed;
 
   const mint = async () => {
     if (!policy || !tokens) return;
     setMinting(true);
     try {
-      onMinted({ txHash: await mintTokens(wallet.connection, policy, tokens, wallet.keyHashes), policy, tokens });
+      onMinted({ txHash: await mintTokens(wallet.connection, policy, tokens, wallet.keyHashes, format), policy, tokens, format });
     } finally {
       setMinting(false);
     }
@@ -140,13 +159,45 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
             {royaltyWarning}
           </p>
         ) : null}
+        {formats ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {FORMATS.map((option) => (
+              <button
+                key={option.format}
+                type="button"
+                className={`flex flex-col gap-2 rounded-field border p-4 text-left transition-colors ${format === option.format ? "border-primary bg-primary/10" : "border-line bg-base-200 hover:border-line-strong"}`}
+                onClick={() => setFormat(option.format)}
+                aria-pressed={format === option.format}
+              >
+                <span className="flex items-center gap-2 font-semibold">
+                  <span className={`size-3 rounded-full border ${format === option.format ? "border-primary bg-primary" : "border-base-content/40"}`} />
+                  {option.title}
+                </span>
+                <ul className="flex flex-col gap-1 text-sm text-base-content/65">
+                  {option.pros.map((text) => (
+                    <li key={text} className="flex items-start gap-2">
+                      <PlusIcon className="mt-0.5 size-4 shrink-0 text-success" />
+                      {text}
+                    </li>
+                  ))}
+                  {option.cons.map((text) => (
+                    <li key={text} className="flex items-start gap-2">
+                      <MinusIcon className="mt-0.5 size-4 shrink-0 text-warning" />
+                      {text}
+                    </li>
+                  ))}
+                </ul>
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex grow flex-col gap-2 text-sm text-base-content/55">
             <p>{summary}</p>
             {costs ? (
               <CostTable
                 rows={[
-                  { label: "Deposit for the metadata", hint: "back when you burn", lovelace: costs.deposit },
+                  ...(costs.deposit > 0 ? [{ label: "Deposit for the metadata", hint: "back when you burn", lovelace: costs.deposit }] : []),
                   { label: "Transaction fee", lovelace: costs.fee, about: true },
                   { label: "Leaves your wallet", lovelace: shown(costs.deposit) + shown(costs.fee), sum: true },
                   { label: "Minimum ADA beside your tokens", hint: "stays yours", lovelace: costs.kept },
@@ -233,8 +284,9 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
           wallet={wallet}
           selection={selection}
           tokens={mintTokensList}
-          summary={tokens ? `Mints ${tokens.length} CIP-68 NFT${tokens.length === 1 ? "" : "s"} with on-chain metadata.` : "Add the tokens above first."}
+          summary={tokens ? `Mints ${tokens.length} NFT${tokens.length === 1 ? "" : "s"} into your wallet.` : "Add the tokens above first."}
           royaltyStatus={royaltyStatus}
+          formats
           onMinted={setResult}
         />
       ) : (

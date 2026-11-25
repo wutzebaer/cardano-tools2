@@ -10,7 +10,7 @@ import { groupFeed } from "../app/browse/groupTokens.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
 import { drepKind, marginCostPerYear, pickAlternatives, poolFindings, suggestsAlternatives } from "../app/check/checkLogic.ts";
 import { actionStatus, actionTitle, poolsVoteOn, sortActions, voteOfAddress, voteOfPool } from "../app/votes/governanceLogic.ts";
-import { assetNameFor, tokenMetadata, tokensFromMetadata, tokensMetadata } from "../app/cardano/metadata.ts";
+import { assetNameFor, cip25Metadata, tokenMetadata, tokensFromMetadata, tokensMetadata } from "../app/cardano/metadata.ts";
 import { DROP_BLUEPRINT_HASH, DROP_CODE, DROP_TERM_BITS } from "../app/cardano/dropBlueprint.ts";
 import {
   applyDropParams,
@@ -230,6 +230,19 @@ const token = (patch = {}) => ({
 test("asset names are alphanumeric and leave room for the CIP-67 label", () => {
   assert.equal(assetNameFor("My Token #1"), "MyToken1");
   assert.equal(assetNameFor("a".repeat(40)).length, 28);
+});
+
+test("CIP-25 metadata lists the tokens by asset name and cuts long texts into pieces", () => {
+  const long = "ä".repeat(40);
+  const metadata = cip25Metadata("ab".repeat(28), [token({ description: long, extra: { traits: ["a", "b"], rank: 3 } })]);
+  assert.deepEqual(Object.keys(metadata), ["ab".repeat(28)]);
+  const entry = metadata["ab".repeat(28)].Token001;
+  assert.equal(entry.name, "Token 001");
+  assert.equal(entry.image, "ipfs://QmImage");
+  // 40 characters of two bytes each: 32 fit into the 64 bytes of a piece
+  assert.deepEqual(entry.description, ["ä".repeat(32), "ä".repeat(8)]);
+  assert.deepEqual(entry.traits, ["a", "b"]);
+  assert.equal(entry.rank, 3);
 });
 
 test("token metadata contains only what is set", () => {
