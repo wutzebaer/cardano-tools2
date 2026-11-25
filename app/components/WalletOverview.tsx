@@ -1,6 +1,6 @@
 "use client";
 
-import { rewardAddressHashToBech32 } from "@cardano/transaction";
+import { rewardAddressHashToBech32, WALLET_CHANGED } from "@cardano/transaction";
 import { WalletInfo } from "@cardano/types";
 import { formatAda } from "@cardano/utils";
 import { enableWallet, getSelectedWallet, SelectionMode } from "@cardano/wallet";
@@ -58,6 +58,23 @@ function WalletOverview() {
       updateWalletStats(context.state.walletInfo);
     })();
   }, [context.state.walletInfo]);
+
+  // A confirmed transaction of this page changed the balance, which is read again without touching the rest
+  const connectedWallet = context.state.walletInfo;
+  useEffect(() => {
+    if (!connectedWallet) return;
+    const refresh = async () => {
+      try {
+        const connection = await enableWallet(connectedWallet);
+        const balance = Number(Value.from_bytes(Buffer.from(await connection.getBalance(), "hex")).coin().to_str());
+        setWalletStats((stats) => (stats ? { ...stats, balance } : stats));
+      } catch {
+        // the balance shown stays until the next reading
+      }
+    };
+    window.addEventListener(WALLET_CHANGED, refresh);
+    return () => window.removeEventListener(WALLET_CHANGED, refresh);
+  }, [connectedWallet]);
 
   // Once on load: reconnect the wallet chosen on an earlier visit.
   // Must not depend on the context and must not set state without a wallet, both would re-render in an endless loop.

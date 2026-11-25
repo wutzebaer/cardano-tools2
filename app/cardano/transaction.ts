@@ -1,3 +1,4 @@
+import { watchConfirmation } from "@cardano/confirmation";
 import { getStakeInfo } from "@cardano/dbsync";
 import { currentSlot } from "@cardano/network";
 import { SimpleScript, WalletConnection } from "@cardano/types";
@@ -261,8 +262,27 @@ export const signAndSubmitTransaction =async (connection: WalletConnection, tx: 
     throw reason ? new Error(reason) : walletError;
   }
 
-  return fixedTransaction.transaction_hash().to_hex();
+  const txHash = fixedTransaction.transaction_hash().to_hex();
+  announceWalletChange(txHash);
+  return txHash;
 };
+
+/** Sent to the window when a transaction of this page is on chain, so that what shows the wallet reads it again. */
+export const WALLET_CHANGED = "wallet-changed";
+
+/**
+ * Follows a submitted transaction and says so once it is confirmed. Wallets take a moment to see their new balance,
+ * so it is said again a little later.
+ */
+function announceWalletChange(txHash: string) {
+  if (typeof window === "undefined") return;
+  const announce = () => window.dispatchEvent(new Event(WALLET_CHANGED));
+  watchConfirmation(txHash, () => {
+    announce();
+    setTimeout(announce, 10_000);
+    setTimeout(announce, 30_000);
+  });
+}
 
 export const sendTransaction = async (connection: WalletConnection, configure: (txBuilder: TransactionBuilder) => void, options: TxOptions = {}) => {
   const tx = await buildTransaction(connection, configure, options.utxos, options.signerKeyHash);
