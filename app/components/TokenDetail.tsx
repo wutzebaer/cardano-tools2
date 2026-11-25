@@ -1,5 +1,5 @@
-import { getPolicyRoyalties, getTokenDetailsByFingerprint } from '@cardano/dbsync';
-import { currentSlot, explorerAddressUrl, explorerAssetUrl, IS_MAINNET, slotToUnix } from '@cardano/network';
+import { getPolicyRoyalties, getStakeHandles, getTokenDetailsByFingerprint, getTokenHolders } from '@cardano/dbsync';
+import { currentSlot, explorerAddressUrl, explorerAssetUrl, explorerStakeUrl, IS_MAINNET, slotToUnix } from '@cardano/network';
 import LocalTime from '@components/LocalTime';
 import { technicalToken } from '@cardano/technicalToken';
 import { assetNameFromHex, formatNumber, formatTokenAmount, policyLockSlot, metadataDecimals, parseMetadata, shortenId, toDisplayMetadata, tokenFiles, tokenImage, toIpfsUrl } from '@cardano/utils';
@@ -13,6 +13,9 @@ import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ReactNode } from 'react';
+
+/** The API answers with at most one holder more than this, so that "more than" can be told from the exact number. */
+const SHOWN_HOLDERS = 20;
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
     return (
@@ -96,7 +99,15 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
     const tokenDetails = await getTokenDetailsByFingerprint(fingerprint);
     const metadata = parseMetadata(tokenDetails.metadata, tokenDetails.maPolicyId, tokenDetails.maName);
     const displayMetadata = toDisplayMetadata(metadata);
-    const [collectionInfo, royalties] = await Promise.all([getCollectionInfo(tokenDetails.maPolicyId), getPolicyRoyalties(tokenDetails.maPolicyId)]);
+    const [collectionInfo, royalties, holders] = await Promise.all([
+        getCollectionInfo(tokenDetails.maPolicyId),
+        getPolicyRoyalties(tokenDetails.maPolicyId),
+        getTokenHolders(tokenDetails.maPolicyId, tokenDetails.maName),
+    ]);
+    // holders are known by their ADA Handle where they have one
+    const shownHolders = holders.slice(0, tokenDetails.totalSupply === 1 ? 1 : 5);
+    const stakeHolders = shownHolders.map((holder) => holder.address).filter((address) => address.startsWith('stake'));
+    const handles = new Map(stakeHolders.length ? (await getStakeHandles(stakeHolders).catch(() => [])).map((entry) => [entry.stakeAddress, entry.handle]) : []);
     const royaltyRate = Number(royalties?.rate);
     const assetName = assetNameFromHex(tokenDetails.maName);
     // CIP-27: the token without a name is the one whose mint set the royalties of its policy
@@ -235,6 +246,30 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                                 {formatTokenAmount(tokenDetails.totalSupply, decimals)}
                                 {isNft ? <span className="ml-2 font-sans text-xs text-success">unique, supply is final</span> : null}
                             </DetailRow>
+                            {shownHolders.length > 0 ? (
+                                <DetailRow label={holders.length === 1 ? 'Owner' : 'Holders'}>
+                                    <span className="flex flex-col items-end gap-1">
+                                        {shownHolders.map((holder) => {
+                                            const isStake = holder.address.startsWith('stake');
+                                            const handle = handles.get(holder.address);
+                                            return (
+                                                <span key={holder.address}>
+                                                    <Link href={isStake ? explorerStakeUrl(holder.address) : explorerAddressUrl(holder.address)} target="_blank" className="hover:text-primary" title={holder.address}>
+                                                        {handle ? <span className="font-sans font-medium">${handle}</span> : shortenId(holder.address, 10)}
+                                                    </Link>
+                                                    {isStake ? null : <span className="ml-2 font-sans text-xs text-base-content/55">an address without a stake key, e.g. a contract</span>}
+                                                    {tokenDetails.totalSupply > 1 ? <span className="ml-2 font-sans text-xs text-base-content/55">{formatTokenAmount(holder.quantity, decimals)}</span> : null}
+                                                </span>
+                                            );
+                                        })}
+                                        {holders.length > shownHolders.length ? (
+                                            <span className="font-sans text-xs text-base-content/55">
+                                                and {holders.length > SHOWN_HOLDERS ? `more than ${SHOWN_HOLDERS - shownHolders.length}` : holders.length - shownHolders.length} more
+                                            </span>
+                                        ) : null}
+                                    </span>
+                                </DetailRow>
+                            ) : null}
                             <DetailRow label="Policy lock">
                                 {lockSlot == null ? (
                                     <span className="font-sans">{tokenDetails.maPolicyScript ? 'no time lock, more can be minted or burned' : 'decided by a smart contract'}</span>
