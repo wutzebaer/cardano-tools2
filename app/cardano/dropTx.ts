@@ -425,23 +425,37 @@ function holderOf(context: DropTxContext, policyId: string, nameHex: string) {
   return holder;
 }
 
-/** Burns a token of the wallet together with its metadata, whose deposit comes back to the wallet. Only for a burnable drop. */
-export function burnTokenTx(context: DropTxContext, drop: Drop, metadata: DropOutput, assetName: string) {
-  const name = utf8Hex(assetName);
+/** Tokens one transaction burns at most, so that its script runs stay well within what a transaction may use. */
+export const MAX_BURNS = 10;
+
+/**
+ * Burns tokens of the wallet together with their metadata, whose deposits come back to the wallet. Only for a
+ * burnable drop. Every metadata output is checked by a script run of its own, and each of them looks at all that is
+ * burned, so the runs get a little more to do with every token.
+ */
+export function burnTokensTx(context: DropTxContext, drop: Drop, items: { metadata: DropOutput; assetName: string }[]) {
+  if (items.length === 0 || items.length > MAX_BURNS) throw new Error(`Burn 1 to ${MAX_BURNS} tokens of a drop at a time`);
   const script = plutusScript(drop);
+  const names = items.map((item) => utf8Hex(item.assetName));
+  const holders = new Map(names.map((name) => holderOf(context, drop.policyId, USER_LABEL + name)).map((utxo) => [utxo.input().to_hex(), utxo]));
+  const more = 1 + (items.length - 1) / 4;
+  const spendBudget = { mem: Math.ceil(BUDGET.burnSpend.mem * more), steps: Math.ceil(BUDGET.burnSpend.steps * more) };
+  const mintBudget = { mem: BUDGET.burnMint.mem * items.length, steps: BUDGET.burnMint.steps * items.length };
   return build(context, {
-    collateral: "small",
-    mustSpend: [holderOf(context, drop.policyId, USER_LABEL + name)],
+    collateral: items.length === 1 ? "small" : "large",
+    mustSpend: [...holders.values()],
     configure: (txBuilder, inputs) => {
-      inputs.add_plutus_script_input(
-        PlutusWitness.new_with_ref_without_datum(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_spend(), REDEEMER.reclaim, BUDGET.burnSpend)),
-        inputOf(metadata),
-        valueOf(metadata.lovelace, metadata.tokens)
-      );
-      const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.burn, BUDGET.burnMint));
+      const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.burn, mintBudget));
       const mint = MintBuilder.new();
-      mint.add_asset(witness, AssetName.new(hexBytes(REFERENCE_LABEL + name)), Int.new_i32(-1));
-      mint.add_asset(witness, AssetName.new(hexBytes(USER_LABEL + name)), Int.new_i32(-1));
+      items.forEach(({ metadata }, index) => {
+        inputs.add_plutus_script_input(
+          PlutusWitness.new_with_ref_without_datum(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_spend(), REDEEMER.reclaim, spendBudget)),
+          inputOf(metadata),
+          valueOf(metadata.lovelace, metadata.tokens)
+        );
+        mint.add_asset(witness, AssetName.new(hexBytes(REFERENCE_LABEL + names[index])), Int.new_i32(-1));
+        mint.add_asset(witness, AssetName.new(hexBytes(USER_LABEL + names[index])), Int.new_i32(-1));
+      });
       txBuilder.set_mint_builder(mint);
     },
   });

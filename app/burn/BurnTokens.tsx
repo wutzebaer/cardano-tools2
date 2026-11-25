@@ -3,8 +3,9 @@
 import { answered } from "@cardano/answer";
 import { assetKey, assetsInUtxos, WalletAsset } from "@cardano/assets";
 import { DEAD_ADDRESS, BurnItem, burnTokens, findReferenceUtxos, referenceNameFor } from "@cardano/burn";
-import { getTokenDetails } from "@cardano/dbsync";
-import { burnToken, DropState, loadDrop } from "@cardano/drop";
+import { getPolicyCollection, getTokenDetails } from "@cardano/dbsync";
+import { burnTokens as burnDropTokensOf, DropState, loadDrop } from "@cardano/drop";
+import { MAX_BURNS } from "@cardano/dropTx";
 import { USER_LABEL } from "@cardano/dropScript";
 import { policySecondsLeft } from "@cardano/mint";
 import { explorerAddressUrl } from "@cardano/network";
@@ -67,6 +68,8 @@ const MAX_DROPS = 12;
 
 interface DropTokens {
   state: DropState;
+  /** The name the seller registered for the collection, if any */
+  name?: string;
   assets: WalletAsset[];
 }
 
@@ -84,7 +87,8 @@ async function loadDropTokens(assets: WalletAsset[]): Promise<DropTokens[]> {
     [...byPolicy.entries()].slice(0, MAX_DROPS).map(async ([policyId, held]) => {
       // most policies are no drop, and one that cannot be read is left out
       const state = await loadDrop(policyId).catch(() => null);
-      return state?.config.burnable ? [{ state, assets: held }] : [];
+      if (!state?.config.burnable) return [];
+      return [{ state, name: (await getPolicyCollection(policyId))?.name, assets: held }];
     })
   );
   return found.flat();
@@ -155,11 +159,13 @@ function Burn({ wallet }: { wallet: ConnectedWallet }) {
     }
   };
 
-  const burnDropToken = async (drop: DropTokens, asset: WalletAsset, name: string) => {
-    if (!confirm(`Burn ${name}?\n\nThe token is destroyed for good and nobody can buy it again. You get back the deposit of its metadata, about 1.5 ADA. The price you paid is not returned.`)) return;
-    setBurning(assetKey(asset.policyId, asset.name));
+  const burnDropTokens = async (drop: DropTokens) => {
+    const items = selectedItems(drop.assets);
+    if (!confirm(`Burn ${items.length} token${items.length === 1 ? "" : "s"}?\n\nThey are destroyed for good and nobody can buy them again. You get back the deposit of their metadata, about 1.5 ADA each. The price you paid is not returned.`)) return;
+    setBurning(drop.state.drop.policyId);
     try {
-      setTxHashes([await burnToken(wallet.connection, drop.state, assetNameFromHex(asset.name))]);
+      setTxHashes([await burnDropTokensOf(wallet.connection, drop.state, items.map((item) => assetNameFromHex(item.asset.name)))]);
+      setAmounts({});
     } finally {
       setBurning(null);
     }
@@ -256,42 +262,51 @@ function Burn({ wallet }: { wallet: ConnectedWallet }) {
         );
       })}
 
-      {drops.map((drop) => (
-        <section key={drop.state.drop.policyId} className="surface flex flex-col gap-4 p-5">
-          <div className="min-w-0">
-            <p className="section-label">
-              Bought from a{" "}
-              <Link className="link" href={`/drop/${drop.state.drop.policyId}`}>
-                drop
-              </Link>
-            </p>
-            <p className="break-all font-mono text-xs text-base-content/45">{drop.state.drop.policyId}</p>
-          </div>
-          <ul className="flex flex-col divide-y divide-line">
-            {drop.assets.map((asset) => {
-              const key = assetKey(asset.policyId, asset.name);
-              const info = tokens?.info.get(key);
-              const image = toIpfsUrl(info?.image);
-              const name = info?.name || assetNameFromHex(asset.name) || "(no name)";
-              return (
-                <li key={key} className="flex items-center gap-3 py-2.5">
-                  <div className="size-10 shrink-0 overflow-hidden rounded-field bg-base-300">
-                    {image ? <IpfsImage src={image} alt="" width="64" height="64" className="size-10 object-cover" /> : <TokenImagePlaceholder />}
-                  </div>
-                  <div className="min-w-0 grow">
-                    <p className="truncate text-sm font-medium">{name}</p>
-                    <p className="truncate font-mono text-[11px] text-base-content/45">{info?.maFingerprint ?? shortenId(asset.name, 10)}</p>
-                  </div>
-                  <button className="btn btn-error btn-sm" disabled={burning != null} onClick={() => burnDropToken(drop, asset, name)}>
-                    {burning === key ? <span className="loading loading-spinner loading-xs" /> : null}
-                    Burn
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ))}
+      {drops.map((drop) => {
+        const selected = selectedItems(drop.assets);
+        const tooMany = selected.length > MAX_BURNS;
+        return (
+          <section key={drop.state.drop.policyId} className="surface flex flex-col gap-4 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="section-label">
+                  <Link className="hover:text-base-content" href={`/drop/${drop.state.drop.policyId}`}>
+                    {drop.name ?? "Drop"}
+                  </Link>
+                </p>
+                <p className="break-all font-mono text-xs text-base-content/45">{drop.state.drop.policyId}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {tooMany ? <span className="text-xs text-warning">At most {MAX_BURNS} at a time</span> : null}
+                <button className="btn btn-error btn-sm" disabled={selected.length === 0 || tooMany || burning != null} onClick={() => burnDropTokens(drop)}>
+                  {burning === drop.state.drop.policyId ? <span className="loading loading-spinner loading-xs" /> : null}
+                  Burn {selected.length || ""} selected
+                </button>
+              </div>
+            </div>
+            <ul className="flex flex-col divide-y divide-line">
+              {drop.assets.map((asset) => {
+                const key = assetKey(asset.policyId, asset.name);
+                const info = tokens?.info.get(key);
+                const image = toIpfsUrl(info?.image);
+                const name = info?.name || assetNameFromHex(asset.name) || "(no name)";
+                return (
+                  <li key={key} className="flex items-center gap-3 py-2.5">
+                    <input type="checkbox" className="checkbox checkbox-sm" checked={amounts[key] != null} onChange={() => setAmount(key, amounts[key] == null ? `${asset.quantity}` : null)} aria-label={`Select ${name}`} />
+                    <div className="size-10 shrink-0 overflow-hidden rounded-field bg-base-300">
+                      {image ? <IpfsImage src={image} alt="" width="64" height="64" className="size-10 object-cover" /> : <TokenImagePlaceholder />}
+                    </div>
+                    <div className="min-w-0 grow">
+                      <p className="truncate text-sm font-medium">{name}</p>
+                      <p className="truncate font-mono text-[11px] text-base-content/45">{info?.maFingerprint ?? shortenId(asset.name, 10)}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
 
       {otherTokens > 0 ? (
         <Notice>

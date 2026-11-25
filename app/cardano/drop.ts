@@ -19,7 +19,7 @@ import {
   USER_LABEL,
   utf8Hex,
 } from "@cardano/dropScript";
-import { burnTokenTx, buyTokenTx, closeGroupsTx, createDropTx, Drop, dropAddress, DropGroup, dropOf, DropOutput, DropTxContext, GROUPS_PER_CLOSE, NewDrop } from "@cardano/dropTx";
+import { burnTokensTx, buyTokenTx, closeGroupsTx, createDropTx, Drop, dropAddress, DropGroup, dropOf, DropOutput, DropTxContext, GROUPS_PER_CLOSE, NewDrop } from "@cardano/dropTx";
 import { NETWORK } from "@cardano/network";
 import { royaltyMetadata } from "@cardano/royalties";
 import { currentSlot, signAndSubmitTransaction, TTL_SECONDS, walletChangeAddress, walletUtxos } from "@cardano/transaction";
@@ -153,11 +153,16 @@ export async function buyToken(connection: WalletConnection, policyId: string, t
   return signAndSubmitTransaction(connection, tx).catch(withCollisionHint);
 }
 
-/** Burns a token of the wallet with its metadata, the deposit of the metadata returns to the wallet. */
-export async function burnToken(connection: WalletConnection, state: DropState, assetName: string) {
-  const [metadata] = outputsOf(await answered(getDropOutputs(state.drop.policyId, REFERENCE_LABEL + utf8Hex(assetName))));
-  if (!metadata) throw new Error("The metadata of this token is not at the contract, it cannot be burned here");
-  return signAndSubmitTransaction(connection, burnTokenTx(await txContext(connection), state.drop, metadata, assetName));
+/** Burns tokens of the wallet with their metadata, the deposits of the metadata return to the wallet. */
+export async function burnTokens(connection: WalletConnection, state: DropState, assetNames: string[]) {
+  const items = await Promise.all(
+    assetNames.map(async (assetName) => {
+      const [metadata] = outputsOf(await answered(getDropOutputs(state.drop.policyId, REFERENCE_LABEL + utf8Hex(assetName))));
+      if (!metadata) throw new Error(`The metadata of ${assetName} is not at the contract, it cannot be burned here`);
+      return { metadata, assetName };
+    })
+  );
+  return signAndSubmitTransaction(connection, burnTokensTx(await txContext(connection), state.drop, items));
 }
 
 /** Closes the next groups of a drop, as many as one transaction takes. Returns how many are left after it. */
