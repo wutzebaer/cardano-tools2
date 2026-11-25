@@ -103,7 +103,10 @@ function withCollisionHint(error: unknown): never {
   throw error;
 }
 
-/** Publishes the list on IPFS and creates the drop. The wallet becomes its seller and owner. `royalty` asks marketplaces for a share of resales. */
+/**
+ * Publishes the list on IPFS and creates the drop. The wallet becomes its seller and owner. `royalty` asks
+ * marketplaces for a share of resales, `drop.collection` is registered on chain as the name of the collection.
+ */
 export async function createDrop(connection: WalletConnection, drop: Omit<NewDrop, "list" | "royalty">, royalty?: { percent: number; address: string }) {
   const errors = listErrors(drop.tokens);
   if (errors.length > 0) throw new Error(errors[0]);
@@ -128,6 +131,7 @@ const LIST_PLACEHOLDER = `ipfs://${"Q".repeat(46)}`;
  * Fails like the real one, for example when the wallet holds too little.
  */
 export async function dropCosts(connection: WalletConnection, drop: Omit<NewDrop, "list" | "royalty">, royalty?: { percent: number; address: string }): Promise<DropCosts> {
+  // `drop.collection` goes along as it is
   const { tx, drop: created } = createDropTx(await txContext(connection), NETWORK.id, { ...drop, list: LIST_PLACEHOLDER, royalty: royalty ? royaltyMetadata(royalty.percent, royalty.address) : undefined });
   const address = dropAddress(created, NETWORK.id).to_hex();
   const outputs = tx.body().outputs();

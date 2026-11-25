@@ -50,8 +50,11 @@ export function collectionNameError(name: string): string | undefined {
 
 export interface Registration {
   policyId: string;
-  /** The native script of the policy as CBOR, hex. With it a reader can check the policy id without looking anything up. */
-  scriptCbor: string;
+  /**
+   * The native script of the policy as CBOR, hex. With it a reader can check the policy id without looking anything up.
+   * Left out for a policy that is a Plutus contract, which is too large to repeat and which CIP-88 has no scope for yet.
+   */
+  scriptCbor?: string;
   name: string;
   description?: string;
   /** Address of a picture for the collection, e.g. "ipfs://…". */
@@ -73,8 +76,9 @@ export function policyRegistration({ policyId, scriptCbor, name, description, im
     details.push([27, map([0, int(1)], [1, map([1, text(royalty.rate)], [2, list(...address)])])]);
   }
   const payload = map(
-    // scope 0: a native script, with its hash and the script itself in pieces
-    [1, list(int(0), bytes(policyId), list(...(scriptCbor.match(new RegExp(`.{1,${METADATA_BYTES * 2}}`, "g")) ?? []).map(bytes)))],
+    // scope 0: a native script, with its hash and the script itself in pieces. The standard defines no scope for a
+    // Plutus contract so far, 1 with the hash alone is what this site writes and reads for one.
+    [1, scriptCbor ? list(int(0), bytes(policyId), list(...(scriptCbor.match(new RegExp(`.{1,${METADATA_BYTES * 2}}`, "g")) ?? []).map(bytes))) : list(int(1), bytes(policyId))],
     [2, list(...details.map(([cip]) => int(cip)))],
     // validation 1: the beacon token, here the one with the empty name
     [3, list(int(1), list(bytes(policyId), bytes("")))],

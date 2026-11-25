@@ -27,6 +27,7 @@ import {
   USER_LABEL,
   utf8Hex,
 } from "@cardano/dropScript";
+import { policyRegistration, REGISTRATION_LABEL } from "@cardano/registration";
 import {
   Address,
   AssetName,
@@ -288,6 +289,8 @@ export interface NewDrop {
   list: string;
   /** CIP-27 royalties as they go into the metadata of the transaction: the rate as a fraction, the address in pieces of 64 characters at most */
   royalty?: { rate: string; addr: string | string[] };
+  /** What the seller says about the collection, registered on chain with CIP-88 */
+  collection?: { name: string; description?: string; image?: string };
 }
 
 /** CIP-27: the royalties of a policy are in the metadata of the transaction that mints its token with an empty name. */
@@ -298,7 +301,8 @@ const ROYALTY_TOKEN = "";
  * Creates a drop: one group per marker at the script address, nothing sold. The seller and owner is the wallet.
  * The output of the wallet that is spent as seed decides the policy id.
  * With royalties the royalty token is minted along into the wallet: this is the only transaction that can, and
- * marketplaces want it to be the first mint of the policy.
+ * marketplaces want it to be the first mint of the policy. The same token is the proof CIP-88 asks for, so the
+ * name of the collection is registered with it, with or without royalties.
  */
 export function createDropTx(context: DropTxContext, networkId: number, drop: NewDrop) {
   const seedUtxo = [...context.utxos].filter(isAdaOnly).sort((a, b) => (lovelaceOf(a) > lovelaceOf(b) ? -1 : 1))[0];
@@ -329,13 +333,18 @@ export function createDropTx(context: DropTxContext, networkId: number, drop: Ne
         const state: GroupState = { config, group, sold: freshSold(config.total, config.groups, group) };
         txBuilder.add_output(datumOutput(address, [{ policyId: created.policyId, name: markerName(group), quantity: 1n }], groupDatum(state)));
       }
-      if (drop.royalty) {
+      const collection = drop.collection?.name.trim() ? drop.collection : undefined;
+      if (drop.royalty || collection) {
         mint.add_asset(witness, AssetName.new(hexBytes(ROYALTY_TOKEN)), Int.new_i32(1));
         // after the groups, which the contract expects first
         const royaltyToken = [{ policyId: created.policyId, name: ROYALTY_TOKEN, quantity: 1n }];
         const needed = min_ada_for_output(TransactionOutput.new(context.changeAddress, valueOf(2_000_000n, royaltyToken)), DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE));
         txBuilder.add_output(TransactionOutput.new(context.changeAddress, valueOf(BigInt(needed.to_str()), royaltyToken)));
-        txBuilder.add_json_metadatum_with_schema(big(ROYALTY_LABEL), JSON.stringify(drop.royalty), MetadataJsonSchema.NoConversions);
+        if (drop.royalty) txBuilder.add_json_metadatum_with_schema(big(ROYALTY_LABEL), JSON.stringify(drop.royalty), MetadataJsonSchema.NoConversions);
+        if (collection) {
+          const registration = policyRegistration({ ...collection, policyId: created.policyId, royalty: drop.royalty, nonce: context.ttlSlot });
+          txBuilder.add_json_metadatum_with_schema(big(REGISTRATION_LABEL), JSON.stringify(registration), MetadataJsonSchema.DetailedSchema);
+        }
       }
       txBuilder.set_mint_builder(mint);
     },

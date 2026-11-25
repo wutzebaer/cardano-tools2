@@ -4,12 +4,17 @@ import { createDrop, DropCosts, dropCosts } from "@cardano/drop";
 import CostTable, { shown } from "@components/CostTable";
 import { DropToken, suggestedGroups } from "@cardano/dropScript";
 import { isValidAddress } from "@cardano/royalties";
-import { formatAda, shortenId } from "@cardano/utils";
+import { answered } from "@cardano/answer";
+import { collectionNameError, DESCRIPTION_MAX_LENGTH } from "@cardano/registration";
+import { formatAda, shortenId, toIpfsUrl } from "@cardano/utils";
+import IpfsImage from "@components/IpfsImage";
+import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
+import { uploadToIpfs } from "@/app/mint/uploadToIpfs";
 import TxResult from "@components/TxResult";
-import { Field, inputClass, Notice } from "@components/ui";
+import { Field, inputClass, Notice, secondaryButtonClass } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 /** ADA a group binds until the drop is closed, and what a buyer leaves with the metadata of a token. Both rounded up. */
 const GROUP_DEPOSIT_ADA = 2.1;
@@ -39,6 +44,11 @@ export function SellAsDrop({ wallet, tokens, step }: { wallet: ConnectedWallet; 
   const [burnable, setBurnable] = useState(false);
   const [royalty, setRoyalty] = useState("0");
   const [royaltyAddress, setRoyaltyAddress] = useState(wallet.changeAddress);
+  const [collectionName, setCollectionName] = useState("");
+  const [description, setDescription] = useState("");
+  const [image, setImage] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [imageError, setImageError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ txHash: string; policyId: string } | null>(null);
 
@@ -50,7 +60,26 @@ export function SellAsDrop({ wallet, tokens, step }: { wallet: ConnectedWallet; 
   const royaltyError = royalty.trim() === "" || !Number.isFinite(royaltyPercent) || royaltyPercent < 0 || royaltyPercent > 100 ? "0 to 100" : undefined;
   const withRoyalty = !royaltyError && royaltyPercent > 0;
   const royaltyAddressError = withRoyalty && !isValidAddress(royaltyAddress) ? "Not a valid address" : undefined;
-  const ready = tokens != null && !priceError && !royaltyError && !royaltyAddressError && !busy;
+  // description and picture belong to a collection, which is known by its name
+  const nameError = collectionName.trim() ? collectionNameError(collectionName) : description.trim() || image ? "Needs a name" : undefined;
+  const collection = useMemo(
+    () => (collectionName.trim() && !collectionNameError(collectionName) ? { name: collectionName, description, image } : undefined),
+    [collectionName, description, image]
+  );
+  const ready = tokens != null && !priceError && !royaltyError && !royaltyAddressError && !nameError && !uploading && !busy;
+
+  const upload = async (file: File | undefined) => {
+    setImageError(undefined);
+    if (!file) return;
+    setUploading(true);
+    try {
+      setImage(`ipfs://${await answered(uploadToIpfs(file))}`);
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : "The upload to IPFS failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   // what creating costs, read from the transaction as it would be built; a rough figure stands in until then or if that fails
   const [costs, setCosts] = useState<DropCosts | null>(null);
@@ -60,7 +89,7 @@ export function SellAsDrop({ wallet, tokens, step }: { wallet: ConnectedWallet; 
     // waits for a pause in typing, the transaction is put together for it
     const timer = setTimeout(() => {
       (tokens && !priceError
-        ? dropCosts(wallet.connection, { tokens, groups: groupCount, price: BigInt(Math.round(priceAda * 1_000_000)), burnable }, royaltyTarget ? { percent: royaltyPercent, address: royaltyTarget } : undefined)
+        ? dropCosts(wallet.connection, { tokens, groups: groupCount, price: BigInt(Math.round(priceAda * 1_000_000)), burnable, collection }, royaltyTarget ? { percent: royaltyPercent, address: royaltyTarget } : undefined)
         : Promise.resolve(null)
       )
         .catch(() => null)
@@ -72,7 +101,7 @@ export function SellAsDrop({ wallet, tokens, step }: { wallet: ConnectedWallet; 
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [wallet.connection, tokens, groupCount, priceAda, priceError, burnable, royaltyPercent, royaltyTarget]);
+  }, [wallet.connection, tokens, groupCount, priceAda, priceError, burnable, royaltyPercent, royaltyTarget, collection]);
   const deposit = costs?.deposit ?? Math.round(groupCount * GROUP_DEPOSIT_ADA * 1_000_000);
   const fee = costs?.fee ?? CREATE_FEE_ADA * 1_000_000;
 
@@ -81,13 +110,13 @@ export function SellAsDrop({ wallet, tokens, step }: { wallet: ConnectedWallet; 
     const lovelace = BigInt(Math.round(priceAda * 1_000_000));
     if (
       !confirm(
-        `Create a drop of ${tokens.length} tokens for ${formatAda(Number(lovelace))} each?\n\n${withRoyalty ? `Royalties: ${royaltyPercent} %.\n\n` : ""}The list, the price, the royalties and whether tokens can be burned cannot be changed afterwards. You can close the drop at any time.`
+        `Create a drop of ${tokens.length} tokens for ${formatAda(Number(lovelace))} each?\n\n${collection ? `Collection: ${collection.name.trim()}.\n\n` : ""}${withRoyalty ? `Royalties: ${royaltyPercent} %.\n\n` : ""}The list, the price, the name of the collection, the royalties and whether tokens can be burned cannot be changed afterwards. You can close the drop at any time.`
       )
     )
       return;
     setBusy(true);
     try {
-      const created = await createDrop(wallet.connection, { tokens, groups: groupCount, price: lovelace, burnable }, withRoyalty ? { percent: royaltyPercent, address: royaltyAddress.trim() } : undefined);
+      const created = await createDrop(wallet.connection, { tokens, groups: groupCount, price: lovelace, burnable, collection }, withRoyalty ? { percent: royaltyPercent, address: royaltyAddress.trim() } : undefined);
       localStorage.setItem(KNOWN_DROPS, JSON.stringify([created.policyId, ...knownDrops().filter((known) => known !== created.policyId)]));
       setResult(created);
     } finally {
@@ -116,6 +145,30 @@ export function SellAsDrop({ wallet, tokens, step }: { wallet: ConnectedWallet; 
           Price and sale
         </h3>
       ) : null}
+      <div className="grid items-start gap-4 sm:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_auto]">
+        <Field label="Collection name (optional)" error={nameError} hint="Written on chain with the drop. Cannot be changed later.">
+          <input className={inputClass} value={collectionName} onChange={(event) => setCollectionName(event.target.value)} placeholder="My collection" />
+        </Field>
+        <Field label="About the collection (optional)">
+          <input className={inputClass} value={description} maxLength={DESCRIPTION_MAX_LENGTH} onChange={(event) => setDescription(event.target.value)} placeholder="24 robots, drawn by hand" />
+        </Field>
+        <Field label="Picture (optional)" error={imageError}>
+          <span className="flex items-center gap-2">
+            {image ? <IpfsImage width="40" height="40" className="size-10 shrink-0 rounded-field object-cover" src={toIpfsUrl(image)} alt="Collection picture" unoptimized /> : null}
+            <label className={`${secondaryButtonClass} h-10 ${uploading ? "btn-disabled" : ""}`}>
+              {uploading ? <span className="loading loading-spinner loading-xs" /> : <ArrowUpTrayIcon className="size-4" />}
+              {image ? "Change" : "Choose picture"}
+              <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={(event) => upload(event.target.files?.[0])} />
+            </label>
+            {image ? (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setImage("")}>
+                Remove
+              </button>
+            ) : null}
+          </span>
+        </Field>
+      </div>
+
       <Field label="Price per token in ADA" error={priceError} hint="Goes to your wallet with every purchase" className="sm:max-w-xs">
         <input className={inputClass} inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} />
       </Field>
