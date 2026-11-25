@@ -19,16 +19,39 @@ function AdaSign() {
   );
 }
 
-/** A torch and a pitchfork, for the pool that took one of our blocks. Drawn, the font has no emoji. */
+/** An angry mob with torches and a pitchfork, for the pool that took one of our blocks. Drawn, the font has no emoji. */
 function AngryMob() {
   return (
-    <svg width="50" height="32" viewBox="0 0 44 28" fill="none" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 27 L11 13" stroke="#b07a45" strokeWidth="3" />
-      <path d="M8.5 13 H13.5" stroke="#8b93a7" strokeWidth="2.5" />
-      <path d="M11 1.5 C15 5.5 15.6 9 14.1 11 C13 12.6 9 12.6 8.2 11 C6.9 9 8.4 5.6 11 1.5 Z" fill="#f97316" />
-      <path d="M11 5.8 C12.8 7.8 13 9.6 12.1 10.8 C11.4 11.5 10.1 11.4 9.6 10.7 C9 9.6 9.8 7.9 11 5.8 Z" fill="#facc15" />
-      <path d="M33 27 V10.5" stroke="#b07a45" strokeWidth="3" />
-      <path d="M26 2 V7 C26 9.5 28 10.5 33 10.5 C38 10.5 40 9.5 40 7 V2 M33 2 V10.5" stroke="#c9cdd8" strokeWidth="2.4" />
+    <svg width="216" height="108" viewBox="0 0 96 48" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 40 L6 13" stroke="#b07a45" strokeWidth="2.6" />
+      <path d="M6 2 C10 6 10.5 9 9 11.5 C8 13 4.5 13 3.6 11.5 C2.4 9.3 3.6 6 6 2 Z" fill="#f97316" />
+      <path d="M6 5.8 C7.6 7.6 7.8 9.4 7 10.6 C6.4 11.3 5.3 11.2 4.9 10.5 C4.4 9.5 5 7.8 6 5.8 Z" fill="#facc15" />
+      <path d="M40 41 V8" stroke="#b07a45" strokeWidth="2.6" />
+      <path d="M34 1.5 V6 C34 8.2 35.6 9 40 9 C44.4 9 46 8.2 46 6 V1.5 M40 1.5 V9" stroke="#c9cdd8" strokeWidth="2.2" />
+      <path d="M88 40 L90 13" stroke="#b07a45" strokeWidth="2.6" />
+      <path d="M90 2 C94 6 94.5 9 93 11.5 C92 13 88.5 13 87.6 11.5 C86.4 9.3 87.6 6 90 2 Z" fill="#f97316" />
+      <path d="M90 5.8 C91.6 7.6 91.8 9.4 91 10.6 C90.4 11.3 89.3 11.2 88.9 10.5 C88.4 9.5 89 7.8 90 5.8 Z" fill="#facc15" />
+      <path d="M7 48 C7 39 27 39 27 48 Z" fill="#7c3aed" />
+      <path d="M10 42 L7 27" stroke="#7c3aed" strokeWidth="3.4" />
+      <circle cx="17" cy="31" r="7.5" fill="#f2c9a0" />
+      <path d="M11.5 26.5 L15.5 29 M22.5 26.5 L18.5 29" stroke="#3b2a1a" strokeWidth="1.8" />
+      <circle cx="14.4" cy="31.2" r="1" fill="#3b2a1a" />
+      <circle cx="19.6" cy="31.2" r="1" fill="#3b2a1a" />
+      <path d="M14 35.8 Q17 33.2 20 35.8" stroke="#3b2a1a" strokeWidth="1.5" />
+      <path d="M38 48 C38 39 58 39 58 48 Z" fill="#dc2626" />
+      <path d="M41 42 L40 25" stroke="#dc2626" strokeWidth="3.4" />
+      <circle cx="48" cy="31" r="7.5" fill="#f2c9a0" />
+      <path d="M42.5 26.5 L46.5 29 M53.5 26.5 L49.5 29" stroke="#3b2a1a" strokeWidth="1.8" />
+      <circle cx="45.4" cy="31.2" r="1" fill="#3b2a1a" />
+      <circle cx="50.6" cy="31.2" r="1" fill="#3b2a1a" />
+      <path d="M45 35.8 Q48 33.2 51 35.8" stroke="#3b2a1a" strokeWidth="1.5" />
+      <path d="M69 48 C69 39 89 39 89 48 Z" fill="#2563eb" />
+      <path d="M86 42 L89 27" stroke="#2563eb" strokeWidth="3.4" />
+      <circle cx="79" cy="31" r="7.5" fill="#f2c9a0" />
+      <path d="M73.5 26.5 L77.5 29 M84.5 26.5 L80.5 29" stroke="#3b2a1a" strokeWidth="1.8" />
+      <circle cx="76.4" cy="31.2" r="1" fill="#3b2a1a" />
+      <circle cx="81.6" cy="31.2" r="1" fill="#3b2a1a" />
+      <path d="M76 35.8 Q79 33.2 82 35.8" stroke="#3b2a1a" strokeWidth="1.5" />
     </svg>
   );
 }
@@ -53,7 +76,6 @@ function Tile({ label, value, accent = false, note = "" }: { label: string; valu
       <div style={{ display: "flex", fontSize: 76, fontWeight: 700, color: accent ? "#ffffff" : "#e6e8ee" }}>{value}</div>
       {note ? (
         <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 22, color: "#fdba74" }}>
-          {note.includes("lost to") ? <AngryMob /> : null}
           {/* several winners take two lines rather than leave the tile */}
           <span style={{ display: "flex", textAlign: "center", maxWidth: 220 }}>{note}</span>
         </div>
@@ -77,6 +99,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
   const [facts, pool, metrics] = await Promise.all([getPoolEpoch(POOL_ID, epoch), getPoolCheck(POOL_ID), kind === "result" ? pushgatewayMetrics() : Promise.resolve("")]);
   if (!facts) return new Response("Not found", { status: 404 });
 
+  const battles = kind === "result" ? battlesByEpoch(metrics).get(epoch) : undefined;
+  const lostBattle = (battles?.lost.length ?? 0) > 0;
   const counted = kind === "plan" ? scheduled! : facts.blocks;
   const percent = luck(counted, facts.expectedBlocks);
   const tiles: { label: string; value: string; accent: boolean; note?: string }[] =
@@ -87,7 +111,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
             label: scheduled != null ? "BLOCKS FORGED" : "BLOCKS",
             value: scheduled != null ? `${facts.blocks} / ${scheduled}` : `${facts.blocks}`,
             accent: true,
-            note: battleNote(battlesByEpoch(metrics).get(epoch)),
+            note: battleNote(battles),
           },
         ];
   if (facts.expectedBlocks != null) tiles.push({ label: "EXPECTED BY STAKE", value: formatExpected(facts.expectedBlocks), accent: false });
@@ -111,9 +135,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
           <span>{kind === "plan" ? "COMING EPOCH" : "EPOCH RESULT"}</span>
           <span>{pool?.name ? pool.name.toUpperCase() : "STAKE POOL"}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 28 }}>
-          <div style={{ display: "flex", fontSize: 104, fontWeight: 700, backgroundImage: BRAND, backgroundClip: "text", color: "transparent" }}>[{POOL_TICKER}]</div>
-          <div style={{ display: "flex", fontSize: 64, fontWeight: 600, color: "#c9cdd8" }}>Epoch {epoch}</div>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 28 }}>
+            <div style={{ display: "flex", fontSize: 104, fontWeight: 700, backgroundImage: BRAND, backgroundClip: "text", color: "transparent" }}>[{POOL_TICKER}]</div>
+            <div style={{ display: "flex", fontSize: 64, fontWeight: 600, color: "#c9cdd8" }}>Epoch {epoch}</div>
+          </div>
+          {lostBattle ? <AngryMob /> : null}
         </div>
         <div style={{ display: "flex", gap: 24 }}>
           {tiles.map((tile) => (
