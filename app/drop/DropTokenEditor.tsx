@@ -6,7 +6,7 @@ import { assetNameFor, MetaValue } from "@cardano/metadata";
 import { toIpfsUrl } from "@cardano/utils";
 import IpfsImage from "@components/IpfsImage";
 import { Field, inputClass, secondaryButtonClass } from "@components/ui";
-import { ArrowDownTrayIcon, ArrowUpTrayIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { ArrowDownTrayIcon, ArrowUpTrayIcon, DocumentArrowUpIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { uploadToIpfs } from "@/app/mint/uploadToIpfs";
 import { ChangeEvent, KeyboardEvent, ReactNode, useEffect, useMemo, useState } from "react";
 
@@ -233,7 +233,6 @@ function TokenRow({ draft, traits, onChange, onRemove }: { draft: DraftToken; tr
  * Answers with the finished list, or null while it is empty or has errors.
  */
 export default function DropTokenEditor({ onChange, firstStep = 1 }: { onChange: (tokens: DropToken[] | null) => void; firstStep?: number }) {
-  const [mode, setMode] = useState<"images" | "json">("images");
   const [drafts, setDrafts] = useState<DraftToken[]>([]);
   const [common, setCommon] = useState<Attribute[]>([{ key: "website", value: "" }]);
   const [traits, setTraits] = useState<Trait[]>([]);
@@ -303,6 +302,7 @@ export default function DropTokenEditor({ onChange, firstStep = 1 }: { onChange:
   const readJson = async (file: File | undefined) => {
     setFileError(undefined);
     if (!file) return;
+    if (drafts.length && !confirm(`Loading a file replaces the ${drafts.length.toLocaleString("en")} token${drafts.length === 1 ? "" : "s"} in the list. Go on?`)) return;
     try {
       const parsed = parseDropList(JSON.parse(await file.text()));
       const rest = parsed.map((token) => {
@@ -383,26 +383,31 @@ export default function DropTokenEditor({ onChange, firstStep = 1 }: { onChange:
       <Step
         number={firstStep}
         title="Your tokens"
-        text={mode === "images" ? "Every image becomes one token, named after its file. The images are stored on IPFS." : "A list you prepared elsewhere."}
-        aside={
-          <div className="join">
-            {(["images", "json"] as const).map((option) => (
-              <button key={option} type="button" className={`btn btn-sm join-item border-line ${mode === option ? "btn-primary" : "bg-base-300"}`} onClick={() => setMode(option)}>
-                {option === "images" ? "Upload images" : "JSON file (advanced)"}
-              </button>
-            ))}
-          </div>
-        }
+        text="Every image becomes one token, named after its file, and is stored on IPFS. Or load a list you prepared as a JSON file."
       >
-      {mode === "images" ? (
         <div className="flex flex-wrap items-center gap-2">
-        <Field label="" error={fileError}>
-          <label className={`${secondaryButtonClass} self-start ${uploading ? "btn-disabled" : ""}`}>
+          <label className={`${secondaryButtonClass} ${uploading ? "btn-disabled" : ""}`}>
             {uploading ? <span className="loading loading-spinner loading-xs" /> : <ArrowUpTrayIcon className="size-4" />}
             {uploading ?? (drafts.length ? "Add more images" : "Choose images")}
             <input type="file" multiple accept="image/*,video/*,model/*,.glb,.gltf" className="hidden" disabled={!!uploading} onChange={addImages} />
           </label>
-        </Field>
+          <span className="text-sm text-base-content/55">or</span>
+          <label className={`${secondaryButtonClass} ${uploading ? "btn-disabled" : ""}`}>
+            <DocumentArrowUpIcon className="size-4" />
+            Load JSON file
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              disabled={!!uploading}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                // emptied, so that the same file can be loaded again
+                event.target.value = "";
+                readJson(file);
+              }}
+            />
+          </label>
           {drafts.slice(0, THUMBNAILS).map((draft) => {
             const image = draft.preview ?? (draft.image ? toIpfsUrl(draft.image) : "");
             return (
@@ -413,20 +418,16 @@ export default function DropTokenEditor({ onChange, firstStep = 1 }: { onChange:
           })}
           {drafts.length > THUMBNAILS ? <span className="text-sm text-base-content/55">+{(drafts.length - THUMBNAILS).toLocaleString("en")} more</span> : null}
         </div>
-      ) : (
-        <Field label="" error={fileError} hint={`Up to ${MAX_DROP_TOKENS.toLocaleString("en")} tokens. The images have to be on IPFS already. Loading a file replaces the list below.`}>
-          <input type="file" accept="application/json,.json" className="file-input w-full border-line bg-base-300" onChange={(event) => readJson(event.target.files?.[0])} />
-          <details className="mt-2 text-sm text-base-content/65">
-            <summary className="cursor-pointer">What the file looks like</summary>
-            <p className="mt-2">
-              One entry per token: the asset name (up to {DROP_NAME_MAX_BYTES} bytes, each only once) and its metadata as on the mint page. The metadata needs at least
-              a name. A file with one entry per asset name, as the JSON editor of the mint page writes it, works too. You can still set attributes for all tokens
-              below after loading it.
-            </p>
-            <pre className="mt-2 overflow-x-auto rounded-field bg-base-300 p-3 text-xs">{EXAMPLE}</pre>
-          </details>
-        </Field>
-      )}
+        {fileError ? <span className="text-[11px] text-error">{fileError}</span> : null}
+        <details className="text-sm text-base-content/65">
+          <summary className="cursor-pointer">What the JSON file looks like</summary>
+          <p className="mt-2">
+            One entry per token: the asset name (up to {DROP_NAME_MAX_BYTES} bytes, each only once) and its metadata as on the mint page. The metadata needs at least
+            a name. A file with one entry per asset name, as the JSON editor of the mint page writes it, works too. Up to {MAX_DROP_TOKENS.toLocaleString("en")} tokens,
+            the images have to be on IPFS already. Loading a file replaces the list below.
+          </p>
+          <pre className="mt-2 overflow-x-auto rounded-field bg-base-300 p-3 text-xs">{EXAMPLE}</pre>
+        </details>
       </Step>
 
       {drafts.length ? (
