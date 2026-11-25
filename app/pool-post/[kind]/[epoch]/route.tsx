@@ -22,36 +22,36 @@ function AdaSign() {
 /** An angry mob with torches and a pitchfork, for the pool that took one of our blocks. Drawn, the font has no emoji. */
 function AngryMob() {
   return (
-    <svg width="108" height="54" viewBox="0 0 96 48" fill="none" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 40 L6 13" stroke="#b07a45" strokeWidth="2.6" />
-      <path d="M6 2 C10 6 10.5 9 9 11.5 C8 13 4.5 13 3.6 11.5 C2.4 9.3 3.6 6 6 2 Z" fill="#f97316" />
-      <path d="M6 5.8 C7.6 7.6 7.8 9.4 7 10.6 C6.4 11.3 5.3 11.2 4.9 10.5 C4.4 9.5 5 7.8 6 5.8 Z" fill="#facc15" />
-      <path d="M40 41 V8" stroke="#b07a45" strokeWidth="2.6" />
-      <path d="M34 1.5 V6 C34 8.2 35.6 9 40 9 C44.4 9 46 8.2 46 6 V1.5 M40 1.5 V9" stroke="#c9cdd8" strokeWidth="2.2" />
-      <path d="M88 40 L90 13" stroke="#b07a45" strokeWidth="2.6" />
-      <path d="M90 2 C94 6 94.5 9 93 11.5 C92 13 88.5 13 87.6 11.5 C86.4 9.3 87.6 6 90 2 Z" fill="#f97316" />
-      <path d="M90 5.8 C91.6 7.6 91.8 9.4 91 10.6 C90.4 11.3 89.3 11.2 88.9 10.5 C88.4 9.5 89 7.8 90 5.8 Z" fill="#facc15" />
-      <path d="M7 48 C7 39 27 39 27 48 Z" fill="#7c3aed" />
-      <path d="M10 42 L7 27" stroke="#7c3aed" strokeWidth="3.4" />
-      <circle cx="17" cy="31" r="7.5" fill="#f2c9a0" />
-      <path d="M11.5 26.5 L15.5 29 M22.5 26.5 L18.5 29" stroke="#3b2a1a" strokeWidth="1.8" />
-      <circle cx="14.4" cy="31.2" r="1" fill="#3b2a1a" />
-      <circle cx="19.6" cy="31.2" r="1" fill="#3b2a1a" />
-      <path d="M14 35.8 Q17 33.2 20 35.8" stroke="#3b2a1a" strokeWidth="1.5" />
-      <path d="M38 48 C38 39 58 39 58 48 Z" fill="#dc2626" />
-      <path d="M41 42 L40 25" stroke="#dc2626" strokeWidth="3.4" />
-      <circle cx="48" cy="31" r="7.5" fill="#f2c9a0" />
-      <path d="M42.5 26.5 L46.5 29 M53.5 26.5 L49.5 29" stroke="#3b2a1a" strokeWidth="1.8" />
-      <circle cx="45.4" cy="31.2" r="1" fill="#3b2a1a" />
-      <circle cx="50.6" cy="31.2" r="1" fill="#3b2a1a" />
-      <path d="M45 35.8 Q48 33.2 51 35.8" stroke="#3b2a1a" strokeWidth="1.5" />
-      <path d="M69 48 C69 39 89 39 89 48 Z" fill="#2563eb" />
-      <path d="M86 42 L89 27" stroke="#2563eb" strokeWidth="3.4" />
-      <circle cx="79" cy="31" r="7.5" fill="#f2c9a0" />
-      <path d="M73.5 26.5 L77.5 29 M84.5 26.5 L80.5 29" stroke="#3b2a1a" strokeWidth="1.8" />
-      <circle cx="76.4" cy="31.2" r="1" fill="#3b2a1a" />
-      <circle cx="81.6" cy="31.2" r="1" fill="#3b2a1a" />
-      <path d="M76 35.8 Q79 33.2 82 35.8" stroke="#3b2a1a" strokeWidth="1.5" />
+    <svg width="81" height="54" viewBox="0 0 72 48" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 40 L5 13" stroke="#b07a45" strokeWidth="2.6" />
+      <path d="M5 2 C9 6 9.5 9 8 11.5 C7 13 3.5 13 2.6 11.5 C1.4 9.3 2.6 6 5 2 Z" fill="#f97316" />
+      <path d="M5 5.8 C6.6 7.6 6.8 9.4 6 10.6 C5.4 11.3 4.3 11.2 3.9 10.5 C3.4 9.5 4 7.8 5 5.8 Z" fill="#facc15" />
+      <path d="M36 41 V8" stroke="#b07a45" strokeWidth="2.6" />
+      <path d="M30 1.5 V6 C30 8.2 31.6 9 36 9 C40.4 9 42 8.2 42 6 V1.5 M36 1.5 V9" stroke="#c9cdd8" strokeWidth="2.2" />
+      <path d="M65 40 L67 13" stroke="#b07a45" strokeWidth="2.6" />
+      <path d="M67 2 C71 6 71.5 9 70 11.5 C69 13 65.5 13 64.6 11.5 C63.4 9.3 64.6 6 67 2 Z" fill="#f97316" />
+      <path d="M67 5.8 C68.6 7.6 68.8 9.4 68 10.6 C67.4 11.3 66.3 11.2 65.9 10.5 C65.4 9.5 66 7.8 67 5.8 Z" fill="#facc15" />
+      <path d="M9 48 C9 39 29 39 29 48 Z" fill="#7c3aed" />
+      <path d="M13 42 L6 27" stroke="#7c3aed" strokeWidth="3.4" />
+      <circle cx="19" cy="31" r="7.5" fill="#f2c9a0" />
+      <path d="M13.5 26.5 L17.5 29 M24.5 26.5 L20.5 29" stroke="#3b2a1a" strokeWidth="1.8" />
+      <circle cx="16.4" cy="31.2" r="1" fill="#3b2a1a" />
+      <circle cx="21.6" cy="31.2" r="1" fill="#3b2a1a" />
+      <path d="M16 35.8 Q19 33.2 22 35.8" stroke="#3b2a1a" strokeWidth="1.5" />
+      <path d="M43 48 C43 39 63 39 63 48 Z" fill="#2563eb" />
+      <path d="M59 42 L66 27" stroke="#2563eb" strokeWidth="3.4" />
+      <circle cx="53" cy="31" r="7.5" fill="#f2c9a0" />
+      <path d="M47.5 26.5 L51.5 29 M58.5 26.5 L54.5 29" stroke="#3b2a1a" strokeWidth="1.8" />
+      <circle cx="50.4" cy="31.2" r="1" fill="#3b2a1a" />
+      <circle cx="55.6" cy="31.2" r="1" fill="#3b2a1a" />
+      <path d="M50 35.8 Q53 33.2 56 35.8" stroke="#3b2a1a" strokeWidth="1.5" />
+      <path d="M26 48 C26 39 46 39 46 48 Z" fill="#dc2626" />
+      <path d="M42 42 L36 25" stroke="#dc2626" strokeWidth="3.4" />
+      <circle cx="36" cy="31" r="7.5" fill="#f2c9a0" />
+      <path d="M30.5 26.5 L34.5 29 M41.5 26.5 L37.5 29" stroke="#3b2a1a" strokeWidth="1.8" />
+      <circle cx="33.4" cy="31.2" r="1" fill="#3b2a1a" />
+      <circle cx="38.6" cy="31.2" r="1" fill="#3b2a1a" />
+      <path d="M33 35.8 Q36 33.2 39 35.8" stroke="#3b2a1a" strokeWidth="1.5" />
     </svg>
   );
 }
