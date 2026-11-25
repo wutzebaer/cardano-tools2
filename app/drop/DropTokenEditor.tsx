@@ -232,7 +232,7 @@ function TokenRow({ draft, traits, onChange, onRemove }: { draft: DraftToken; tr
  * prepare their collection elsewhere. Attributes with one value go into all tokens at once, traits are named once and get a value per token.
  * Answers with the finished list, or null while it is empty or has errors.
  */
-export default function DropTokenEditor({ onChange, firstStep = 1 }: { onChange: (tokens: DropToken[] | null) => void; firstStep?: number }) {
+export default function DropTokenEditor({ onChange, firstStep = 1, onNextStep }: { onChange: (tokens: DropToken[] | null) => void; firstStep?: number; onNextStep?: (step: number) => void }) {
   const [drafts, setDrafts] = useState<DraftToken[]>([]);
   const [common, setCommon] = useState<Attribute[]>([{ key: "website", value: "" }]);
   const [traits, setTraits] = useState<Trait[]>([]);
@@ -252,6 +252,10 @@ export default function DropTokenEditor({ onChange, firstStep = 1 }: { onChange:
     // errors follow from tokens and the attributes, which are in the list through tokens
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokens, drafts.length, commonError]);
+
+  // the steps after the first only show once there are tokens, what follows the editor is numbered on from there
+  const nextStep = firstStep + (drafts.length ? 4 : 1);
+  useEffect(() => onNextStep?.(nextStep), [nextStep, onNextStep]);
 
   const pages = Math.max(1, Math.ceil(drafts.length / PAGE_SIZE));
   const shownPage = Math.min(page, pages - 1);

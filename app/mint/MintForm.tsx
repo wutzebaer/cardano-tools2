@@ -116,7 +116,7 @@ const FORMATS: { format: MintFormat; title: string; pros: string[]; cons: string
 ];
 
 /** `formats` lets the user choose how the metadata is stored, which is a choice for NFTs only. */
-function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatus = "settled", formats, onMinted }: { wallet: ConnectedWallet; selection: Policies; tokens: MintToken[] | null; summary: string; disabled?: boolean; royaltyStatus?: RoyaltyStatus; formats?: boolean; onMinted: (result: MintResult) => void }) {
+function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatus = "settled", formats, step, onMinted }: { wallet: ConnectedWallet; selection: Policies; tokens: MintToken[] | null; summary: string; disabled?: boolean; royaltyStatus?: RoyaltyStatus; formats?: boolean; step?: number; onMinted: (result: MintResult) => void }) {
   const policy = selection.selected;
   const [minting, setMinting] = useState(false);
   const [format, setFormat] = useState<MintFormat>("cip68");
@@ -153,6 +153,12 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
   return (
     <>
       <div className="surface flex flex-col gap-3 p-5">
+        {step ? (
+          <h3 className="flex items-center gap-3 text-base font-semibold tracking-tight">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{step}</span>
+            Mint
+          </h3>
+        ) : null}
         {policy && royaltyWarning ? (
           <p className="flex items-start gap-2 border-l-2 border-warning/60 pl-3 text-sm text-warning">
             <ExclamationTriangleIcon className="mt-0.5 size-4 shrink-0" />
@@ -238,6 +244,7 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
   const [result, setResult] = useState<MintResult | null>(null);
   const selection = usePolicies(wallet);
   const [royaltyStatus, setRoyaltyStatus] = useState<RoyaltyStatus>("settled");
+  const [lastStep, setLastStep] = useState<number>();
 
   // the mint transaction takes the tokens in the form of the mint page
   const mintTokensList = useMemo(
@@ -276,7 +283,7 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
       {target === "mint" ? <PolicyChoice wallet={wallet} selection={selection} step={2} onRoyaltyStatus={setRoyaltyStatus} /> : null}
 
       <div className="surface p-6">
-        <DropTokenEditor onChange={setTokens} firstStep={target === "mint" ? 3 : 2} />
+        <DropTokenEditor onChange={setTokens} firstStep={target === "mint" ? 3 : 2} onNextStep={setLastStep} />
       </div>
 
       {target === "mint" ? (
@@ -287,10 +294,11 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
           summary={tokens ? `Mints ${tokens.length} NFT${tokens.length === 1 ? "" : "s"} into your wallet.` : "Add the tokens above first."}
           royaltyStatus={royaltyStatus}
           formats
+          step={lastStep}
           onMinted={setResult}
         />
       ) : (
-        <SellAsDrop wallet={wallet} tokens={tokens} />
+        <SellAsDrop wallet={wallet} tokens={tokens} step={lastStep} />
       )}
     </div>
   );

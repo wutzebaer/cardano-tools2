@@ -34,7 +34,7 @@ export function knownDrops(): string[] {
  * Sells a list of tokens as a drop: asks for the price and whether tokens can be burned, then creates it.
  * `tokens` is null while the list is empty or has errors.
  */
-export function SellAsDrop({ wallet, tokens }: { wallet: ConnectedWallet; tokens: DropToken[] | null }) {
+export function SellAsDrop({ wallet, tokens, step }: { wallet: ConnectedWallet; tokens: DropToken[] | null; step?: number }) {
   const [price, setPrice] = useState("10");
   const [burnable, setBurnable] = useState(false);
   const [royalty, setRoyalty] = useState("0");
@@ -110,6 +110,12 @@ export function SellAsDrop({ wallet, tokens }: { wallet: ConnectedWallet; tokens
 
   return (
     <div className="surface flex flex-col gap-6 p-6">
+      {step ? (
+        <h3 className="flex items-center gap-3 text-base font-semibold tracking-tight">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{step}</span>
+          Price and sale
+        </h3>
+      ) : null}
       <Field label="Price per token in ADA" error={priceError} hint="Goes to your wallet with every purchase" className="sm:max-w-xs">
         <input className={inputClass} inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} />
       </Field>
