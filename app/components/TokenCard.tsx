@@ -1,6 +1,7 @@
 import { TokenListItem } from '@cardano/types';
 import { slotToUnix } from '@cardano/network';
 import LocalTime from '@components/LocalTime';
+import { technicalToken } from '@cardano/technicalToken';
 import { assetNameFromHex, shortenId, toIpfsUrl } from '@cardano/utils';
 import { CollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
@@ -11,9 +12,9 @@ import { ReactNode } from 'react';
 
 function TokenCard({ item, collection, footer, badge }: { item: TokenListItem; collection?: CollectionInfo; footer?: ReactNode; badge?: string }) {
     const href = `/browse/token/${item.maFingerprint}`;
-    // CIP-27: the token without a name is the one whose mint set the royalties of its policy
-    const isRoyaltyToken = !item.maName;
-    const name = item.name || (isRoyaltyToken ? 'Royalty token' : assetNameFromHex(item.maName));
+    // the royalty token, the group of a drop, a reference NFT: shown as what they are
+    const technical = technicalToken(item.maName);
+    const name = item.name || technical?.name || assetNameFromHex(item.maName);
     const imageSrc = toIpfsUrl(item.image);
     const collectionName = collection?.name;
 
@@ -29,9 +30,11 @@ function TokenCard({ item, collection, footer, badge }: { item: TokenListItem; c
                         alt={name}
                     />
                 ) : (
-                    <TokenImagePlaceholder royalty={isRoyaltyToken} />
+                    <TokenImagePlaceholder kind={technical?.kind} />
                 )}
-                {isRoyaltyToken ? <span className="absolute left-2 top-2 rounded-full bg-warning/90 px-2.5 py-1 text-xs font-semibold text-warning-content">Royalties</span> : null}
+                {technical ? (
+                    <span className={`absolute left-2 top-2 rounded-full px-2.5 py-1 text-xs font-semibold ${technical.kind === 'royalty' ? 'bg-warning/90 text-warning-content' : 'bg-info/90 text-info-content'}`}>{technical.badge}</span>
+                ) : null}
                 {badge ? <span className="absolute right-2 top-2 rounded-full bg-base-100/85 px-2.5 py-1 text-xs font-semibold tabular-nums backdrop-blur">{badge}</span> : null}
             </Link>
             <div className="flex flex-col gap-1 p-4">
@@ -48,7 +51,7 @@ function TokenCard({ item, collection, footer, badge }: { item: TokenListItem; c
                         {name}
                     </Link>
                 </h3>
-                {isRoyaltyToken ? <p className="text-xs text-base-content/55">Sets the royalties of this policy</p> : null}
+                {technical ? <p className="text-xs text-base-content/55">{technical.note}</p> : null}
                 <p className="mt-1 text-xs text-base-content/45">
                     {footer ?? (item.slotNo != null ? <LocalTime unix={slotToUnix(item.slotNo)} time /> : null)}
                 </p>

@@ -4,10 +4,13 @@ import { answered } from "@cardano/answer";
 import { assetKey, assetsInUtxos, WalletAsset } from "@cardano/assets";
 import { DEAD_ADDRESS, BurnItem, burnTokens, findReferenceUtxos, referenceNameFor } from "@cardano/burn";
 import { getTokenDetails } from "@cardano/dbsync";
+import { burnToken, DropState, loadDrop } from "@cardano/drop";
+import { USER_LABEL } from "@cardano/dropScript";
 import { policySecondsLeft } from "@cardano/mint";
 import { explorerAddressUrl } from "@cardano/network";
 import { walletUtxos } from "@cardano/transaction";
 import { MintPolicy, TokenListItem } from "@cardano/types";
+import { technicalToken } from "@cardano/technicalToken";
 import { assetNameFromHex, shortenId, toIpfsUrl } from "@cardano/utils";
 import ConnectWallet from "@components/ConnectWallet";
 import IpfsImage from "@components/IpfsImage";
@@ -15,6 +18,7 @@ import TokenImagePlaceholder from "@components/TokenImagePlaceholder";
 import TxResult from "@components/TxResult";
 import { ExternalLink, Notice } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePolicies } from "../mint/usePolicies";
 import { loadAddressTokens } from "../my/loadTokens";
@@ -58,6 +62,34 @@ async function withReferences(wallet: ConnectedWallet, policy: MintPolicy, items
   }
 }
 
+/** Drops looked up for the tokens of a wallet at most, each takes a request. */
+const MAX_DROPS = 12;
+
+interface DropTokens {
+  state: DropState;
+  assets: WalletAsset[];
+}
+
+/**
+ * The tokens of the wallet that come from a drop whose tokens may be burned. Their policy is the contract of the drop,
+ * which lets the owner of a token burn it and returns the deposit of its metadata.
+ */
+async function loadDropTokens(assets: WalletAsset[]): Promise<DropTokens[]> {
+  const byPolicy = new Map<string, WalletAsset[]>();
+  for (const asset of assets) {
+    if (!asset.name.startsWith(USER_LABEL)) continue;
+    byPolicy.set(asset.policyId, [...(byPolicy.get(asset.policyId) ?? []), asset]);
+  }
+  const found = await Promise.all(
+    [...byPolicy.entries()].slice(0, MAX_DROPS).map(async ([policyId, held]) => {
+      // most policies are no drop, and one that cannot be read is left out
+      const state = await loadDrop(policyId).catch(() => null);
+      return state?.config.burnable ? [{ state, assets: held }] : [];
+    })
+  );
+  return found.flat();
+}
+
 function Burn({ wallet }: { wallet: ConnectedWallet }) {
   const { policies, loading: policiesLoading } = usePolicies(wallet);
   const [loaded, setLoaded] = useState<{ wallet: ConnectedWallet; tokens: WalletTokens } | null>(null);
@@ -78,6 +110,18 @@ function Burn({ wallet }: { wallet: ConnectedWallet }) {
 
   const tokens = loaded?.wallet === wallet ? loaded.tokens : null;
 
+  const [drops, setDrops] = useState<DropTokens[]>([]);
+  useEffect(() => {
+    if (!tokens) return;
+    let cancelled = false;
+    loadDropTokens(tokens.assets).then((found) => {
+      if (!cancelled) setDrops(found);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tokens]);
+
   const groups = useMemo(() => {
     const burnable = policies.filter((policy) => policySecondsLeft(policy) > 0);
     return burnable
@@ -85,7 +129,7 @@ function Burn({ wallet }: { wallet: ConnectedWallet }) {
       .filter((group) => group.assets.length > 0);
   }, [policies, tokens]);
 
-  const otherTokens = (tokens?.assets.length ?? 0) - groups.reduce((sum, group) => sum + group.assets.length, 0);
+  const otherTokens = (tokens?.assets.length ?? 0) - groups.reduce((sum, group) => sum + group.assets.length, 0) - drops.reduce((sum, drop) => sum + drop.assets.length, 0);
 
   const selectedItems = (assets: WalletAsset[]): BurnItem[] =>
     assets.flatMap((asset) => {
@@ -111,6 +155,16 @@ function Burn({ wallet }: { wallet: ConnectedWallet }) {
     }
   };
 
+  const burnDropToken = async (drop: DropTokens, asset: WalletAsset, name: string) => {
+    if (!confirm(`Burn ${name}?\n\nThe token is destroyed for good and nobody can buy it again. You get back the deposit of its metadata, about 1.5 ADA. The price you paid is not returned.`)) return;
+    setBurning(assetKey(asset.policyId, asset.name));
+    try {
+      setTxHashes([await burnToken(wallet.connection, drop.state, assetNameFromHex(asset.name))]);
+    } finally {
+      setBurning(null);
+    }
+  };
+
   if (txHashes.length > 0) {
     return (
       <TxResult
@@ -131,7 +185,7 @@ function Burn({ wallet }: { wallet: ConnectedWallet }) {
         <div className="flex justify-center py-8">
           <span className="loading loading-spinner loading-md text-primary" />
         </div>
-      ) : groups.length === 0 ? (
+      ) : groups.length === 0 && drops.length === 0 ? (
         <div className="surface px-6 py-16 text-center text-sm text-base-content/55">
           Your wallet holds no tokens of a policy you can still sign for.
         </div>
@@ -159,7 +213,7 @@ function Burn({ wallet }: { wallet: ConnectedWallet }) {
                 const image = toIpfsUrl(info?.image);
                 // the token without an asset name is the royalty token of CIP-27, shown as in the token lists
                 const isRoyaltyToken = !asset.name;
-                const name = info?.name || (isRoyaltyToken ? "Royalty token" : assetNameFromHex(asset.name)) || "(no name)";
+                const name = info?.name || technicalToken(asset.name)?.name || assetNameFromHex(asset.name) || "(no name)";
                 return (
                   <li key={key} className="flex items-center gap-3 py-2.5">
                     <input
@@ -201,6 +255,43 @@ function Burn({ wallet }: { wallet: ConnectedWallet }) {
           </section>
         );
       })}
+
+      {drops.map((drop) => (
+        <section key={drop.state.drop.policyId} className="surface flex flex-col gap-4 p-5">
+          <div className="min-w-0">
+            <p className="section-label">
+              Bought from a{" "}
+              <Link className="link" href={`/drop/${drop.state.drop.policyId}`}>
+                drop
+              </Link>
+            </p>
+            <p className="break-all font-mono text-xs text-base-content/45">{drop.state.drop.policyId}</p>
+          </div>
+          <ul className="flex flex-col divide-y divide-line">
+            {drop.assets.map((asset) => {
+              const key = assetKey(asset.policyId, asset.name);
+              const info = tokens?.info.get(key);
+              const image = toIpfsUrl(info?.image);
+              const name = info?.name || assetNameFromHex(asset.name) || "(no name)";
+              return (
+                <li key={key} className="flex items-center gap-3 py-2.5">
+                  <div className="size-10 shrink-0 overflow-hidden rounded-field bg-base-300">
+                    {image ? <IpfsImage src={image} alt="" width="64" height="64" className="size-10 object-cover" /> : <TokenImagePlaceholder />}
+                  </div>
+                  <div className="min-w-0 grow">
+                    <p className="truncate text-sm font-medium">{name}</p>
+                    <p className="truncate font-mono text-[11px] text-base-content/45">{info?.maFingerprint ?? shortenId(asset.name, 10)}</p>
+                  </div>
+                  <button className="btn btn-error btn-sm" disabled={burning != null} onClick={() => burnDropToken(drop, asset, name)}>
+                    {burning === key ? <span className="loading loading-spinner loading-xs" /> : null}
+                    Burn
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
 
       {otherTokens > 0 ? (
         <Notice>

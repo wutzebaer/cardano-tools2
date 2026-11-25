@@ -1,3 +1,4 @@
+import type { TechnicalToken } from "@cardano/technicalToken";
 import Image from "next/image";
 
 /** The picture of a CIP-27 royalty token, which has none of its own: a coin with the share that goes back to the creator. */
@@ -26,11 +27,64 @@ function RoyaltyArt() {
     );
 }
 
-export default function TokenImagePlaceholder({ royalty }: { royalty?: boolean }) {
+/** The picture of a group of a drop: the tokens it keeps for sale as tiles, some of them already gone. */
+function GroupArt() {
+    const sold = new Set([1, 5, 6]);
+    return (
+        <svg viewBox="0 0 200 200" className="w-3/5" role="img" aria-label="Group of a drop">
+            <defs>
+                <linearGradient id="drop-group" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="#38bdf8" />
+                    <stop offset="1" stopColor="#818cf8" />
+                </linearGradient>
+            </defs>
+            {Array.from({ length: 9 }, (_, index) => {
+                const x = 34 + (index % 3) * 46;
+                const y = 34 + Math.floor(index / 3) * 46;
+                return sold.has(index) ? (
+                    <rect key={index} x={x} y={y} width="40" height="40" rx="8" fill="none" stroke="url(#drop-group)" strokeWidth="3" strokeDasharray="5 6" opacity="0.5" />
+                ) : (
+                    <g key={index}>
+                        <rect x={x} y={y} width="40" height="40" rx="8" fill="url(#drop-group)" opacity="0.18" />
+                        <rect x={x} y={y} width="40" height="40" rx="8" fill="none" stroke="url(#drop-group)" strokeWidth="4" />
+                    </g>
+                );
+            })}
+        </svg>
+    );
+}
+
+/** The picture of a CIP-68 reference NFT: the sheet the metadata of a token is written on. */
+function ReferenceArt() {
+    return (
+        <svg viewBox="0 0 200 200" className="w-3/5" role="img" aria-label="Metadata of a token">
+            <defs>
+                <linearGradient id="reference-sheet" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="#34d399" />
+                    <stop offset="1" stopColor="#22d3ee" />
+                </linearGradient>
+            </defs>
+            <path d="M56 28h62l32 32v108a8 8 0 0 1-8 8H56a8 8 0 0 1-8-8V36a8 8 0 0 1 8-8z" fill="url(#reference-sheet)" opacity="0.14" />
+            <path d="M56 28h62l32 32v108a8 8 0 0 1-8 8H56a8 8 0 0 1-8-8V36a8 8 0 0 1 8-8z" fill="none" stroke="url(#reference-sheet)" strokeWidth="5" strokeLinejoin="round" />
+            <path d="M118 28v32h32" fill="none" stroke="url(#reference-sheet)" strokeWidth="5" strokeLinejoin="round" />
+            <g stroke="url(#reference-sheet)" strokeWidth="6" strokeLinecap="round" opacity="0.8">
+                <line x1="68" y1="92" x2="130" y2="92" />
+                <line x1="68" y1="116" x2="130" y2="116" />
+                <line x1="68" y1="140" x2="108" y2="140" />
+            </g>
+        </svg>
+    );
+}
+
+const ART = { royalty: RoyaltyArt, group: GroupArt, reference: ReferenceArt };
+
+/** What stands in for a token without a picture: its kind drawn for the technical ones, the logo of the site for the rest. */
+export default function TokenImagePlaceholder({ royalty, kind }: { royalty?: boolean; kind?: TechnicalToken["kind"] }) {
+    const Art = kind ? ART[kind] : royalty ? RoyaltyArt : null;
     return (
         <div className="flex aspect-square w-full items-center justify-center bg-base-300">
-            {royalty ? (
-                <RoyaltyArt />
+            {Art ? (
+                <Art />
             ) : (
                 <Image
                     src="/images/cardano-tools-logo.svg"

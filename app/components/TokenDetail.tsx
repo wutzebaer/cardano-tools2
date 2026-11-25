@@ -1,6 +1,7 @@
 import { getPolicyRoyalties, getTokenDetailsByFingerprint } from '@cardano/dbsync';
 import { currentSlot, explorerAddressUrl, explorerAssetUrl, IS_MAINNET, slotToUnix } from '@cardano/network';
 import LocalTime from '@components/LocalTime';
+import { technicalToken } from '@cardano/technicalToken';
 import { assetNameFromHex, formatNumber, formatTokenAmount, policyLockSlot, metadataDecimals, parseMetadata, shortenId, toDisplayMetadata, tokenFiles, tokenImage, toIpfsUrl } from '@cardano/utils';
 import { getCollectionInfo } from '@cardano/wayup';
 import IpfsImage from '@components/IpfsImage';
@@ -100,7 +101,8 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
     const assetName = assetNameFromHex(tokenDetails.maName);
     // CIP-27: the token without a name is the one whose mint set the royalties of its policy
     const isRoyaltyToken = !tokenDetails.maName;
-    const name = (typeof metadata.name === 'string' ? metadata.name : undefined) ?? (isRoyaltyToken ? 'Royalty token' : assetName);
+    const technical = technicalToken(tokenDetails.maName);
+    const name = (typeof metadata.name === 'string' ? metadata.name : undefined) ?? technical?.name ?? assetName;
     const image = tokenImage(metadata);
     const imageSrc = toIpfsUrl(image);
     const description = typeof metadata.description === 'string' && metadata.description !== name ? metadata.description : undefined;
@@ -128,7 +130,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                                 priority
                             />
                         ) : (
-                            <TokenImagePlaceholder royalty={isRoyaltyToken} />
+                            <TokenImagePlaceholder kind={technical?.kind} />
                         )}
                     </div>
                 </div>
@@ -149,6 +151,21 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                                 This token has no name and no image: it is the royalty token of its policy. The transaction that minted it says which share of a resale
                                 marketplaces should pay, and to whom{royalties && Number.isFinite(royaltyRate) ? ` (${formatNumber(royaltyRate * 100)} %)` : ''}. Keeping or burning it
                                 changes nothing about that.
+                            </p>
+                        ) : null}
+                        {technical?.kind === 'group' ? (
+                            <p className="text-[15px] leading-relaxed text-base-content/65">
+                                This token is no collectible: it marks a group of a{' '}
+                                <Link className="link link-primary" href={`/drop/${tokenDetails.maPolicyId}`}>
+                                    drop
+                                </Link>
+                                , the place where the contract keeps track of which tokens are sold. It stays with the contract and is burned when the drop is closed.
+                            </p>
+                        ) : null}
+                        {technical?.kind === 'reference' ? (
+                            <p className="text-[15px] leading-relaxed text-base-content/65">
+                                This token is no collectible: it carries the metadata of the token with the same name, as CIP-68 has it. It stays where it was minted to, the
+                                token people own is the other one.
                             </p>
                         ) : null}
                     </div>

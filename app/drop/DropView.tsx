@@ -1,7 +1,7 @@
 "use client";
 
 import { watchConfirmation } from "@cardano/confirmation";
-import { burnToken, buyToken, closeGroups, DropState, heldTokens, loadDrop, loadDropTokens, tokenStatus } from "@cardano/drop";
+import { buyToken, closeGroups, DropState, loadDrop, loadDropTokens, tokenStatus } from "@cardano/drop";
 import { DropToken } from "@cardano/dropScript";
 import { explorerPolicyUrl, explorerTxUrl } from "@cardano/network";
 import { errorToMessage, formatAda, shortenId, toIpfsUrl } from "@cardano/utils";
@@ -32,7 +32,6 @@ export default function DropView({ policyId }: { policyId: string }) {
   const { wallet, connect, connecting } = useWallet();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [reload, setReload] = useState(0);
-  const [held, setHeld] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [shown, setShown] = useState(PAGE);
@@ -57,18 +56,6 @@ export default function DropView({ policyId }: { policyId: string }) {
       cancelled = true;
     };
   }, [policyId, reload]);
-
-  useEffect(() => {
-    if (!wallet) return;
-    let cancelled = false;
-    heldTokens(wallet.connection, policyId).then(
-      (names) => !cancelled && setHeld(names),
-      () => undefined
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [wallet, policyId, reload]);
 
   // what is on chain changes with the transaction, not with its submission
   useEffect(() => {
@@ -114,7 +101,6 @@ export default function DropView({ policyId }: { policyId: string }) {
   const sold = statuses.filter((status) => status === "sold").length;
   const closed = state.groups.length === 0;
   const isOwner = wallet != null && wallet.keyHashes.includes(config.owner);
-  const ownTokens = wallet ? held : [];
 
   const run = async (key: string, title: string, action: () => Promise<string>, bought?: { token: DropToken; index: number }) => {
     setBusy(key);
@@ -133,13 +119,6 @@ export default function DropView({ policyId }: { policyId: string }) {
     if (!wallet) return connect();
     if (!confirm(`Buy ${token.metadata.name} for ${formatAda(Number(config.price))}?\n\nOn top come the transaction fee and a deposit for the metadata, together about ${BUYER_EXTRA_ADA} ADA.`)) return;
     return run(`buy ${index}`, `You bought ${token.metadata.name}`, () => buyToken(wallet.connection, policyId, tokens, index), { token, index });
-  };
-
-  const burn = (assetName: string) => {
-    if (!wallet) return;
-    const name = tokens.find((token) => token.assetName === assetName)?.metadata.name ?? assetName;
-    if (!confirm(`Burn ${name}?\n\nThe token is destroyed for good and nobody can buy it again. You get back the deposit of its metadata, about 1.5 ADA. The price you paid is not returned.`)) return;
-    return run(`burn ${assetName}`, `You burned ${name}`, () => burnToken(wallet.connection, state, assetName));
   };
 
   const close = () => {
@@ -231,7 +210,17 @@ export default function DropView({ policyId }: { policyId: string }) {
         </div>
         <p className="text-xs text-base-content/55">
           You also pay the transaction fee and a deposit that stays with the token&apos;s metadata, together about {BUYER_EXTRA_ADA} ADA.{" "}
-          {config.burnable ? "Tokens of this drop can be burned by their owner, who then gets that deposit back." : "Tokens of this drop cannot be burned."}
+          {config.burnable ? (
+            <>
+              Tokens of this drop can be burned by their owner on the{" "}
+              <Link className="link" href="/burn">
+                Burn
+              </Link>{" "}
+              page, who then gets that deposit back.
+            </>
+          ) : (
+            "Tokens of this drop cannot be burned."
+          )}
         </p>
         {closed ? <Notice tone="warning">This drop is closed, nothing can be bought anymore.</Notice> : null}
         {isOwner && !closed ? (
@@ -244,23 +233,6 @@ export default function DropView({ policyId }: { policyId: string }) {
           </div>
         ) : null}
       </div>
-
-      {config.burnable && ownTokens.length > 0 ? (
-        <div className="surface flex flex-col gap-3 p-6">
-          <h2 className="text-lg font-semibold tracking-tight">Your tokens of this drop</h2>
-          <ul className="flex flex-col gap-2">
-            {ownTokens.map((assetName) => (
-              <li key={assetName} className="flex items-center justify-between gap-3">
-                <span className="truncate text-sm">{`${tokens.find((token) => token.assetName === assetName)?.metadata.name ?? assetName}`}</span>
-                <button className="btn btn-sm btn-outline" disabled={busy != null} onClick={() => burn(assetName)}>
-                  {busy === `burn ${assetName}` ? <span className="loading loading-spinner loading-xs" /> : null}
-                  Burn
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <input className={`${inputClass} sm:max-w-xs`} placeholder="Search by name" value={search} onChange={(event) => (setSearch(event.target.value), setShown(PAGE))} />
