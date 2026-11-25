@@ -4,7 +4,7 @@ process.env.TZ = "UTC";
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { duePoolPosts, formatStake, initialPoolPostState, luck, planCaption, resultCaption, scheduledBlocks } from "../app/alerts/poolPosts.ts";
+import { battleLines, battleNote, battlesByEpoch, duePoolPosts, formatStake, initialPoolPostState, luck, planCaption, resultCaption, scheduledBlocks } from "../app/alerts/poolPosts.ts";
 import { alertMessage, alertsOf, listMessage, lockAlerts, locksOf, newAlerts, parseCommand, pendingLocksLine, watchSummary, welcomeMessage } from "../app/alerts/alertLogic.ts";
 import { groupFeed } from "../app/browse/groupTokens.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
@@ -585,9 +585,38 @@ test("the posts say what was scheduled and made, next to what the stake lets exp
   assert.equal(planCaption("TOOLS", facts, 2, "https://x"), "[TOOLS] is scheduled for 2 blocks in epoch 670.\nIts stake lets expect 0.74, so the epoch is a lucky one with 270 %.\n\nhttps://x/pool");
   assert.equal(
     resultCaption("TOOLS", facts, 2, "https://x"),
-    "[TOOLS] made 2 of 2 scheduled blocks in epoch 670.\nIts stake let expect 0.74, that is 270 % of the average.\nThe rewards of the epoch reach the delegators in two epochs.\n\nhttps://x/pool"
+    "[TOOLS] forged 2 of 2 scheduled blocks in epoch 670.\nIts stake let expect 0.74, that is 270 % of the average.\nThe rewards of the epoch reach the delegators in two epochs.\n\nhttps://x/pool"
   );
-  assert.equal(resultCaption("TOOLS", { ...facts, blocks: 0, expectedBlocks: null }, undefined, "https://x"), "[TOOLS] made 0 blocks in epoch 670.\n\nhttps://x/pool");
+  assert.equal(resultCaption("TOOLS", { ...facts, blocks: 0, expectedBlocks: null }, undefined, "https://x"), "[TOOLS] forged 0 blocks in epoch 670.\n\nhttps://x/pool");
+});
+
+test("the bot reads the battles of finished epochs and names who took a block", () => {
+  const metrics = [
+    'cardano_leaderlog_battles_evaluated{epoch="668",instance="",job="battles"} 1',
+    'cardano_leaderlog_missed_blocks{epoch="668",instance="",job="battles"} 0',
+    'cardano_leaderlog_battles_evaluated{epoch="669",instance="",job="battles"} 1',
+    'cardano_leaderlog_lost_battles{epoch="669",instance="",job="battles",kind="slot",winner="CF3",winner_pool="pool1l0e"} 1',
+    'cardano_leaderlog_lost_battles{epoch="669",instance="",job="battles",kind="height",winner="pool1abcdefg",winner_pool="pool1abcdefg"} 2',
+    'cardano_leaderlog_missed_blocks{epoch="669",instance="",job="battles"} 1',
+    'cardano_leaderlog_scheduled_blocks{epoch="670",instance="",job="leaderlog"} 2',
+  ].join("\n");
+  const battles = battlesByEpoch(metrics);
+  assert.deepEqual([...battles.keys()], [668, 669]);
+  assert.deepEqual(battles.get(668), { lost: [], missed: 0 });
+  assert.equal(battleNote(battles.get(668)), "");
+  assert.equal(battleNote(undefined), "");
+  assert.equal(battleNote(battles.get(669)), "lost to [CF3], pool1abcdefg · 1 missed");
+  assert.deepEqual(battleLines(669, battles.get(669)), [
+    "One block went to [CF3] in a slot battle: both pools were leader in the same slot and the draw favoured them.",
+    "2 blocks went to pool1abcdefg in a height battle: their block reached the network first.",
+    "One block was missed by our node.",
+    "🔥🔱 Pitchforks are being sharpened in the direction of [CF3] and pool1abcdefg.",
+  ]);
+  const facts = { epoch: 669, blocks: 1, stake: 736_926_000_000, delegators: 209, expectedBlocks: 0.74 };
+  assert.equal(
+    resultCaption("TOOLS", facts, 2, "https://x", { lost: [{ kind: "slot", winner: "CF3", count: 1 }], missed: 0 }),
+    "[TOOLS] forged 1 of 2 scheduled blocks in epoch 669.\nOne block went to [CF3] in a slot battle: both pools were leader in the same slot and the draw favoured them.\n🔥🔱 Pitchforks are being sharpened in the direction of [CF3].\nIts stake let expect 0.74, that is 135 % of the average.\nThe rewards of the epoch reach the delegators in two epochs.\n\nhttps://x/pool"
+  );
 });
 
 // ---------------------------------------------------------------------------
