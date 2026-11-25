@@ -157,6 +157,9 @@ function Burn({ wallet }: { wallet: ConnectedWallet }) {
                 const info = tokens?.info.get(key);
                 const amount = amounts[key];
                 const image = toIpfsUrl(info?.image);
+                // the token without an asset name is the royalty token of CIP-27, shown as in the token lists
+                const isRoyaltyToken = !asset.name;
+                const name = info?.name || (isRoyaltyToken ? "Royalty token" : assetNameFromHex(asset.name)) || "(no name)";
                 return (
                   <li key={key} className="flex items-center gap-3 py-2.5">
                     <input
@@ -164,13 +167,17 @@ function Burn({ wallet }: { wallet: ConnectedWallet }) {
                       className="checkbox checkbox-sm"
                       checked={amount != null}
                       onChange={() => setAmount(key, amount == null ? `${asset.quantity}` : null)}
-                      aria-label={`Select ${info?.name ?? asset.name}`}
+                      aria-label={`Select ${name}`}
                     />
                     <div className="size-10 shrink-0 overflow-hidden rounded-field bg-base-300">
-                      {image ? <IpfsImage src={image} alt="" width="64" height="64" className="size-10 object-cover" /> : <TokenImagePlaceholder />}
+                      {image ? <IpfsImage src={image} alt="" width="64" height="64" className="size-10 object-cover" /> : <TokenImagePlaceholder royalty={isRoyaltyToken} />}
                     </div>
                     <div className="min-w-0 grow">
-                      <p className="truncate text-sm font-medium">{info?.name || assetNameFromHex(asset.name) || "(no name)"}</p>
+                      <p className="flex items-center gap-2 text-sm font-medium">
+                        <span className="truncate">{name}</span>
+                        {isRoyaltyToken ? <span className="shrink-0 rounded-full bg-warning/90 px-2 py-0.5 text-[11px] font-semibold text-warning-content">Royalties</span> : null}
+                      </p>
+                      {isRoyaltyToken ? <p className="truncate text-xs text-base-content/55">Sets the royalties of this policy</p> : null}
                       <p className="truncate font-mono text-[11px] text-base-content/45">{info?.maFingerprint ?? shortenId(asset.name, 10)}</p>
                     </div>
                     {asset.quantity > 1n ? (

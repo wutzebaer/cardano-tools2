@@ -5,7 +5,8 @@ import { assetNameFromHex, shortenId } from "@cardano/utils";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const tokenName = (asset: WalletAsset) => assetNameFromHex(asset.name) || "(no name)";
+/** The token without an asset name is the royalty token of its policy (CIP-27). */
+const tokenName = (asset: WalletAsset) => (asset.name ? assetNameFromHex(asset.name) || "(no name)" : "Royalty token");
 
 /** Picks one of the wallet's tokens: sorted by name, narrowed down by typing a part of the name or policy id. */
 export default function TokenSelect({ assets, value, onChange }: { assets: Iterable<WalletAsset>; value: string; onChange: (key: string) => void }) {
