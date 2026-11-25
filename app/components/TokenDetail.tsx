@@ -102,7 +102,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
     // CIP-27: the token without a name is the one whose mint set the royalties of its policy
     const isRoyaltyToken = !tokenDetails.maName;
     const technical = technicalToken(tokenDetails.maName);
-    const name = (typeof metadata.name === 'string' ? metadata.name : undefined) ?? technical?.name ?? assetName;
+    const name = (technical?.kind === 'group' ? technical.name : undefined) ?? (typeof metadata.name === 'string' ? metadata.name : undefined) ?? technical?.name ?? assetName;
     const image = tokenImage(metadata);
     const imageSrc = toIpfsUrl(image);
     const description = typeof metadata.description === 'string' && metadata.description !== name ? metadata.description : undefined;

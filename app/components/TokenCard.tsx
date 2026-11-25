@@ -14,7 +14,7 @@ function TokenCard({ item, collection, footer, badge }: { item: TokenListItem; c
     const href = `/browse/token/${item.maFingerprint}`;
     // the royalty token, the group of a drop, a reference NFT: shown as what they are
     const technical = technicalToken(item.maName);
-    const name = item.name || technical?.name || assetNameFromHex(item.maName);
+    const name = (technical?.kind === 'group' ? technical.name : undefined) || item.name || technical?.name || assetNameFromHex(item.maName);
     const imageSrc = toIpfsUrl(item.image);
     const collectionName = collection?.name;
 
