@@ -52,9 +52,10 @@ function Tile({ label, value, accent = false, note = "" }: { label: string; valu
       <div style={{ display: "flex", fontSize: 20, letterSpacing: 2, whiteSpace: "nowrap", color: "#8b93a7" }}>{label}</div>
       <div style={{ display: "flex", fontSize: 76, fontWeight: 700, color: accent ? "#ffffff" : "#e6e8ee" }}>{value}</div>
       {note ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 22, color: "#fdba74", whiteSpace: "nowrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 22, color: "#fdba74" }}>
           {note.includes("lost to") ? <AngryMob /> : null}
-          <span>{note}</span>
+          {/* several winners take two lines rather than leave the tile */}
+          <span style={{ display: "flex", textAlign: "center", maxWidth: 220 }}>{note}</span>
         </div>
       ) : null}
     </div>
