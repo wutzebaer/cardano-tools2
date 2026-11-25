@@ -79,6 +79,31 @@ function attributeErrors(attributes: Attribute[]) {
   return undefined;
 }
 
+/** More values than this are not offered as a list to pick from, the attribute stays as the file has it. */
+const MAX_TRAIT_VALUES = 50;
+
+/**
+ * Finds the attributes of an imported list that can be edited here again, so that a list downloaded from this editor
+ * comes back as it was: a text every token has with the same value is an attribute for all, a text that differs or
+ * that only some tokens have is a trait with the values found. Anything else stays with the token as the file has it:
+ * lists and numbers, and texts that do not fit a list of values separated by commas.
+ */
+function sortAttributes(tokens: Record<string, MetaValue>[]): { common: Attribute[]; traits: Trait[] } {
+  const common: Attribute[] = [];
+  const traits: Trait[] = [];
+  for (const key of new Set(tokens.flatMap((token) => Object.keys(token)))) {
+    const found = tokens.filter((token) => key in token).map((token) => token[key]);
+    if (key !== key.trim() || !found.every((value): value is string => typeof value === "string" && value.trim() !== "")) continue;
+    const values = [...new Set(found)];
+    if (values.length === 1 && found.length === tokens.length) {
+      common.push({ key, value: values[0] });
+    } else if (values.length <= MAX_TRAIT_VALUES && values.every((value) => value === value.trim() && !value.includes(","))) {
+      traits.push({ name: key, values: values.join(", ") });
+    }
+  }
+  return { common, traits };
+}
+
 /** The tokens as they go into the drop: kept metadata, then the attributes for all, then the token's values for the traits. */
 function buildTokens(drafts: DraftToken[], common: Attribute[]): DropToken[] {
   const apply = (target: Record<string, MetaValue>, attributes: Attribute[]) => {
@@ -280,20 +305,27 @@ export default function DropTokenEditor({ onChange, firstStep = 1 }: { onChange:
     if (!file) return;
     try {
       const parsed = parseDropList(JSON.parse(await file.text()));
+      const rest = parsed.map((token) => {
+        const { name, image, mediaType, ...other } = (token.metadata ?? {}) as Record<string, MetaValue>;
+        return { token, name, image, mediaType, other };
+      });
+      const { common: fileCommon, traits: fileTraits } = sortAttributes(rest.map((entry) => entry.other));
+      const edited = new Set([...fileCommon.map((attribute) => attribute.key), ...fileTraits.map((trait) => trait.name)]);
+      const traitNames = new Set(fileTraits.map((trait) => trait.name));
       setDrafts(
-        parsed.map((token) => {
-          const { name, image, mediaType, ...kept } = (token.metadata ?? {}) as Record<string, MetaValue>;
-          return {
-            id: crypto.randomUUID(),
-            assetName: token.assetName,
-            name: typeof name === "string" ? name : "",
-            image: typeof image === "string" ? image : Array.isArray(image) ? image.join("") : "",
-            mediaType: typeof mediaType === "string" ? mediaType : "",
-            attributes: [],
-            kept,
-          };
-        })
+        rest.map(({ token, name, image, mediaType, other }) => ({
+          id: crypto.randomUUID(),
+          assetName: token.assetName,
+          name: typeof name === "string" ? name : "",
+          image: typeof image === "string" ? image : Array.isArray(image) ? image.join("") : "",
+          mediaType: typeof mediaType === "string" ? mediaType : "",
+          attributes: Object.entries(other).flatMap(([key, value]) => (traitNames.has(key) ? [{ key, value: value as string }] : [])),
+          kept: Object.fromEntries(Object.entries(other).filter(([key]) => !edited.has(key))),
+        }))
       );
+      // the file replaces the list, so its attributes and traits replace those typed before
+      setCommon(fileCommon.length ? fileCommon : [{ key: "website", value: "" }]);
+      setTraits(fileTraits);
       setPage(0);
     } catch {
       setFileError("This file is not a JSON list of tokens");
