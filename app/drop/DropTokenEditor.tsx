@@ -157,43 +157,46 @@ function TokenRow({ draft, traits, onChange, onRemove }: { draft: DraftToken; tr
         <div className="size-16 shrink-0 overflow-hidden rounded-field bg-base-300">
           {image ? <IpfsImage width="64" height="64" className="aspect-square w-full object-cover" src={image} alt={draft.name} unoptimized /> : null}
         </div>
-        <div className="grid grow gap-2 sm:grid-cols-[minmax(0,1fr)_12rem]">
-          <Field label="Name" error={nameError}>
-            <input className={`${inputClass} input-sm`} value={draft.name} onChange={(e) => onChange({ ...draft, name: e.target.value })} />
-          </Field>
-          <Field label="Asset name" error={assetError}>
-            <input className={`${inputClass} input-sm font-mono text-[13px]`} value={draft.assetName} onChange={(e) => onChange({ ...draft, assetName: e.target.value })} />
-          </Field>
+        {/* the traits sit in the column of the name, so that they end where the fields above them end */}
+        <div className="flex min-w-0 grow flex-col gap-2">
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem]">
+            <Field label="Name" error={nameError}>
+              <input className={`${inputClass} input-sm`} value={draft.name} onChange={(e) => onChange({ ...draft, name: e.target.value })} />
+            </Field>
+            <Field label="Asset name" error={assetError}>
+              <input className={`${inputClass} input-sm font-mono text-[13px]`} value={draft.assetName} onChange={(e) => onChange({ ...draft, assetName: e.target.value })} />
+            </Field>
+          </div>
+          {traits.length ? (
+            <div className="grid gap-2 sm:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]">
+              {traits.map((trait) => {
+                const value = traitValue(trait.name);
+                const values = traitValues(trait);
+                return (
+                  <Field key={trait.name} label={trait.name}>
+                    {values.length ? (
+                      <select className="select select-sm w-full border-line bg-base-300" value={value} onChange={(e) => setTrait(trait.name, e.target.value)}>
+                        <option value="">None</option>
+                        {/* a value chosen before the list was changed stays, until another one is picked */}
+                        {(value && !values.includes(value) ? [value, ...values] : values).map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input className={`${inputClass} input-sm`} value={value} onChange={(e) => setTrait(trait.name, e.target.value)} />
+                    )}
+                  </Field>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
         <button type="button" className="btn btn-ghost btn-sm btn-square mt-5 text-base-content/55 hover:text-error" onClick={onRemove} aria-label="Remove token">
           <TrashIcon className="size-4" />
         </button>
       </div>
-      {traits.length ? (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {traits.map((trait) => {
-            const value = traitValue(trait.name);
-            const values = traitValues(trait);
-            return (
-              <Field key={trait.name} label={trait.name}>
-                {values.length ? (
-                  <select className="select select-sm w-full border-line bg-base-300" value={value} onChange={(e) => setTrait(trait.name, e.target.value)}>
-                    <option value="">None</option>
-                    {/* a value chosen before the list was changed stays, until another one is picked */}
-                    {(value && !values.includes(value) ? [value, ...values] : values).map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input className={`${inputClass} input-sm`} value={value} onChange={(e) => setTrait(trait.name, e.target.value)} />
-                )}
-              </Field>
-            );
-          })}
-        </div>
-      ) : null}
       {keptKeys.length ? <p className="text-xs text-base-content/55">From the file: {keptKeys.join(", ")}</p> : null}
     </div>
   );
