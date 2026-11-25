@@ -24,6 +24,7 @@ import {
   PlutusMap,
   PlutusMapValues,
   PrivateKey,
+  ScriptHash,
   ScriptPubkey,
   TransactionBuilder,
   TransactionOutputBuilder,
@@ -216,6 +217,29 @@ export function referenceKeyHash(policy: MintPolicy, keyHashes: string[], change
   return policyWalletKeyHash(policy, keyHashes) ?? changeAddress.payment_cred()!.to_keyhash()!.to_hex();
 }
 
+/** The output that holds the reference NFT of a token with its metadata, carrying the minimum of ADA such an output needs. */
+function referenceOutput(address: Address, policyHash: ScriptHash, token: MintToken) {
+  const referenceAsset = MultiAsset.new();
+  referenceAsset.set_asset(policyHash, labeledAssetName(REFERENCE_LABEL, token.assetName), BigNum.one());
+  return TransactionOutputBuilder.new()
+    .with_address(address)
+    .with_plutus_data(tokenDatum(token))
+    .next()
+    .with_asset_and_min_required_coin_by_utxo_cost(referenceAsset, DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE))
+    .build();
+}
+
+/**
+ * Lovelace a mint leaves with the reference NFTs, one output per token. A wallet shows them as spent, because the
+ * address of the reference NFTs is not one of its own. Burning a token with its reference NFT brings its share back.
+ */
+export function referenceLovelace(policy: MintPolicy, tokens: MintToken[], keyHashes: string[], changeAddressBech32: string) {
+  const changeAddress = Address.from_bech32(changeAddressBech32);
+  const address = referenceAddress(changeAddress, referenceKeyHash(policy, keyHashes, changeAddress));
+  const policyHash = policyScript(policy).hash();
+  return tokens.reduce((sum, token) => sum + Number(referenceOutput(address, policyHash, token).amount().coin().to_str()), 0);
+}
+
 export async function mintTokens(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[]) {
   const changeAddress = await walletChangeAddress(connection);
   const script = policyScript(policy);
@@ -238,16 +262,7 @@ export async function mintTokens(connection: WalletConnection, policy: MintPolic
         mintBuilder.add_asset(witness, referenceName, Int.new_i32(1));
         mintBuilder.add_asset(witness, userName, Int.from_str(token.amount));
 
-        const referenceAsset = MultiAsset.new();
-        referenceAsset.set_asset(policyHash, referenceName, BigNum.one());
-        txBuilder.add_output(
-          TransactionOutputBuilder.new()
-            .with_address(referenceOutputAddress)
-            .with_plutus_data(tokenDatum(token))
-            .next()
-            .with_asset_and_min_required_coin_by_utxo_cost(referenceAsset, dataCost)
-            .build()
-        );
+        txBuilder.add_output(referenceOutput(referenceOutputAddress, policyHash, token));
 
         userAssets.set_asset(policyHash, userName, BigNum.from_str(token.amount));
       }

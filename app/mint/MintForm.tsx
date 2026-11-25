@@ -4,7 +4,8 @@ import { SellAsDrop, YourDrops } from "@/app/drop/CreateDrop";
 import DropTokenEditor from "@/app/drop/DropTokenEditor";
 import { DropToken } from "@cardano/dropScript";
 import { assetNameFor, tokensFromMetadata } from "@cardano/metadata";
-import { labeledAssetNameHex, mintTokens } from "@cardano/mint";
+import { labeledAssetNameHex, mintTokens, referenceLovelace } from "@cardano/mint";
+import { formatAda } from "@cardano/utils";
 import { explorerPolicyUrl, IS_MAINNET } from "@cardano/network";
 import { MintPolicy, MintToken } from "@cardano/types";
 import ConnectWallet from "@components/ConnectWallet";
@@ -12,7 +13,7 @@ import TxResult from "@components/TxResult";
 import { ExternalLink, secondaryButtonClass } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
 import { CodeBracketIcon, ExclamationTriangleIcon, PlusIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import MetadataEditor from "./MetadataEditor";
 import PolicySelector from "./PolicySelector";
 import RoyaltyPrompt, { RoyaltyStatus } from "./RoyaltyPrompt";
@@ -100,6 +101,15 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
   const policy = selection.selected;
   const [minting, setMinting] = useState(false);
   const royaltyWarning = ROYALTY_WARNINGS[royaltyStatus];
+  // said before the wallet does: it shows this ADA as spent, which surprises those who expect only a fee
+  const bound = useMemo(() => {
+    if (!policy || !tokens?.length) return null;
+    try {
+      return referenceLovelace(policy, tokens, wallet.keyHashes, wallet.changeAddress);
+    } catch {
+      return null;
+    }
+  }, [policy, tokens, wallet.keyHashes, wallet.changeAddress]);
 
   const mint = async () => {
     if (!policy || !tokens) return;
@@ -121,7 +131,15 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
           </p>
         ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-base-content/55">{summary} Your wallet shows the fee before signing.</p>
+          <div className="flex flex-col gap-1 text-sm text-base-content/55">
+            <p>{summary} Your wallet shows the fee before signing.</p>
+            {bound ? (
+              <p>
+                Your wallet will show about <span className="text-base-content">{formatAda(bound)}</span> leaving besides the fee: every token keeps its metadata in an output of its own, which has to hold
+                some ADA. It is yours again when you burn the token before the policy locks.
+              </p>
+            ) : null}
+          </div>
           <button className="btn btn-primary" disabled={!tokens || !policy || minting || disabled} onClick={mint}>
             {minting ? <span className="loading loading-spinner loading-sm" /> : null}
             Mint
@@ -147,10 +165,13 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
   const selection = usePolicies(wallet);
   const [royaltyStatus, setRoyaltyStatus] = useState<RoyaltyStatus>("settled");
 
-  if (result) return <Minted result={result} onReset={() => setResult(null)} />;
-
   // the mint transaction takes the tokens in the form of the mint page
-  const mintTokensList = tokens ? tokensFromMetadata(Object.fromEntries(tokens.map((token) => [token.assetName, token.metadata])), []).map((token) => ({ ...token, standard: 222 as const, amount: "1" })) : null;
+  const mintTokensList = useMemo(
+    () => (tokens ? tokensFromMetadata(Object.fromEntries(tokens.map((token) => [token.assetName, token.metadata])), []).map((token) => ({ ...token, standard: 222 as const, amount: "1" })) : null),
+    [tokens]
+  );
+
+  if (result) return <Minted result={result} onReset={() => setResult(null)} />;
 
   return (
     <div className="flex flex-col gap-6">
