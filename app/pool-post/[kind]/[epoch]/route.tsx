@@ -1,7 +1,8 @@
 import { getPoolCheck, getPoolEpoch } from "@cardano/dbsync";
 import { POOL_ID, POOL_TICKER } from "@cardano/pool";
 import { ImageResponse } from "next/og";
-import { formatExpected, formatStake, luck } from "../../../alerts/poolPosts";
+import { battleNote, battlesByEpoch, formatExpected, formatStake, luck } from "../../../alerts/poolPosts";
+import { pushgatewayMetrics } from "../../../alerts/pushgateway";
 
 const SIZE = { width: 1200, height: 630 };
 
@@ -18,7 +19,21 @@ function AdaSign() {
   );
 }
 
-function Tile({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+/** A torch and a pitchfork, for the pool that took one of our blocks. Drawn, the font has no emoji. */
+function AngryMob() {
+  return (
+    <svg width="50" height="32" viewBox="0 0 44 28" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 27 L11 13" stroke="#b07a45" strokeWidth="3" />
+      <path d="M8.5 13 H13.5" stroke="#8b93a7" strokeWidth="2.5" />
+      <path d="M11 1.5 C15 5.5 15.6 9 14.1 11 C13 12.6 9 12.6 8.2 11 C6.9 9 8.4 5.6 11 1.5 Z" fill="#f97316" />
+      <path d="M11 5.8 C12.8 7.8 13 9.6 12.1 10.8 C11.4 11.5 10.1 11.4 9.6 10.7 C9 9.6 9.8 7.9 11 5.8 Z" fill="#facc15" />
+      <path d="M33 27 V10.5" stroke="#b07a45" strokeWidth="3" />
+      <path d="M26 2 V7 C26 9.5 28 10.5 33 10.5 C38 10.5 40 9.5 40 7 V2 M33 2 V10.5" stroke="#c9cdd8" strokeWidth="2.4" />
+    </svg>
+  );
+}
+
+function Tile({ label, value, accent = false, note = "" }: { label: string; value: string; accent?: boolean; note?: string }) {
   return (
     <div
       style={{
@@ -36,6 +51,12 @@ function Tile({ label, value, accent = false }: { label: string; value: string; 
     >
       <div style={{ display: "flex", fontSize: 20, letterSpacing: 2, whiteSpace: "nowrap", color: "#8b93a7" }}>{label}</div>
       <div style={{ display: "flex", fontSize: 76, fontWeight: 700, color: accent ? "#ffffff" : "#e6e8ee" }}>{value}</div>
+      {note ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 22, color: "#fdba74", whiteSpace: "nowrap" }}>
+          {note.includes("lost to") ? <AngryMob /> : null}
+          <span>{note}</span>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -52,15 +73,22 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
   const scheduled = scheduledText != null && /^\d{1,4}$/.test(scheduledText) ? Number(scheduledText) : undefined;
   if (kind === "plan" && scheduled == null) return new Response("Not found", { status: 404 });
 
-  const [facts, pool] = await Promise.all([getPoolEpoch(POOL_ID, epoch), getPoolCheck(POOL_ID)]);
+  const [facts, pool, metrics] = await Promise.all([getPoolEpoch(POOL_ID, epoch), getPoolCheck(POOL_ID), kind === "result" ? pushgatewayMetrics() : Promise.resolve("")]);
   if (!facts) return new Response("Not found", { status: 404 });
 
   const counted = kind === "plan" ? scheduled! : facts.blocks;
   const percent = luck(counted, facts.expectedBlocks);
-  const tiles =
+  const tiles: { label: string; value: string; accent: boolean; note?: string }[] =
     kind === "plan"
       ? [{ label: "SCHEDULED BLOCKS", value: `${scheduled}`, accent: true }]
-      : [{ label: scheduled != null ? "BLOCKS FORGED" : "BLOCKS", value: scheduled != null ? `${facts.blocks} / ${scheduled}` : `${facts.blocks}`, accent: true }];
+      : [
+          {
+            label: scheduled != null ? "BLOCKS FORGED" : "BLOCKS",
+            value: scheduled != null ? `${facts.blocks} / ${scheduled}` : `${facts.blocks}`,
+            accent: true,
+            note: battleNote(battlesByEpoch(metrics).get(epoch)),
+          },
+        ];
   if (facts.expectedBlocks != null) tiles.push({ label: "EXPECTED BY STAKE", value: formatExpected(facts.expectedBlocks), accent: false });
   if (percent != null) tiles.push({ label: "OF THE AVERAGE", value: `${percent} %`, accent: false });
 

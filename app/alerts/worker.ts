@@ -6,9 +6,10 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { poolFindings, PoolFacts, PoolResults } from "../check/checkLogic";
-import { currentEpoch, currentSlot, NETWORK, slotToUnix, unixToEpoch } from "../cardano/network";
+import { currentEpoch, currentSlot, epochStartUnix, NETWORK, slotToUnix, unixToEpoch } from "../cardano/network";
 import { POOL_ID, POOL_TICKER } from "../cardano/pool";
-import { duePoolPosts, initialPoolPostState, planCaption, PoolEpochFacts, PoolPostKind, PoolPostState, resultCaption, scheduledBlocks } from "./poolPosts";
+import { battlesByEpoch, duePoolPosts, EpochBattles, initialPoolPostState, planCaption, PoolEpochFacts, PoolPostKind, PoolPostState, resultCaption, scheduledBlocks } from "./poolPosts";
+import { pushgatewayMetrics } from "./pushgateway";
 import { unlockSlotsFromMetadata } from "../cardano/timelockScript";
 import {
   Alert,
@@ -60,7 +61,8 @@ const RETRY_LOCK_AFTER_SECONDS = 5 * 60;
 const POOL_NEWS_EVERY_MS = 5 * 60 * 1000;
 /** The one chat the posts about the pool go to. Fixed here and not by a command, so nobody can point the bot at another group. */
 const POOL_CHAT_ID = Number(process.env.TELEGRAM_POOL_CHAT_ID) || undefined;
-const PUSHGATEWAY_URL = (process.env.PUSHGATEWAY_URL || "http://prometheus-pushgateway:9091").replace(/\/$/, "");
+/** How long a result waits for the leaderlog job to look at the battles of the epoch before it is posted without */
+const BATTLES_WAIT_SECONDS = 3 * 60 * 60;
 const OWN_URL = `http://127.0.0.1:${process.env.PORT || 3000}`;
 const POLL_SECONDS = 50;
 
@@ -155,18 +157,14 @@ async function sendPhoto(chatId: number, image: Blob, caption: string) {
   if (!response.ok || !payload?.ok) throw new TelegramError(response.status, `sendPhoto: ${payload?.description ?? response.status}`);
 }
 
-/** Scheduled blocks per epoch from the leaderlog job. Empty when the Pushgateway cannot be reached. */
-async function scheduledByEpoch(): Promise<Map<number, number>> {
-  try {
-    const response = await fetch(`${PUSHGATEWAY_URL}/metrics`, { cache: "no-store", signal: AbortSignal.timeout(20_000) });
-    return response.ok ? scheduledBlocks(await response.text()) : new Map();
-  } catch {
-    return new Map();
-  }
+/** Scheduled blocks and battles per epoch from the leaderlog job. Empty when the Pushgateway cannot be reached. */
+async function leaderlogNumbers() {
+  const metrics = await pushgatewayMetrics();
+  return { scheduled: scheduledBlocks(metrics), battles: battlesByEpoch(metrics) };
 }
 
 /** Picture and text of a post about the pool, null when there is nothing to say about the epoch yet. */
-async function poolPost(kind: PoolPostKind, epoch: number, scheduled: Map<number, number>): Promise<{ image: Blob; caption: string } | null> {
+async function poolPost(kind: PoolPostKind, epoch: number, scheduled: Map<number, number>, battles: Map<number, EpochBattles>): Promise<{ image: Blob; caption: string } | null> {
   const count = scheduled.get(epoch);
   if (kind === "plan" && count == null) return null;
   const facts = await api<PoolEpochFacts>(`/pool/${POOL_ID}/epoch/${epoch}`);
@@ -174,7 +172,7 @@ async function poolPost(kind: PoolPostKind, epoch: number, scheduled: Map<number
   // the page draws the picture, the bot runs in the same process and asks it directly
   const picture = await fetch(`${OWN_URL}/pool-post/${kind}/${epoch}${count != null ? `?scheduled=${count}` : ""}`, { cache: "no-store", signal: AbortSignal.timeout(60_000) });
   if (!picture.ok) throw new Error(`picture of the post: ${picture.status}`);
-  const caption = kind === "plan" ? planCaption(POOL_TICKER, facts, count!, SITE_URL) : resultCaption(POOL_TICKER, facts, count, SITE_URL);
+  const caption = kind === "plan" ? planCaption(POOL_TICKER, facts, count!, SITE_URL) : resultCaption(POOL_TICKER, facts, count, SITE_URL, battles.get(epoch));
   return { image: await picture.blob(), caption };
 }
 
@@ -185,8 +183,10 @@ async function postPoolNews() {
   store.poolPosts ??= initialPoolPostState(now);
   const tip = await api<number>("/tip");
   if (tip == null) return;
-  const scheduled = await scheduledByEpoch();
+  const { scheduled, battles } = await leaderlogNumbers();
   for (const due of duePoolPosts(store.poolPosts, now, unixToEpoch(slotToUnix(tip)), scheduled)) {
+    // the leaderlog job tells who took a missing block half an hour into the next epoch: the result waits for it, but not forever
+    if (due.kind === "result" && (scheduled.get(due.epoch) ?? 0) > 0 && !battles.has(due.epoch) && Date.now() / 1000 - epochStartUnix(due.epoch + 1) < BATTLES_WAIT_SECONDS) continue;
     // an epoch without a block is not worth a message, neither as a plan nor as a result
     let worthPosting = due.post;
     if (worthPosting && due.kind === "result") {
@@ -195,7 +195,7 @@ async function postPoolNews() {
       worthPosting = facts.blocks > 0;
     }
     if (worthPosting) {
-      const post = await poolPost(due.kind, due.epoch, scheduled);
+      const post = await poolPost(due.kind, due.epoch, scheduled, battles);
       if (!post) continue;
       await sendPhoto(POOL_CHAT_ID, post.image, post.caption);
       log(`posted the ${due.kind} of epoch ${due.epoch}`);
@@ -287,11 +287,11 @@ async function handleMessage(chatId: number, text: string) {
   } else if (command.kind === "chatid") {
     await send(chatId, `This chat has the id ${chatId}.`);
   } else if (command.kind === "preview") {
-    const scheduled = await scheduledByEpoch();
+    const { scheduled, battles } = await leaderlogNumbers();
     const now = currentEpoch();
     // the newest plan there is, and the epoch that ended last
     const planned = scheduled.has(now + 1) ? now + 1 : now;
-    const posts = [await poolPost("plan", planned, scheduled), await poolPost("result", now - 1, scheduled)].filter((post) => post != null);
+    const posts = [await poolPost("plan", planned, scheduled, battles), await poolPost("result", now - 1, scheduled, battles)].filter((post) => post != null);
     if (posts.length === 0) await send(chatId, "There is nothing to show right now, the numbers of the pool could not be read.");
     for (const post of posts) await sendPhoto(chatId, post.image, post.caption);
   } else {
