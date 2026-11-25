@@ -55,14 +55,20 @@ export default function TokenForm({
   allTokens,
   onChange,
   onCopyToAll,
+  onAddPropertyToAll,
   onRemove,
+  fungibleOnly,
 }: {
   token: MintToken;
   allTokens: MintToken[];
   onChange: (token: MintToken) => void;
   /** Applies the given fields of this token to all other tokens */
   onCopyToAll?: (patch: Partial<MintToken>) => void;
+  /** Gives every other token a property of this name to fill in, unless it has one */
+  onAddPropertyToAll?: (key: string) => void;
   onRemove?: () => void;
+  /** Leaves out the choice between NFT and fungible token: NFTs are put together elsewhere */
+  fungibleOnly?: boolean;
 }) {
   const errors = tokenErrors(token, allTokens);
   const isNft = token.standard === 222;
@@ -104,7 +110,7 @@ export default function TokenForm({
   return (
     <div className="surface flex flex-col gap-5 p-5">
       <div className="flex items-center justify-between gap-3">
-        <div className="join">
+        <div className={fungibleOnly ? "hidden" : "join"}>
           {([222, 333] as const).map((standard) => (
             <button
               key={standard}
@@ -257,6 +263,18 @@ export default function TokenForm({
           <div key={index} className="flex gap-2">
             <input className="input input-sm w-2/5 border-line bg-base-300" value={property.key} onChange={(e) => updateProperty(index, { key: e.target.value })} placeholder="key" />
             <input className="input input-sm grow border-line bg-base-300" value={property.value} onChange={(e) => updateProperty(index, { value: e.target.value })} placeholder="value" />
+            {onAddPropertyToAll ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm gap-1 px-2 text-xs text-base-content/55"
+                disabled={!property.key.trim()}
+                title={`Give every other token a property "${property.key || "…"}" to fill in`}
+                onClick={() => onAddPropertyToAll(property.key.trim())}
+              >
+                <DocumentDuplicateIcon className="size-3.5" />
+                For all
+              </button>
+            ) : null}
             <button
               type="button"
               className="btn btn-ghost btn-sm btn-square text-base-content/45 hover:text-error"

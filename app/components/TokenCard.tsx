@@ -11,7 +11,9 @@ import { ReactNode } from 'react';
 
 function TokenCard({ item, collection, footer, badge }: { item: TokenListItem; collection?: CollectionInfo; footer?: ReactNode; badge?: string }) {
     const href = `/browse/token/${item.maFingerprint}`;
-    const name = item.name || assetNameFromHex(item.maName);
+    // CIP-27: the token without a name is the one whose mint set the royalties of its policy
+    const isRoyaltyToken = !item.maName;
+    const name = item.name || (isRoyaltyToken ? 'Royalty token' : assetNameFromHex(item.maName));
     const imageSrc = toIpfsUrl(item.image);
     const collectionName = collection?.name;
 
@@ -27,8 +29,9 @@ function TokenCard({ item, collection, footer, badge }: { item: TokenListItem; c
                         alt={name}
                     />
                 ) : (
-                    <TokenImagePlaceholder />
+                    <TokenImagePlaceholder royalty={isRoyaltyToken} />
                 )}
+                {isRoyaltyToken ? <span className="absolute left-2 top-2 rounded-full bg-warning/90 px-2.5 py-1 text-xs font-semibold text-warning-content">Royalties</span> : null}
                 {badge ? <span className="absolute right-2 top-2 rounded-full bg-base-100/85 px-2.5 py-1 text-xs font-semibold tabular-nums backdrop-blur">{badge}</span> : null}
             </Link>
             <div className="flex flex-col gap-1 p-4">
@@ -45,6 +48,7 @@ function TokenCard({ item, collection, footer, badge }: { item: TokenListItem; c
                         {name}
                     </Link>
                 </h3>
+                {isRoyaltyToken ? <p className="text-xs text-base-content/55">Sets the royalties of this policy</p> : null}
                 <p className="mt-1 text-xs text-base-content/45">
                     {footer ?? (item.slotNo != null ? <LocalTime unix={slotToUnix(item.slotNo)} time /> : null)}
                 </p>

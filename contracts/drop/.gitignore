@@ -1,0 +1,11 @@
+# Aiken compilation artifacts
+artifacts/
+# Aiken's project working directory
+build/
+# Aiken's default documentation export
+docs/
+# test run against the preview testnet
+node_modules/
+offchain/state.json
+offchain/state-site.json
+offchain/preview-files/

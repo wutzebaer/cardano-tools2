@@ -1,6 +1,7 @@
 import { NETWORK } from "@cardano/network";
 import { applyPolicy, policyScript, policyTxOptions } from "@cardano/mint";
-import { COINS_PER_UTXO_BYTE, sendTransaction, walletChangeAddress } from "@cardano/transaction";
+import { policyRegistration, REGISTRATION_LABEL } from "@cardano/registration";
+import { COINS_PER_UTXO_BYTE, currentSlot, sendTransaction, walletChangeAddress } from "@cardano/transaction";
 import { MintPolicy, WalletConnection } from "@cardano/types";
 import {
   Address,
@@ -37,8 +38,9 @@ export function royaltyMetadata(percent: number, address: string) {
 /**
  * Mints the CIP-27 royalty token: one token with an empty asset name carrying the 777 metadata.
  * Marketplaces only honour it if it is the very first mint of the policy.
+ * With a collection name the transaction registers it as well (CIP-88), the token is the proof that the owner did.
  */
-export async function mintRoyaltyToken(connection: WalletConnection, policy: MintPolicy, percent: number, address: string, keyHashes: string[]) {
+export async function mintRoyaltyToken(connection: WalletConnection, policy: MintPolicy, percent: number, address: string, keyHashes: string[], collection?: { name: string; description?: string; image?: string }) {
   const changeAddress = await walletChangeAddress(connection);
   const script = policyScript(policy);
   const royaltyName = AssetName.new(new Uint8Array());
@@ -60,7 +62,12 @@ export async function mintRoyaltyToken(connection: WalletConnection, policy: Min
       );
 
       txBuilder.set_mint_builder(mintBuilder);
-      txBuilder.add_json_metadatum_with_schema(BigNum.from_str(ROYALTY_LABEL), JSON.stringify(royaltyMetadata(percent, address)), MetadataJsonSchema.NoConversions);
+      const royalty = royaltyMetadata(percent, address);
+      txBuilder.add_json_metadatum_with_schema(BigNum.from_str(ROYALTY_LABEL), JSON.stringify(royalty), MetadataJsonSchema.NoConversions);
+      if (collection?.name.trim()) {
+        const registration = policyRegistration({ ...collection, policyId: script.hash().to_hex(), scriptCbor: script.to_hex(), royalty, nonce: Math.floor(currentSlot()) });
+        txBuilder.add_json_metadatum_with_schema(BigNum.from_str(`${REGISTRATION_LABEL}`), JSON.stringify(registration), MetadataJsonSchema.DetailedSchema);
+      }
       applyPolicy(txBuilder, policy, keyHashes);
     },
     policyTxOptions(policy, keyHashes)

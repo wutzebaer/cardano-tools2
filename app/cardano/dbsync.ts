@@ -89,6 +89,25 @@ export async function getPolicyRoyalties(policyId: string) {
   }
 }
 
+/** What the owner of a policy registered about its collection on chain (CIP-88), or null. Nobody checked any of it. */
+export async function getPolicyCollection(policyId: string): Promise<{ name: string; description?: string; image?: string } | null> {
+  try {
+    if (!/^[0-9a-f]{56}$/.test(policyId)) return null;
+    const response = await fetch(`${baseUrl}/policy/${policyId}/collection`, { next: { revalidate: 60 } });
+    // the API answers with an empty body if there is none
+    const collection = response.ok ? JSON.parse((await response.text()) || "null") : null;
+    if (typeof collection?.name !== "string" || !collection.name.trim()) return null;
+    return {
+      name: collection.name.trim(),
+      description: typeof collection.description === "string" && collection.description.trim() ? collection.description.trim().slice(0, 1000) : undefined,
+      // only from IPFS: any other address would let the owner of a policy see who looks at its collection
+      image: typeof collection.image === "string" && /^ipfs:\/\/[A-Za-z0-9]{40,100}$/.test(collection.image) ? collection.image : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getAddressTokens(address: string) {
   return handleRequest(
     client.GET("/{address}/token", {

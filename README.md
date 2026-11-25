@@ -11,7 +11,6 @@ The one thing that runs on the server besides the pages is the Telegram alert bo
 | `/browse` | Latest tokens, search by policy id, fingerprint or `$handle`, token details with policy lock status |
 | `/my` | Tokens of the connected wallet or any address |
 | `/mint` | Mint CIP-68 NFTs and fungible tokens, one or many per transaction, with additional files and a JSON editor for the metadata |
-| `/royalties` | Mint the CIP-27 royalty token of a policy |
 | `/burn` | Burn tokens of own policies, including their CIP-68 reference NFT |
 | `/timelock` | Lock ADA and tokens at a native script until a date and take them back afterwards |
 | `/close` | Empty a wallet into a new address, tokens included, in as many transactions as it takes, optionally deregistering the stake key |

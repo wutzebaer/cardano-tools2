@@ -45,13 +45,16 @@ export function policyScript(policy: MintPolicy): NativeScript {
   return toNativeScript(policy.script);
 }
 
-export function createPolicy(keyHash: string, days: number): MintPolicy {
+/**
+ * A policy signed by the wallet's key. With `days` it locks after that time. Without, it never locks: it names the
+ * slot it was created in as its start instead, which is always past, so every such policy still gets an id of its own.
+ */
+export function createPolicy(keyHash: string, days: number | null): MintPolicy {
+  const now = Math.floor(currentSlot());
   const script: SimpleScript = {
     type: "all",
-    scripts: [
-      { type: "sig", keyHash },
-      { type: "before", slot: Math.floor(currentSlot()) + days * 24 * 60 * 60 },
-    ],
+    // an hour back, so a clock that runs ahead of the chain does not make the first mint invalid
+    scripts: [{ type: "sig", keyHash }, days == null ? { type: "after", slot: now - 3600 } : { type: "before", slot: now + days * 24 * 60 * 60 }],
   };
   return { policyId: toNativeScript(script).hash().to_hex(), script };
 }
@@ -73,11 +76,21 @@ export function canSignPolicy(policy: MintPolicy, keyHashes: string[]) {
   return Boolean(policy.skey) || policyWalletKeyHash(policy, keyHashes) != null;
 }
 
+/** The slots a script names with `after`. A transaction has to say it is not valid before them for the script to validate. */
+function scriptStartSlots(script: SimpleScript): number[] {
+  if (script.type === "after" && typeof script.slot === "number") return [script.slot];
+  return script.scripts?.flatMap(scriptStartSlots) ?? [];
+}
+
 /** Sets validity and required signer so the policy script validates. */
 export function applyPolicy(txBuilder: TransactionBuilder, policy: MintPolicy, keyHashes: string[]) {
   const dueSlot = policyDueSlot(policy);
   if (dueSlot != null) {
     txBuilder.set_ttl(Math.min(currentSlot() + TTL_SECONDS, dueSlot));
+  }
+  const startSlots = scriptStartSlots(policy.script);
+  if (startSlots.length > 0) {
+    txBuilder.set_validity_start_interval_bignum(BigNum.from_str(`${Math.max(...startSlots)}`));
   }
   const walletKeyHash = policyWalletKeyHash(policy, keyHashes);
   if (walletKeyHash) {

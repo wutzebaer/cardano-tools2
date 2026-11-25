@@ -1,7 +1,9 @@
 "use client";
 
-import { answered } from "@cardano/answer";
-import { assetNameFor } from "@cardano/metadata";
+import { SellAsDrop, YourDrops } from "@/app/drop/CreateDrop";
+import DropTokenEditor from "@/app/drop/DropTokenEditor";
+import { DropToken } from "@cardano/dropScript";
+import { assetNameFor, tokensFromMetadata } from "@cardano/metadata";
 import { labeledAssetNameHex, mintTokens } from "@cardano/mint";
 import { explorerPolicyUrl, IS_MAINNET } from "@cardano/network";
 import { MintPolicy, MintToken } from "@cardano/types";
@@ -9,13 +11,12 @@ import ConnectWallet from "@components/ConnectWallet";
 import TxResult from "@components/TxResult";
 import { ExternalLink, secondaryButtonClass } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
-import { ArrowUpTrayIcon, CodeBracketIcon, PlusIcon } from "@heroicons/react/24/outline";
-import { ChangeEvent, useState } from "react";
+import { CodeBracketIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { useState } from "react";
 import MetadataEditor from "./MetadataEditor";
 import PolicySelector from "./PolicySelector";
 import RoyaltyPrompt from "./RoyaltyPrompt";
-import TokenForm, { MAX_FILE_BYTES, tokenErrors } from "./TokenForm";
-import { uploadToIpfs } from "./uploadToIpfs";
+import TokenForm, { tokenErrors } from "./TokenForm";
 import { usePolicies } from "./usePolicies";
 
 interface MintResult {
@@ -24,10 +25,10 @@ interface MintResult {
   tokens: MintToken[];
 }
 
-function newToken(name: string, patch: Partial<MintToken> = {}): MintToken {
+function newFungible(name: string): MintToken {
   return {
     id: crypto.randomUUID(),
-    standard: 222,
+    standard: 333,
     assetName: assetNameFor(name),
     amount: "1",
     name,
@@ -40,127 +41,224 @@ function newToken(name: string, patch: Partial<MintToken> = {}): MintToken {
     files: [],
     properties: [],
     extra: {},
-    ...patch,
   };
 }
 
 const numberedName = (index: number) => `Token${String(index).padStart(3, "0")}`;
 
-function Mint({ wallet }: { wallet: ConnectedWallet }) {
-  const selection = usePolicies(wallet);
-  const policy = selection.selected;
-  const [tokens, setTokens] = useState<MintToken[]>(() => [newToken(numberedName(1))]);
-  const [editing, setEditing] = useState(false);
-  const [minting, setMinting] = useState(false);
-  const [uploading, setUploading] = useState<string | null>(null);
-  const [result, setResult] = useState<MintResult | null>(null);
+function Minted({ result, onReset }: { result: MintResult; onReset: () => void }) {
+  return (
+    <TxResult title="Mint submitted" txHashes={[result.txHash]} onReset={onReset} resetLabel="Mint more">
+      <ul className="flex flex-col gap-1 text-sm">
+        {result.tokens.map((token) => (
+          <li key={token.id}>
+            <ExternalLink
+              href={IS_MAINNET ? `https://pool.pm/${result.policy.policyId}.${labeledAssetNameHex(token.standard, token.assetName)}` : explorerPolicyUrl(result.policy.policyId)}
+              className="inline-flex items-center gap-1 text-primary hover:underline"
+            >
+              {token.name || token.assetName}
+            </ExternalLink>
+          </li>
+        ))}
+      </ul>
+    </TxResult>
+  );
+}
 
-  const valid = tokens.length > 0 && tokens.every((token) => Object.keys(tokenErrors(token, tokens)).length === 0);
+/** The policy to mint under and the button that mints. `tokens` is null while there is nothing valid to mint. */
+function MintNow(props: { wallet: ConnectedWallet; tokens: MintToken[] | null; summary: string; disabled?: boolean; onMinted: (result: MintResult) => void }) {
+  const selection = usePolicies(props.wallet);
+  return (
+    <>
+      <PolicyChoice wallet={props.wallet} selection={selection} />
+      <MintButton {...props} selection={selection} />
+    </>
+  );
+}
+
+type Policies = ReturnType<typeof usePolicies>;
+
+function PolicyChoice({ wallet, selection, step }: { wallet: ConnectedWallet; selection: Policies; step?: number }) {
+  const policy = selection.selected;
+  return (
+    <>
+      <PolicySelector keyHash={wallet.keyHash} selection={selection} step={step}>
+        {policy && !selection.loading ? <RoyaltyPrompt key={policy.policyId} wallet={wallet} policy={policy} minted={selection.minted.has(policy.policyId)} /> : null}
+      </PolicySelector>
+    </>
+  );
+}
+
+function MintButton({ wallet, selection, tokens, summary, disabled, onMinted }: { wallet: ConnectedWallet; selection: Policies; tokens: MintToken[] | null; summary: string; disabled?: boolean; onMinted: (result: MintResult) => void }) {
+  const policy = selection.selected;
+  const [minting, setMinting] = useState(false);
 
   const mint = async () => {
-    if (!policy) return;
+    if (!policy || !tokens) return;
     setMinting(true);
     try {
-      const txHash = await mintTokens(wallet.connection, policy, tokens, wallet.keyHashes);
-      setResult({ txHash, policy, tokens });
-      setTokens([newToken(numberedName(1))]);
+      onMinted({ txHash: await mintTokens(wallet.connection, policy, tokens, wallet.keyHashes), policy, tokens });
     } finally {
       setMinting(false);
     }
   };
 
-  /** One NFT per file, named after the file. */
-  const addFromFiles = async (e: ChangeEvent<HTMLInputElement>) => {
-    const files = [...(e.target.files ?? [])];
-    e.target.value = "";
-    if (files.some((file) => file.size > MAX_FILE_BYTES)) {
-      throw new Error("Max 100mb per file");
-    }
-    try {
-      const added: MintToken[] = [];
-      for (const [index, file] of files.entries()) {
-        setUploading(`Uploading ${index + 1} of ${files.length}`);
-        const cid = await answered(uploadToIpfs(file));
-        const name = file.name.replace(/\.[^.]*$/, "").slice(0, 60) || numberedName(tokens.length + index + 1);
-        added.push(newToken(name, { image: `ipfs://${cid}`, mediaType: file.type }));
-      }
-      // an untouched placeholder token is replaced instead of minted along
-      const untouched = tokens.length === 1 && !tokens[0].image && tokens[0].name === numberedName(1);
-      setTokens([...(untouched ? [] : tokens), ...added]);
-    } finally {
-      setUploading(null);
-    }
-  };
+  return (
+    <>
+      <div className="surface flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-base-content/55">{summary} Your wallet shows the fee before signing.</p>
+        <button className="btn btn-primary" disabled={!tokens || !policy || minting || disabled} onClick={mint}>
+          {minting ? <span className="loading loading-spinner loading-sm" /> : null}
+          Mint
+        </button>
+      </div>
+    </>
+  );
+}
+
+type Target = "mint" | "drop";
+
+const TARGETS: { target: Target; title: string; text: string }[] = [
+  { target: "mint", title: "Mint now", text: "All tokens are minted into your wallet with this transaction. You pay the fees and decide later what to do with them." },
+  { target: "drop", title: "Sell as a drop", text: "Nothing is minted now. Buyers pick a token on a page of its own and pay for the mint, tokens nobody buys never exist." },
+];
+
+/** NFTs are put together once, then either minted right away or put up for sale as a drop. */
+function Nfts({ wallet }: { wallet: ConnectedWallet }) {
+  const [tokens, setTokens] = useState<DropToken[] | null>(null);
+  const [target, setTarget] = useState<Target>("mint");
+  const [result, setResult] = useState<MintResult | null>(null);
+  const selection = usePolicies(wallet);
+
+  if (result) return <Minted result={result} onReset={() => setResult(null)} />;
+
+  // the mint transaction takes the tokens in the form of the mint page
+  const mintTokensList = tokens ? tokensFromMetadata(Object.fromEntries(tokens.map((token) => [token.assetName, token.metadata])), []).map((token) => ({ ...token, standard: 222 as const, amount: "1" })) : null;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="surface flex flex-col gap-4 p-5">
+      <h2 className="flex items-center gap-3 text-base font-semibold tracking-tight">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">1</span>
+        What do you want to do?
+      </h2>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {TARGETS.map((option) => (
+          <button
+            key={option.target}
+            type="button"
+            className={`flex flex-col gap-1 rounded-field border p-4 text-left transition-colors ${target === option.target ? "border-primary bg-primary/10" : "border-line bg-base-200 hover:border-line-strong"}`}
+            onClick={() => setTarget(option.target)}
+            aria-pressed={target === option.target}
+          >
+            <span className="flex items-center gap-2 font-semibold">
+              <span className={`size-3 rounded-full border ${target === option.target ? "border-primary bg-primary" : "border-base-content/40"}`} />
+              {option.title}
+            </span>
+            <span className="text-sm text-base-content/55">{option.text}</span>
+          </button>
+        ))}
+      </div>
+      </div>
+
+      {target === "mint" ? <PolicyChoice wallet={wallet} selection={selection} step={2} /> : null}
+
+      <div className="surface p-6">
+        <DropTokenEditor onChange={setTokens} firstStep={target === "mint" ? 3 : 2} />
+      </div>
+
+      {target === "mint" ? (
+        <MintButton
+          wallet={wallet}
+          selection={selection}
+          tokens={mintTokensList}
+          summary={tokens ? `Mints ${tokens.length} CIP-68 NFT${tokens.length === 1 ? "" : "s"} plus reference NFTs with on-chain metadata.` : "Add the tokens above first."}
+          onMinted={setResult}
+        />
+      ) : (
+        <SellAsDrop wallet={wallet} tokens={tokens} />
+      )}
+    </div>
+  );
+}
+
+/** Fungible tokens have fields of their own (ticker, decimals, amount), they keep the form they had. */
+function Fungible({ wallet }: { wallet: ConnectedWallet }) {
+  const [tokens, setTokens] = useState<MintToken[]>(() => [newFungible(numberedName(1))]);
+  const [editing, setEditing] = useState(false);
+  const [result, setResult] = useState<MintResult | null>(null);
+
+  const valid = tokens.length > 0 && tokens.every((token) => Object.keys(tokenErrors(token, tokens)).length === 0);
 
   if (result) {
     return (
-      <TxResult title="Mint submitted" txHashes={[result.txHash]} onReset={() => setResult(null)} resetLabel="Mint more">
-        <ul className="flex flex-col gap-1 text-sm">
-          {result.tokens.map((token) => (
-            <li key={token.id}>
-              <ExternalLink href={IS_MAINNET ? `https://pool.pm/${result.policy.policyId}.${labeledAssetNameHex(token.standard, token.assetName)}` : explorerPolicyUrl(result.policy.policyId)} className="inline-flex items-center gap-1 text-primary hover:underline">
-                {token.name || token.assetName}
-              </ExternalLink>
-            </li>
-          ))}
-        </ul>
-      </TxResult>
+      <Minted
+        result={result}
+        onReset={() => {
+          setResult(null);
+          setTokens([newFungible(numberedName(1))]);
+        }}
+      />
     );
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <PolicySelector keyHash={wallet.keyHash} selection={selection} />
-
-      {/* imported policies were made elsewhere and have their tokens already */}
-      {policy && !policy.skey && !selection.loading && !selection.minted.has(policy.policyId) ? <RoyaltyPrompt key={policy.policyId} wallet={wallet} policy={policy} /> : null}
-
       {editing ? (
-        <MetadataEditor tokens={tokens} onApply={setTokens} onClose={() => setEditing(false)} />
+        <MetadataEditor tokens={tokens} onApply={(applied) => setTokens(applied.map((token) => ({ ...token, standard: 333 })))} onClose={() => setEditing(false)} />
       ) : (
         <div className="flex flex-col gap-4">
-          <p className="section-label">Tokens</p>
           {tokens.map((token) => (
             <TokenForm
               key={token.id}
               token={token}
               allTokens={tokens}
+              fungibleOnly
               onChange={(changed) => setTokens(tokens.map((t) => (t.id === changed.id ? changed : t)))}
-              onCopyToAll={tokens.length > 1 ? (patch) => setTokens(tokens.map((t) => (t.id === token.id ? t : { ...t, ...patch }))) : undefined}
               onRemove={tokens.length > 1 ? () => setTokens(tokens.filter((t) => t.id !== token.id)) : undefined}
             />
           ))}
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={`${secondaryButtonClass} w-fit`} onClick={() => setTokens([...tokens, newToken(numberedName(tokens.length + 1))])}>
+            <button type="button" className={`${secondaryButtonClass} w-fit`} onClick={() => setTokens([...tokens, newFungible(numberedName(tokens.length + 1))])}>
               <PlusIcon className="size-4" />
               Add token
             </button>
-            <label className={`${secondaryButtonClass} w-fit ${uploading ? "btn-disabled" : ""}`}>
-              {uploading ? <span className="loading loading-spinner loading-xs" /> : <ArrowUpTrayIcon className="size-4" />}
-              {uploading ?? "Add NFTs from files"}
-              <input type="file" multiple className="hidden" onChange={addFromFiles} disabled={Boolean(uploading)} />
-            </label>
             <button type="button" className={`${secondaryButtonClass} w-fit`} onClick={() => setEditing(true)}>
               <CodeBracketIcon className="size-4" />
               Edit metadata JSON
-            </button>          </div>
+            </button>
+          </div>
         </div>
       )}
 
-      <div className="surface flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-base-content/55">
-          Mints {tokens.length} CIP-68 token{tokens.length === 1 ? "" : "s"} plus reference NFTs with on-chain metadata.{" "}
-          Your wallet shows the fee before signing.
-        </p>
-        <button className="btn btn-primary" disabled={!valid || !policy || minting || editing} onClick={mint}>
-          {minting ? <span className="loading loading-spinner loading-sm" /> : null}
-          Mint
-        </button>
+      <MintNow
+        wallet={wallet}
+        tokens={valid ? tokens : null}
+        disabled={editing}
+        summary={`Mints ${tokens.length} CIP-68 token${tokens.length === 1 ? "" : "s"} plus reference NFTs with on-chain metadata.`}
+        onMinted={setResult}
+      />
+    </div>
+  );
+}
+
+function Mint({ wallet }: { wallet: ConnectedWallet }) {
+  const [kind, setKind] = useState<"nft" | "fungible">("nft");
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="join">
+        {(["nft", "fungible"] as const).map((option) => (
+          <button key={option} type="button" className={`btn btn-sm join-item border-line ${kind === option ? "btn-primary" : "bg-base-300"}`} onClick={() => setKind(option)}>
+            {option === "nft" ? "NFTs" : "Fungible token"}
+          </button>
+        ))}
       </div>
+      {kind === "nft" ? <Nfts wallet={wallet} /> : <Fungible wallet={wallet} />}
+      <YourDrops />
     </div>
   );
 }
 
 export default function MintForm() {
-  return <ConnectWallet message="Connect a wallet to mint tokens. The policy is derived from your wallet key.">{(wallet) => <Mint wallet={wallet} />}</ConnectWallet>;
+  return <ConnectWallet message="Connect a wallet to mint tokens or to sell them as a drop.">{(wallet) => <Mint wallet={wallet} />}</ConnectWallet>;
 }

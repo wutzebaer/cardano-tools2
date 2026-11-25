@@ -1,0 +1,218 @@
+[
+  {
+    "assetName": "PreviewRobot001",
+    "metadata": {
+      "name": "Preview Robot #1 Amber",
+      "image": "https://picsum.photos/seed/drop-amber/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot002",
+    "metadata": {
+      "name": "Preview Robot #2 Basil",
+      "image": "https://picsum.photos/seed/drop-basil/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot003",
+    "metadata": {
+      "name": "Preview Robot #3 Cedar",
+      "image": "https://picsum.photos/seed/drop-cedar/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot004",
+    "metadata": {
+      "name": "Preview Robot #4 Dune",
+      "image": "https://picsum.photos/seed/drop-dune/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot005",
+    "metadata": {
+      "name": "Preview Robot #5 Ember",
+      "image": "https://picsum.photos/seed/drop-ember/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot006",
+    "metadata": {
+      "name": "Preview Robot #6 Fern",
+      "image": "https://picsum.photos/seed/drop-fern/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot007",
+    "metadata": {
+      "name": "Preview Robot #7 Glade",
+      "image": "https://picsum.photos/seed/drop-glade/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot008",
+    "metadata": {
+      "name": "Preview Robot #8 Haze",
+      "image": "https://picsum.photos/seed/drop-haze/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot009",
+    "metadata": {
+      "name": "Preview Robot #9 Iris",
+      "image": "https://picsum.photos/seed/drop-iris/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot010",
+    "metadata": {
+      "name": "Preview Robot #10 Jade",
+      "image": "https://picsum.photos/seed/drop-jade/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot011",
+    "metadata": {
+      "name": "Preview Robot #11 Kelp",
+      "image": "https://picsum.photos/seed/drop-kelp/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot012",
+    "metadata": {
+      "name": "Preview Robot #12 Lark",
+      "image": "https://picsum.photos/seed/drop-lark/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot013",
+    "metadata": {
+      "name": "Preview Robot #13 Moss",
+      "image": "https://picsum.photos/seed/drop-moss/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot014",
+    "metadata": {
+      "name": "Preview Robot #14 Nova",
+      "image": "https://picsum.photos/seed/drop-nova/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot015",
+    "metadata": {
+      "name": "Preview Robot #15 Opal",
+      "image": "https://picsum.photos/seed/drop-opal/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot016",
+    "metadata": {
+      "name": "Preview Robot #16 Pine",
+      "image": "https://picsum.photos/seed/drop-pine/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot017",
+    "metadata": {
+      "name": "Preview Robot #17 Quill",
+      "image": "https://picsum.photos/seed/drop-quill/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot018",
+    "metadata": {
+      "name": "Preview Robot #18 Reed",
+      "image": "https://picsum.photos/seed/drop-reed/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot019",
+    "metadata": {
+      "name": "Preview Robot #19 Sage",
+      "image": "https://picsum.photos/seed/drop-sage/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot020",
+    "metadata": {
+      "name": "Preview Robot #20 Tide",
+      "image": "https://picsum.photos/seed/drop-tide/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot021",
+    "metadata": {
+      "name": "Preview Robot #21 Umber",
+      "image": "https://picsum.photos/seed/drop-umber/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot022",
+    "metadata": {
+      "name": "Preview Robot #22 Vale",
+      "image": "https://picsum.photos/seed/drop-vale/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot023",
+    "metadata": {
+      "name": "Preview Robot #23 Wren",
+      "image": "https://picsum.photos/seed/drop-wren/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  },
+  {
+    "assetName": "PreviewRobot024",
+    "metadata": {
+      "name": "Preview Robot #24 Zest",
+      "image": "https://picsum.photos/seed/drop-zest/512",
+      "mediaType": "image/jpeg",
+      "description": "A test token on the preview testnet"
+    }
+  }
+]

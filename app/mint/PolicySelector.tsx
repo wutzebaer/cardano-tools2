@@ -2,11 +2,11 @@
 
 import { createPolicy, policySecondsLeft } from "@cardano/mint";
 import { importPolicy } from "@cardano/policies";
+import { collectionNameError } from "@cardano/registration";
 import { MintPolicy } from "@cardano/types";
-import { shortenId } from "@cardano/utils";
 import { Field, inputClass, secondaryButtonClass, textareaClass } from "@components/ui";
 import { ArrowDownTrayIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import { PolicySelection } from "./usePolicies";
 
 function formatTimeLeft(seconds: number) {
@@ -21,16 +21,18 @@ function formatTimeLeft(seconds: number) {
 function policyLabel(policy: MintPolicy, minted: boolean) {
   const status = policy.skey || minted ? formatTimeLeft(policySecondsLeft(policy)) : `not minted yet · ${formatTimeLeft(policySecondsLeft(policy))}`;
   const name = policy.name ? `${policy.name} · ` : "";
-  return `${name}${shortenId(policy.policyId, 8)} · ${status}${policy.skey ? " · imported" : ""}`;
+  return `${name}${policy.policyId} · ${status}${policy.skey ? " · imported" : ""}`;
 }
 
 type Mode = "select" | "create" | "import";
 
-export default function PolicySelector({ keyHash, selection }: { keyHash: string; selection: PolicySelection }) {
+/** `step` shows the policy as a numbered step of a longer form. `children` is shown below the selected policy, for what belongs to it. */
+export default function PolicySelector({ keyHash, selection, step, children }: { keyHash: string; selection: PolicySelection; step?: number; children?: ReactNode }) {
   const { policies, minted, stored, selected, loading, select, add, remove } = selection;
   const [mode, setMode] = useState<Mode>("select");
   const [name, setName] = useState("");
   const [days, setDays] = useState("365");
+  const [noLock, setNoLock] = useState(false);
   const [script, setScript] = useState("");
   const [signingKey, setSigningKey] = useState("");
   const [importError, setImportError] = useState("");
@@ -44,7 +46,7 @@ export default function PolicySelector({ keyHash, selection }: { keyHash: string
   };
 
   const create = () => {
-    add({ ...createPolicy(keyHash, Number(days)), name: name.trim() || undefined });
+    add({ ...createPolicy(keyHash, noLock ? null : Number(days)), name: name.trim() || undefined });
     close();
   };
 
@@ -66,7 +68,14 @@ export default function PolicySelector({ keyHash, selection }: { keyHash: string
   return (
     <div className="surface flex flex-col gap-4 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="section-label">Policy</p>
+        {step ? (
+          <div className="flex items-center gap-3">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{step}</span>
+            <h3 className="text-base font-semibold tracking-tight">Policy</h3>
+          </div>
+        ) : (
+          <p className="section-label">Policy</p>
+        )}
         {mode === "select" ? (
           <div className="flex gap-2">
             <button type="button" className={secondaryButtonClass} onClick={() => setMode("import")}>
@@ -106,23 +115,31 @@ export default function PolicySelector({ keyHash, selection }: { keyHash: string
         <p className="text-sm text-base-content/55">No policies yet. Create one to mint.</p>
       )}
 
-      {selected ? <p className="break-all font-mono text-xs text-base-content/45">{selected.policyId}</p> : null}
+      {mode === "select" ? children : null}
 
       {mode === "create" ? (
         <div className="flex flex-col gap-4 rounded-field border border-line bg-base-300 p-4">
           <p className="text-xs text-base-content/55">
-            The policy is signed by your wallet key, nothing secret is stored. After the lock date nobody can mint or burn its tokens any more.
+            The policy is signed by your wallet key, nothing secret is stored.{" "}
+            {noLock
+              ? "Without a lock you can mint and burn its tokens forever."
+              : "After the lock date nobody can mint or burn its tokens any more."}
           </p>
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
-            <Field label="Name (optional)">
+          <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_10rem_auto]">
+            {/* the name of the policy is the name of its collection, which can be registered on chain with the royalty token */}
+            <Field label="Collection name" error={name.trim() ? collectionNameError(name) : undefined}>
               <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="My collection" />
             </Field>
             <Field label="Days until lock">
-              <input className={inputClass} type="number" min="1" max="10000" value={days} onChange={(e) => setDays(e.target.value)} />
+              <input className={inputClass} type="number" min="1" max="10000" value={noLock ? "" : days} disabled={noLock} onChange={(e) => setDays(e.target.value)} />
             </Field>
+            <label className="flex h-10 cursor-pointer items-center gap-2 text-sm whitespace-nowrap">
+              <input type="checkbox" className="checkbox checkbox-sm" checked={noLock} onChange={(e) => setNoLock(e.target.checked)} />
+              Never lock this policy
+            </label>
           </div>
           <div className="flex gap-2">
-            <button type="button" className="btn btn-primary btn-sm" onClick={create} disabled={!(Number(days) >= 1 && Number(days) <= 10000)}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={create} disabled={!!collectionNameError(name) || (!noLock && !(Number(days) >= 1 && Number(days) <= 10000))}>
               Create
             </button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={close}>

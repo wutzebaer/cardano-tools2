@@ -31,8 +31,9 @@ export function tokenMetadata(token: MintToken): Record<string, MetaValue> {
   if (files.length > 0) {
     metadata.files = files.map((file) => ({ ...(file.name ? { name: file.name } : {}), ...(file.mediaType ? { mediaType: file.mediaType } : {}), src: file.src }));
   }
+  // a property that was left empty, e.g. one added for all tokens that does not apply to this one, is not written
   for (const { key, value } of token.properties) {
-    if (key) metadata[key] = value;
+    if (key && value) metadata[key] = value;
   }
   return { ...metadata, ...token.extra };
 }

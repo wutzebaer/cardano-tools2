@@ -98,7 +98,9 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
     const [collectionInfo, royalties] = await Promise.all([getCollectionInfo(tokenDetails.maPolicyId), getPolicyRoyalties(tokenDetails.maPolicyId)]);
     const royaltyRate = Number(royalties?.rate);
     const assetName = assetNameFromHex(tokenDetails.maName);
-    const name = (typeof metadata.name === 'string' ? metadata.name : undefined) ?? assetName;
+    // CIP-27: the token without a name is the one whose mint set the royalties of its policy
+    const isRoyaltyToken = !tokenDetails.maName;
+    const name = (typeof metadata.name === 'string' ? metadata.name : undefined) ?? (isRoyaltyToken ? 'Royalty token' : assetName);
     const image = tokenImage(metadata);
     const imageSrc = toIpfsUrl(image);
     const description = typeof metadata.description === 'string' && metadata.description !== name ? metadata.description : undefined;
@@ -126,7 +128,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                                 priority
                             />
                         ) : (
-                            <TokenImagePlaceholder />
+                            <TokenImagePlaceholder royalty={isRoyaltyToken} />
                         )}
                     </div>
                 </div>
@@ -142,6 +144,13 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                         </Link>
                         <h1 className="text-brand break-words text-3xl font-semibold tracking-tight sm:text-4xl">{name}</h1>
                         {description ? <p className="text-[15px] leading-relaxed text-base-content/65">{description}</p> : null}
+                        {isRoyaltyToken ? (
+                            <p className="text-[15px] leading-relaxed text-base-content/65">
+                                This token has no name and no image: it is the royalty token of its policy. The transaction that minted it says which share of a resale
+                                marketplaces should pay, and to whom{royalties && Number.isFinite(royaltyRate) ? ` (${formatNumber(royaltyRate * 100)} %)` : ''}. Keeping or burning it
+                                changes nothing about that.
+                            </p>
+                        ) : null}
                     </div>
 
                     <div className="flex flex-wrap gap-2">

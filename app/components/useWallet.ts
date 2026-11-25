@@ -30,6 +30,7 @@ function paymentKeyHash(addressHex: string) {
 
 async function loadWallet(info: WalletInfo): Promise<ConnectedWallet> {
   const connection = await enableWallet(info);
+  const started = performance.now();
   if ((await connection.getNetworkId()) !== NETWORK.id) {
     throw new Error(`Please switch your wallet to ${NETWORK.name}`);
   }
@@ -53,6 +54,7 @@ async function loadWallet(info: WalletInfo): Promise<ConnectedWallet> {
         .map((utxo) => utxo.output().address().payment_cred()?.to_keyhash()?.to_hex())
         .find((hash) => hash != null);
   const keyHash = fundedKeyHash ?? changeKeyHash;
+  console.log(`[wallet] addresses and funds read: ${info.name} after ${Math.round(performance.now() - started)} ms`);
   const keyHashes = new Set([keyHash, changeKeyHash]);
   for (const address of [...(usedAddresses ?? []), ...(unusedAddresses ?? [])]) {
     const hash = paymentKeyHash(address);
@@ -66,6 +68,23 @@ async function loadWallet(info: WalletInfo): Promise<ConnectedWallet> {
     keyHashes: [...keyHashes],
     stakeAddress: rewardAddressHashToBech32(rewardAddresses[0]),
   };
+}
+
+/**
+ * Several parts of a page use the wallet at once. They share one reading of its addresses and funds per selection,
+ * a wallet answers such questions one after the other and each reading takes seconds.
+ */
+const loading = new WeakMap<ApplicationState, Promise<ConnectedWallet>>();
+
+function loadWalletOnce(state: ApplicationState, info: WalletInfo) {
+  let wallet = loading.get(state);
+  if (!wallet) {
+    wallet = loadWallet(info);
+    loading.set(state, wallet);
+    // a failed reading is tried again by whoever asks next
+    wallet.catch(() => loading.delete(state));
+  }
+  return wallet;
 }
 
 /** The connected wallet with its addresses and keys, or null while none is connected or it is still loading. */
@@ -83,9 +102,12 @@ export function useWallet() {
     // a refused connection is reported and reset by the wallet overview, which asks for the same connection
     enableWallet(walletInfo).then(
       () =>
-        loadWallet(walletInfo).then((wallet) => {
-          if (!cancelled) setLoaded({ state, wallet });
-        }),
+        loadWalletOnce(state, walletInfo).then(
+          (wallet) => {
+            if (!cancelled) setLoaded({ state, wallet });
+          },
+          () => undefined
+        ),
       () => undefined
     );
     return () => {

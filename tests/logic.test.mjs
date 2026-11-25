@@ -11,7 +11,32 @@ import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../
 import { drepKind, marginCostPerYear, pickAlternatives, poolFindings, suggestsAlternatives } from "../app/check/checkLogic.ts";
 import { actionStatus, actionTitle, poolsVoteOn, sortActions, voteOfAddress, voteOfPool } from "../app/votes/governanceLogic.ts";
 import { assetNameFor, tokenMetadata, tokensFromMetadata, tokensMetadata } from "../app/cardano/metadata.ts";
+import { DROP_BLUEPRINT_HASH, DROP_CODE, DROP_TERM_BITS } from "../app/cardano/dropBlueprint.ts";
+import {
+  applyDropParams,
+  Constr,
+  freshSold,
+  groupDatum,
+  groupOfDatum,
+  groupOfMarker,
+  isSold,
+  listErrors,
+  markerName,
+  MAX_GROUPS,
+  merkleProof,
+  merkleRoot,
+  merkleTree,
+  metadataDatum,
+  parseDropList,
+  plutusCbor,
+  plutusFromCbor,
+  scriptHash,
+  sizeOfGroup,
+  suggestedGroups,
+  tickSold,
+} from "../app/cardano/dropScript.ts";
 import { NETWORK, NETWORKS, unixToEpoch, unixToSlot } from "../app/cardano/network.ts";
+import { collectionNameError, policyRegistration } from "../app/cardano/registration.ts";
 import { candidateUnlockTimes, DAY_SECONDS, FIRST_UNLOCK_UNIX, MAX_LOCK_DAYS, timelockMetadata, timeScriptHash, unlockSlotsFromMetadata, unlockTimeError } from "../app/cardano/timelockScript.ts";
 import { policyLockSlot } from "../app/cardano/utils.ts";
 import { priceAt, statementCsv, statementLines } from "../app/statement/statement.ts";
@@ -132,6 +157,52 @@ test("statement has a running balance, fiat values and is newest first", () => {
   assert.equal(csv[0], "Timestamp,Epoch,TxHash,Change ADA,Price EUR,Change EUR,Balance ADA,Operations");
   assert.equal(csv[1], "2024-01-03T00:00:00.000Z,459,bb,-4.000000,0.500000,-2.00,6.500000,OUT IN");
   assert.equal(csv[3], "2024-01-01T00:00:00.000Z,458,aa,10.000000,,,10.000000,IN");
+});
+
+// ---------------------------------------------------------------------------
+// Collection registration (CIP-88)
+// ---------------------------------------------------------------------------
+
+test("a policy registers its collection name with the royalty token as proof", () => {
+  const policyId = "3668b628d7bd0cbdc4b7a60fe9bd327b56a1902e89fd01251a34c8be";
+  const scriptCbor = "8200581c4bdb4c5017cdcb50c001af21d2488ed2e741df55b252dd3ab2482050".repeat(3);
+  const registration = policyRegistration({ policyId, scriptCbor, name: " Cool NFT Project ", royalty: { rate: "0.05", addr: ["addr_test1qqp7", "lpy25"] }, nonce: 12345 });
+  // maps with number keys to plain objects, to read the registration like its reader does
+  const plain = (value) =>
+    "map" in value ? Object.fromEntries(value.map.map(({ k, v }) => [k.int, plain(v)])) : "list" in value ? value.list.map(plain) : "bytes" in value ? `0x${value.bytes}` : (value.int ?? value.string);
+  const read = plain(registration);
+
+  assert.equal(read[0], 1);
+  assert.deepEqual(read[2], []);
+  const payload = read[1];
+  assert.equal(payload[1][0], 0);
+  assert.equal(payload[1][1], `0x${policyId}`);
+  assert.equal(payload[1][2].map((piece) => piece.slice(2)).join(""), scriptCbor);
+  assert.ok(payload[1][2].every((piece) => piece.length <= 2 + 128));
+  assert.deepEqual(payload[2], [25, 27]);
+  assert.deepEqual(payload[3], [1, [`0x${policyId}`, "0x"]]);
+  assert.equal(payload[4], 12345);
+  assert.deepEqual(payload[6][25], { 0: 1, 1: { 0: "Cool NFT Project" } });
+  assert.deepEqual(payload[6][27], { 0: 1, 1: { 1: "0.05", 2: ["addr_test1qqp7", "lpy25"] } });
+
+  // description and picture are cut into pieces of at most 64 bytes, between characters
+  const long = `${"ä".repeat(40)} and a text that goes on for a while, well past the first piece`;
+  const image = "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi";
+  const full = plain(policyRegistration({ policyId, scriptCbor, name: "Name", description: ` ${long} `, image, nonce: 1 }))[1][6][25][1];
+  assert.equal(full[1].join(""), long);
+  assert.ok(full[1].length > 1 && full[1].every((piece) => new TextEncoder().encode(piece).length <= 64));
+  assert.equal(full[2].join(""), image);
+  assert.ok(full[2].every((piece) => piece.length <= 64));
+  assert.deepEqual(Object.keys(payload[6][25][1]), ["0"]);
+
+  const plainOnly = plain(policyRegistration({ policyId, scriptCbor, name: "Name", nonce: 1 }));
+  assert.deepEqual(plainOnly[1][2], [25]);
+  assert.equal(plainOnly[1][6][27], undefined);
+
+  assert.equal(collectionNameError("Robots"), undefined);
+  assert.equal(collectionNameError("  "), "Needs a name");
+  assert.equal(collectionNameError("x".repeat(65)), "At most 64 bytes");
+  assert.equal(collectionNameError("ä".repeat(33)), "At most 64 bytes");
 });
 
 // ---------------------------------------------------------------------------
@@ -658,4 +729,106 @@ test("the rewards of a year are totalled per month, with a line for a month with
   assert.deepEqual(monthTotals(entries, 2024).map((month) => month.month), ["2024-12"]);
   assert.deepEqual(monthTotals(entries, 2023), []);
   assert.equal(monthCsv(monthTotals(entries, 2025), "EUR").split("\r\n")[1], "2025-01,2,50.000000,25.00,0");
+});
+
+// ---------------------------------------------------------------------------
+// NFT drop
+// ---------------------------------------------------------------------------
+
+const dropTokens = (count) => Array.from({ length: count }, (_, i) => ({ assetName: `Robot${i + 1}`, metadata: { name: `Robot #${i + 1}`, image: `ipfs://Qm${i}` } }));
+
+test("writes Plutus data the way the chain does", () => {
+  // constructor with open-ended fields, map with its length and in the given order, empty list closed
+  assert.equal(plutusCbor(new Constr(0, [new Map([["6e616d65", "41"], ["696d616765", "42"]]), 1n, []])), "d8799fa2446e616d65414145696d616765414201" + "80ff");
+  assert.equal(plutusCbor(new Constr(1, [])), "d87a80");
+  assert.equal(plutusCbor(5_000_000n), "1a004c4b40");
+  // byte strings over 64 bytes go in pieces
+  assert.equal(plutusCbor("ab".repeat(70)), "5f5840" + "ab".repeat(64) + "46" + "ab".repeat(6) + "ff");
+});
+
+test("reads Plutus data back, whichever way it was written", () => {
+  const data = new Constr(0, [new Map([["6e616d65", ["01", 2n]]]), -3n, "ab".repeat(70)]);
+  assert.deepEqual(plutusFromCbor(plutusCbor(data)), data);
+  // lists and maps with a length, as other tools write them
+  assert.deepEqual(plutusFromCbor("d87982a1446e616d65414101"), new Constr(0, [new Map([["6e616d65", "41"]]), 1n]));
+});
+
+test("the metadata datum of a drop token is CIP-68", () => {
+  assert.equal(metadataDatum({ assetName: "A", metadata: { name: "A", n: 1 } }), "d8799fa2446e616d654141416e0101ff");
+});
+
+test("every token of a list proves itself against the root, and only at its own place", () => {
+  const tokens = dropTokens(5);
+  const tree = merkleTree(tokens);
+  assert.equal(tree[0].length, 8);
+  const root = merkleRoot(tree);
+  assert.equal(root.length, 64);
+  assert.equal(merkleProof(tree, 3).length, 3);
+  // a changed token changes the root
+  const changed = dropTokens(5);
+  changed[3].metadata.image = "ipfs://other";
+  assert.notEqual(merkleRoot(merkleTree(changed)), root);
+  // a list of one token is its own root
+  assert.deepEqual(merkleProof(merkleTree(dropTokens(1)), 0), []);
+});
+
+test("a list is refused for what the contract cannot sell", () => {
+  assert.deepEqual(listErrors(dropTokens(3)), []);
+  assert.match(listErrors([])[0], /empty/);
+  assert.match(listErrors([...dropTokens(2), dropTokens(1)[0]])[0], /used twice/);
+  assert.match(listErrors([{ assetName: "x".repeat(29), metadata: { name: "x" } }])[0], /1 to 28 bytes/);
+  assert.match(listErrors([{ assetName: "x", metadata: {} }])[0], /needs a name/);
+});
+
+test("a list is read in the forms creators have", () => {
+  const tokens = dropTokens(2);
+  assert.deepEqual(parseDropList(tokens), tokens);
+  assert.deepEqual(parseDropList({ version: 1, tokens }), tokens);
+  assert.deepEqual(parseDropList({ Robot1: tokens[0].metadata, Robot2: tokens[1].metadata }), tokens);
+});
+
+test("groups share the tokens and tick them off from the first bit", () => {
+  assert.equal(sizeOfGroup(5, 2, 0) + sizeOfGroup(5, 2, 1), 5);
+  assert.equal(freshSold(5, 2, 0), "00");
+  assert.equal(freshSold(4000, 32, 0), "00".repeat(16));
+  assert.equal(tickSold("0000", 0), "8000");
+  assert.equal(tickSold("0000", 9), "0040");
+  assert.ok(isSold("0040", 9));
+  assert.ok(!isSold("0040", 8));
+  assert.equal(markerName(1), "6772700001");
+  assert.equal(groupOfMarker(markerName(31)), 31);
+  assert.equal(groupOfMarker("000de140" + "41"), undefined);
+});
+
+test("a drop gets no more groups than one transaction can create", () => {
+  assert.equal(suggestedGroups(1), 1);
+  assert.equal(suggestedGroups(100), 10);
+  assert.equal(suggestedGroups(10000), MAX_GROUPS);
+});
+
+test("the datum of a group reads back as written, and other datums are not groups", () => {
+  const config = {
+    root: "11".repeat(32),
+    total: 5,
+    groups: 2,
+    price: 5_000_000n,
+    seller: { payment: { keyHash: "22".repeat(28) }, stake: { keyHash: "33".repeat(28) } },
+    owner: "22".repeat(28),
+    seed: { txHash: "44".repeat(32), index: 3 },
+    burnable: true,
+    list: "ipfs://QmList",
+  };
+  assert.deepEqual(groupOfDatum(groupDatum({ config, group: 1, sold: "80" })), { config, group: 1, sold: "80" });
+  const withoutStake = { ...config, seller: { payment: { scriptHash: "55".repeat(28) } } };
+  assert.deepEqual(groupOfDatum(groupDatum({ config: withoutStake, group: 0, sold: "00" }))?.config, withoutStake);
+  assert.equal(groupOfDatum(metadataDatum({ assetName: "A", metadata: { name: "A" } })), undefined);
+  assert.equal(groupOfDatum("zz"), undefined);
+});
+
+test("the script of a drop is the one the chain accepted", () => {
+  // a drop created on the preview testnet with this build of the contract; changes when the contract is rebuilt
+  assert.equal(DROP_BLUEPRINT_HASH, "67d528f9a1bcb8fca605c7b3b59ce8b35a728a4a5f2798efa879f6eb");
+  const seed = {"txHash": "6c2dfe0347e1de8d01a083441659accce41b67e629ad0063d837baafe793fb72", "index": 2};
+  assert.equal(scriptHash(applyDropParams(DROP_CODE, DROP_TERM_BITS, seed, true)), "0aec62b19a2a78cdd8d200788f3969770f1c5f52ba12bb2ab1520324");
+  assert.notEqual(scriptHash(applyDropParams(DROP_CODE, DROP_TERM_BITS, seed, false)), "0aec62b19a2a78cdd8d200788f3969770f1c5f52ba12bb2ab1520324");
 });

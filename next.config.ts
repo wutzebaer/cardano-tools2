@@ -24,14 +24,14 @@ const nextConfig: NextConfig = {
     const moved: Record<string, string> = {
       "/latest": "/browse",
       "/chien": "/pool",
-      "/royaltiescip27": "/royalties",
+      "/royaltiescip27": "/mint",
+      "/royalties": "/mint",
       "/reward-stakers": "/rewards",
       "/wallet-statement": "/statement",
       "/burn-address": "/burn",
       // the page was called "Move wallet" for a day
       "/move": "/close",
       "/mint-on-demand": "/mint",
-      "/drop/:prettyUrl": "/browse",
     };
     return Object.entries(moved).map(([source, destination]) => ({ source, destination, permanent: true }));
   },

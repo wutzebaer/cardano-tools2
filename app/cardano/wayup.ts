@@ -1,12 +1,24 @@
+import { getPolicyCollection } from "@cardano/dbsync";
 import { IS_MAINNET } from "@cardano/network";
 
 export type CollectionInfo = {
   name?: string | null;
   handle?: string | null;
   verified?: boolean;
+  /** What the owner registered on chain about the collection (CIP-88). */
+  about?: string;
+  /** The picture the owner registered on chain, on IPFS. */
+  picture?: string;
 };
 
+/** What is known about a collection: from the marketplace, and without a name there the one its owner registered on chain. */
 export async function getCollectionInfo(policyId: string): Promise<CollectionInfo> {
+  const [market, registered] = await Promise.all([marketCollectionInfo(policyId).catch((): CollectionInfo => ({})), getPolicyCollection(policyId)]);
+  if (!registered) return market;
+  return { ...market, name: market.name || registered.name, about: registered.description, picture: registered.image };
+}
+
+async function marketCollectionInfo(policyId: string): Promise<CollectionInfo> {
   // the marketplace only knows mainnet collections
   if (!IS_MAINNET) {
     return {};

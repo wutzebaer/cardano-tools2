@@ -5,7 +5,7 @@ export default function Page() {
   return (
     <>
       <PageHeader title="Mint" art="mint">
-        Mint CIP-68 NFTs and fungible tokens directly from your wallet
+        Mint CIP-68 NFTs and fungible tokens from your wallet, or sell NFTs as a drop that mints each one when it is bought
       </PageHeader>
       <MintForm />
     </>

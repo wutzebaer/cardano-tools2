@@ -66,6 +66,14 @@ export function enableWallet(info: WalletInfo): Promise<WalletConnection> {
     connection = info.enable();
     connections.set(info, connection);
     connection.catch(() => connections.delete(info));
+    // in the browser console, to see whether a slow connect is the wallet's or the page's
+    const started = performance.now();
+    const took = () => `${Math.round(performance.now() - started)} ms`;
+    console.log(`[wallet] connect started: ${info.name}`);
+    connection.then(
+      () => console.log(`[wallet] connected: ${info.name} after ${took()}`),
+      (error) => console.log(`[wallet] connect refused: ${info.name} after ${took()}`, error)
+    );
   }
   return connection;
 }
