@@ -1,6 +1,5 @@
 import { getStakeInfo } from "@cardano/dbsync";
 import { currentSlot } from "@cardano/network";
-import { submitSignedTx } from "@cardano/submit";
 import { SimpleScript, WalletConnection } from "@cardano/types";
 import {
   Address,
@@ -137,8 +136,8 @@ export const buildTransaction = async (
   throw firstError;
 };
 
-/** A node's rejection in words where the cause is a known one, otherwise as the node gave it. */
-export function rejectionReason(nodeAnswer: string): string {
+/** A node's rejection in words where the cause is a known one, otherwise null. */
+export function rejectionReason(nodeAnswer: string): string | null {
   const missingKey = nodeAnswer.match(/MissingVKeyWitnessesUTXOW[^\]]*?([0-9a-f]{56})/)?.[1];
   if (missingKey) {
     return `Your wallet did not sign with a key this transaction needs (${missingKey.slice(0, 8)}…). Nothing was submitted. If this is the key of a policy, create a new policy and try again.`;
@@ -152,7 +151,13 @@ export function rejectionReason(nodeAnswer: string): string {
   if (/StakeKeyHasNonZero\w*Balance/.test(nodeAnswer)) {
     return "The stake key still holds rewards and cannot be deregistered with them. Reload the page so the current amount is paid out along, then try again. Nothing was submitted.";
   }
-  return `The network rejected the transaction: ${nodeAnswer.slice(0, 400)}`;
+  return null;
+}
+
+/** What a wallet said when it refused to submit; CIP-30 wallets put the node's answer into "info". */
+function walletErrorText(walletError: unknown): string {
+  const error = walletError as { info?: unknown; message?: unknown } | null | undefined;
+  return [error?.info, error?.message].filter((part) => typeof part === "string").join(" ");
 }
 
 export const signAndSubmitTransaction =async (connection: WalletConnection, tx: Transaction, signingKeys: PrivateKey[] = []) => {
@@ -170,13 +175,12 @@ export const signAndSubmitTransaction =async (connection: WalletConnection, tx: 
 
   const signedTx = fixedTransaction.to_hex();
   try {
+    // only the wallet submits: the site hands signed transactions to no other service
     await connection.submitTx(signedTx);
   } catch (walletError) {
-    // some wallets cannot submit (e.g. no node connection), try a public submit endpoint before giving up
-    const submitted = await submitSignedTx(signedTx).catch(() => null);
-    if (!submitted) throw walletError;
-    // the node says why it rejects a transaction, which a wallet often does not pass on
-    if (!submitted.ok) throw new Error(rejectionReason(submitted.body));
+    // a known cause in words, anything else as the wallet reported it
+    const reason = rejectionReason(walletErrorText(walletError));
+    throw reason ? new Error(reason) : walletError;
   }
 
   return fixedTransaction.transaction_hash().to_hex();

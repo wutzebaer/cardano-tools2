@@ -29,7 +29,7 @@ export default function Page() {
           If you connect a wallet or enter an address, that address is sent to the server of the site so that it can look up the related tokens, transactions and rewards on the public Cardano blockchain. These lookups are not stored permanently and are not assigned to a user. The private keys of your wallet never leave the wallet; every transaction is confirmed there one by one.
         </p>
         <p>
-          Transactions created through this site are, like all transactions, public and permanent on the blockchain. They can neither be changed nor deleted. To submit it, the signed transaction is handed to the public service Koios (api.koios.rest); it contains nothing that does not appear on the blockchain anyway.
+          Transactions created through this site are, like all transactions, public and permanent on the blockchain. They can neither be changed nor deleted. Your wallet submits the signed transaction to the network itself; the site does not pass it on to any other service.
         </p>
 
         <LegalHeading>Uploaded files</LegalHeading>

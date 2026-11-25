@@ -70,4 +70,4 @@ Images are tagged with the version from `package.json`, which the sidebar also s
 
 ## External services
 
-Besides cardano-db-sync-api the app talks to the wallet, the IPFS node, Kraken's public market data (prices for the wallet statement), the Anvil API (collection names) and, only if the wallet fails to submit, Koios to submit a signed transaction.
+Besides cardano-db-sync-api the app talks to the wallet, the IPFS node, Kraken's public market data (prices for the wallet statement), and the Anvil API (collection names). Signed transactions are submitted by the wallet alone.
