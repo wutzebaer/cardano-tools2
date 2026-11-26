@@ -93,10 +93,11 @@ export interface DistributionProgress {
 /**
  * Sends every batch as its own transaction from the connected wallet.
  * Batches are sent one after another, each waits for the wallet to see the previous one.
+ * `sent` are the hashes of an earlier try that stopped on the way: its batches are paid and are not sent again.
  */
-export async function sendRewards(connection: WalletConnection, batches: RewardPosition[][], message: string, onProgress: (progress: DistributionProgress) => void) {
-  const txHashes: string[] = [];
-  for (let i = 0; i < batches.length; i++) {
+export async function sendRewards(connection: WalletConnection, batches: RewardPosition[][], message: string, onProgress: (progress: DistributionProgress) => void, sent: string[] = []) {
+  const txHashes: string[] = [...sent];
+  for (let i = sent.length; i < batches.length; i++) {
     onProgress({ batch: i + 1, batches: batches.length, state: "signing", txHashes: [...txHashes] });
     const tx = await buildTransaction(connection, (txBuilder) => {
       for (const position of batches[i]) {
