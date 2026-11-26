@@ -108,8 +108,8 @@ export default function TokenForm({
   const extraKeys = Object.keys(token.extra);
 
   return (
-    <div className="surface flex flex-col gap-5 p-5">
-      <div className="flex items-center justify-between gap-3">
+    <div className={fungibleOnly ? "flex flex-col gap-5" : "surface flex flex-col gap-5 p-5"}>
+      <div className={fungibleOnly && !onRemove ? "hidden" : "flex items-center justify-between gap-3"}>
         <div className={fungibleOnly ? "hidden" : "join"}>
           {([222, 333] as const).map((standard) => (
             <button

@@ -53,7 +53,6 @@ function newFungible(name: string): MintToken {
   };
 }
 
-const numberedName = (index: number) => `Token${String(index).padStart(3, "0")}`;
 
 function Minted({ result, onReset }: { result: MintResult; onReset: () => void }) {
   return (
@@ -320,7 +319,7 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
  * order of the NFT form: the policy first, then the tokens, then the mint.
  */
 function Fungible({ wallet }: { wallet: ConnectedWallet }) {
-  const [tokens, setTokens] = useState<MintToken[]>(() => [newFungible(numberedName(1))]);
+  const [tokens, setTokens] = useState<MintToken[]>(() => [newFungible("Token")]);
   const [editing, setEditing] = useState(false);
   const [result, setResult] = useState<MintResult | null>(null);
   const selection = usePolicies(wallet);
@@ -333,7 +332,7 @@ function Fungible({ wallet }: { wallet: ConnectedWallet }) {
         result={result}
         onReset={() => {
           setResult(null);
-          setTokens([newFungible(numberedName(1))]);
+          setTokens([newFungible("Token")]);
         }}
       />
     );
@@ -343,39 +342,29 @@ function Fungible({ wallet }: { wallet: ConnectedWallet }) {
     <div className="flex flex-col gap-6">
       <PolicyChoice wallet={wallet} selection={selection} step={1} />
 
-      <div className="flex items-start gap-3 px-5">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">2</span>
-        <div>
-          <h3 className="text-base font-semibold leading-7 tracking-tight">Your tokens</h3>
-          <p className="text-sm text-base-content/60">Name, ticker and amount of each token. All of them are minted into your wallet.</p>
-        </div>
-      </div>
-      {editing ? (
-        <MetadataEditor tokens={tokens} onApply={(applied) => setTokens(applied.map((token) => ({ ...token, standard: 333 })))} onClose={() => setEditing(false)} />
-      ) : (
-        <div className="flex flex-col gap-4">
-          {tokens.map((token) => (
-            <TokenForm
-              key={token.id}
-              token={token}
-              allTokens={tokens}
-              fungibleOnly
-              onChange={(changed) => setTokens(tokens.map((t) => (t.id === changed.id ? changed : t)))}
-              onRemove={tokens.length > 1 ? () => setTokens(tokens.filter((t) => t.id !== token.id)) : undefined}
-            />
-          ))}
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className={`${secondaryButtonClass} w-fit`} onClick={() => setTokens([...tokens, newFungible(numberedName(tokens.length + 1))])}>
-              <PlusIcon className="size-4" />
-              Add token
-            </button>
-            <button type="button" className={`${secondaryButtonClass} w-fit`} onClick={() => setEditing(true)}>
+      <div className="surface flex flex-col gap-4 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">2</span>
+            <div>
+              <h3 className="text-base font-semibold leading-7 tracking-tight">Your token</h3>
+              <p className="text-sm text-base-content/60">Its name, ticker and amount. It is minted into your wallet.</p>
+            </div>
+          </div>
+          {editing ? null : (
+            <button type="button" className={secondaryButtonClass} onClick={() => setEditing(true)}>
               <CodeBracketIcon className="size-4" />
               Edit metadata JSON
             </button>
-          </div>
+          )}
         </div>
-      )}
+        {editing ? (
+          // a fungible token is one token: of a list in the JSON the first one counts
+          <MetadataEditor tokens={tokens} onApply={(applied) => setTokens(applied.slice(0, 1).map((token) => ({ ...token, standard: 333 })))} onClose={() => setEditing(false)} />
+        ) : (
+          tokens.map((token) => <TokenForm key={token.id} token={token} allTokens={tokens} fungibleOnly onChange={(changed) => setTokens(tokens.map((t) => (t.id === changed.id ? changed : t)))} />)
+        )}
+      </div>
 
       <MintButton
         wallet={wallet}
@@ -383,7 +372,7 @@ function Fungible({ wallet }: { wallet: ConnectedWallet }) {
         step={3}
         tokens={valid ? tokens : null}
         disabled={editing}
-        summary={`Mints ${tokens.length} CIP-68 token${tokens.length === 1 ? "" : "s"} with on-chain metadata.`}
+        summary="Mints your CIP-68 token with on-chain metadata."
         onMinted={setResult}
       />
     </div>
