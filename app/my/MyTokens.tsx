@@ -14,7 +14,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AddressTokens, loadAddressTokens } from "./loadTokens";
 
 export default function MyTokens() {
-  const { wallet, connect } = useWallet();
+  const { wallet } = useWallet();
   const router = useRouter();
   const pathname = usePathname();
   // the searched address lives in the URL, so coming back from a token shows the same list again
@@ -61,19 +61,14 @@ export default function MyTokens() {
 
   return (
     <div className="flex flex-col gap-8">
-      <form onSubmit={search} className="flex flex-col gap-2 sm:flex-row">
-        <label className={`${inputClass} bg-base-200`}>
+      <form onSubmit={search} className="flex gap-2">
+        <label className={`${inputClass} min-w-0 bg-base-200`}>
           <MagnifyingGlassIcon className="size-4 shrink-0 text-base-content/45" />
-          <input className="grow text-sm" value={input} onChange={(e) => setInput(e.target.value)} placeholder={walletHandle || wallet?.stakeAddress || "stake1…, addr1… or $handle"} />
+          <input className="min-w-0 grow text-sm" value={input} onChange={(e) => setInput(e.target.value)} placeholder={walletHandle || wallet?.stakeAddress || "stake1…, addr1… or $handle"} />
         </label>
-        <button className="btn btn-primary" type="submit">
+        <button className="btn btn-primary shrink-0" type="submit">
           Show
         </button>
-        {!wallet ? (
-          <button className="btn border-line bg-base-300" type="button" onClick={connect}>
-            Use my wallet
-          </button>
-        ) : null}
       </form>
 
       {!address ? <div className="surface px-6 py-16 text-center text-sm text-base-content/55">Connect a wallet or enter an address to see its tokens.</div> : null}
