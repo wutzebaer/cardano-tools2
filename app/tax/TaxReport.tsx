@@ -111,7 +111,7 @@ export default function TaxReport() {
             <option>USD</option>
           </select>
           {entries.length > 0 ? (
-            <div className="ml-auto flex gap-2">
+            <div className="flex flex-wrap gap-2 sm:ml-auto">
               <button className={secondaryButtonClass} onClick={() => download(`cardano-staking-rewards-${shownYear}-${currency}.csv`, rewardCsv([...shown].reverse(), currency))}>
                 <ArrowDownTrayIcon className="size-4" />
                 CSV {shownYear}
@@ -157,7 +157,7 @@ export default function TaxReport() {
       ) : null}
 
       {shownTotal ? (
-        <div className="surface flex flex-col gap-4 p-5">
+        <div className="surface flex flex-col gap-4 p-4 sm:p-5">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Staking rewards {shownTotal.year}</h2>
             <p className="mt-1 break-all font-mono text-[11px] text-base-content/55">{loaded?.addresses.join(", ")}</p>
@@ -188,7 +188,8 @@ export default function TaxReport() {
                 <thead>
                   <tr className="text-xs text-base-content/55">
                     <th>Month</th>
-                    <th className="text-right">Payouts</th>
+                    {/* the count is the one column a phone can do without, with it the value is cut off */}
+                    <th className="hidden text-right sm:table-cell">Payouts</th>
                     <th className="text-right">Rewards</th>
                     <th className="text-right">Value at payout</th>
                   </tr>
@@ -197,7 +198,7 @@ export default function TaxReport() {
                   {months.map((month) => (
                     <tr key={month.month} className={month.rewards === 0 ? "text-base-content/45" : ""}>
                       <td className="whitespace-nowrap">{formatMonth(month.month)}</td>
-                      <td className="text-right tabular-nums">{month.rewards}</td>
+                      <td className="hidden text-right tabular-nums sm:table-cell">{month.rewards}</td>
                       <td className="whitespace-nowrap text-right tabular-nums">{formatAda(month.lovelace)}</td>
                       <td className="whitespace-nowrap text-right tabular-nums font-medium">
                         {formatFiat(month.fiat, currency)}
