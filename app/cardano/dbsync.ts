@@ -1,5 +1,6 @@
 "use server";
 
+import { Answer, answer, UserError } from "@cardano/answer";
 import { paths } from "@cardano/dbsync.schema";
 import createClient from "openapi-fetch";
 
@@ -20,6 +21,21 @@ export async function getStakeInfo(stakeAddress: string) {
       params: { path: { stakeAddress } },
     })
   );
+}
+
+/**
+ * Whether a stake key is registered, which decides the certificate a delegation needs. A failure of the API is
+ * answered as one: taking it for "not registered" would build a transaction the chain refuses.
+ */
+export async function isStakeRegistered(stakeAddress: string): Promise<Answer<boolean>> {
+  return answer(async () => {
+    if (!/^stake(_test)?1[0-9a-z]{50,60}$/.test(stakeAddress)) throw new UserError("Your wallet reports no stake address");
+    const response = await fetch(`${baseUrl}/${stakeAddress}/stakeCheck`, { cache: "no-store", signal: AbortSignal.timeout(15_000) }).catch(() => null);
+    if (!response?.ok) throw new UserError("The chain data could not be read, so it is not known whether your stake key is registered. Nothing was submitted. Please try again in a moment.");
+    // the API answers an address the chain has never seen with an empty body
+    const text = await response.text();
+    return text ? JSON.parse(text)?.registered === true : false;
+  });
 }
 
 export async function getTokenFeed(beforeMintid?: number, afterMintid?: number) {

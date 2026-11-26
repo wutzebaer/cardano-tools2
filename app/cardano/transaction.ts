@@ -1,5 +1,6 @@
 import { watchConfirmation } from "@cardano/confirmation";
-import { getStakeInfo } from "@cardano/dbsync";
+import { answered } from "@cardano/answer";
+import { isStakeRegistered } from "@cardano/dbsync";
 import { currentSlot } from "@cardano/network";
 import { SimpleScript, WalletConnection } from "@cardano/types";
 import { formatAda } from "@cardano/utils";
@@ -304,12 +305,8 @@ export const delegateToPool = async (connection: WalletConnection, poolId: strin
   const rewardAddress = RewardAddress.from_address(address)!;
   const stakeCredential = rewardAddress.payment_cred();
 
-  let registered = false;
-  try {
-    registered = Boolean((await getStakeInfo(stakeAddress)).poolHash);
-  } catch {
-    registered = false;
-  }
+  // a registered key that delegates nowhere yet is still registered, and registering it again is refused
+  const registered = await answered(isStakeRegistered(stakeAddress));
 
   const certificates = Certificates.new();
   if (registered) {
