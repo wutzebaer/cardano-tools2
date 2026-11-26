@@ -81,17 +81,6 @@ function Minted({ result, onReset }: { result: MintResult; onReset: () => void }
   );
 }
 
-/** The policy to mint under and the button that mints. `tokens` is null while there is nothing valid to mint. */
-function MintNow(props: { wallet: ConnectedWallet; tokens: MintToken[] | null; summary: string; disabled?: boolean; onMinted: (result: MintResult) => void }) {
-  const selection = usePolicies(props.wallet);
-  return (
-    <>
-      <PolicyChoice wallet={props.wallet} selection={selection} />
-      <MintButton {...props} selection={selection} />
-    </>
-  );
-}
-
 type Policies = ReturnType<typeof usePolicies>;
 
 function PolicyChoice({ wallet, selection, step, onRoyaltyStatus }: { wallet: ConnectedWallet; selection: Policies; step?: number; onRoyaltyStatus?: (status: RoyaltyStatus) => void }) {
@@ -326,11 +315,15 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
   );
 }
 
-/** Fungible tokens have fields of their own (ticker, decimals, amount), they keep the form they had. */
+/**
+ * Fungible tokens have fields of their own (ticker, decimals, amount), so they keep their form. Its steps come in the
+ * order of the NFT form: the policy first, then the tokens, then the mint.
+ */
 function Fungible({ wallet }: { wallet: ConnectedWallet }) {
   const [tokens, setTokens] = useState<MintToken[]>(() => [newFungible(numberedName(1))]);
   const [editing, setEditing] = useState(false);
   const [result, setResult] = useState<MintResult | null>(null);
+  const selection = usePolicies(wallet);
 
   const valid = tokens.length > 0 && tokens.every((token) => Object.keys(tokenErrors(token, tokens)).length === 0);
 
@@ -348,6 +341,15 @@ function Fungible({ wallet }: { wallet: ConnectedWallet }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <PolicyChoice wallet={wallet} selection={selection} step={1} />
+
+      <div className="flex items-start gap-3 px-5">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">2</span>
+        <div>
+          <h3 className="text-base font-semibold leading-7 tracking-tight">Your tokens</h3>
+          <p className="text-sm text-base-content/60">Name, ticker and amount of each token. All of them are minted into your wallet.</p>
+        </div>
+      </div>
       {editing ? (
         <MetadataEditor tokens={tokens} onApply={(applied) => setTokens(applied.map((token) => ({ ...token, standard: 333 })))} onClose={() => setEditing(false)} />
       ) : (
@@ -375,8 +377,10 @@ function Fungible({ wallet }: { wallet: ConnectedWallet }) {
         </div>
       )}
 
-      <MintNow
+      <MintButton
         wallet={wallet}
+        selection={selection}
+        step={3}
         tokens={valid ? tokens : null}
         disabled={editing}
         summary={`Mints ${tokens.length} CIP-68 token${tokens.length === 1 ? "" : "s"} with on-chain metadata.`}
