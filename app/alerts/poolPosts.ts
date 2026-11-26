@@ -204,22 +204,65 @@ export const FUN_FACTS: FactMaker[] = [
 ];
 
 /** The fact of an epoch: the epoch picks where to start, a fact without anything to say passes on to the next. */
-export function funFact(numbers: EpochNumbers | null | undefined, stake: number, delegators: number, epoch = numbers?.epoch ?? 0): FunFact | null {
+export function funFact(numbers: EpochNumbers | null | undefined, stake: number, delegators: number, start?: number): FunFact | null {
   if (!numbers) return null;
+  const first = start ?? numbers.epoch;
   for (let step = 0; step < FUN_FACTS.length; step++) {
-    const fact = FUN_FACTS[(epoch + step) % FUN_FACTS.length](numbers, stake, delegators);
+    const fact = FUN_FACTS[(first + step) % FUN_FACTS.length](numbers, stake, delegators);
+    if (fact) return fact;
+  }
+  return null;
+}
+
+/** Chance that an epoch brings at least `blocks` blocks when `expected` are the average: blocks come like a Poisson draw. */
+export function chanceOfAtLeast(blocks: number, expected: number) {
+  let below = 0;
+  let term = Math.exp(-expected);
+  for (let k = 0; k < blocks; k++) {
+    below += term;
+    term *= expected / (k + 1);
+  }
+  return Math.max(0, 1 - below);
+}
+
+/** How often an epoch as lucky as the plan comes along, as a fact for the plan. */
+function oddsFact(scheduled: number, expected: number | null | undefined): FunFact | null {
+  if (expected == null || expected <= 0 || scheduled < 1) return null;
+  const chance = chanceOfAtLeast(scheduled, expected);
+  if (chance <= 0) return null;
+  const blocks = scheduled === 1 ? "a block" : `${scheduled} or more blocks`;
+  if (chance >= 0.5) {
+    return { label: "ODDS", value: `${Math.round(chance * 100)} %`, note: `of epochs bring ${blocks}`, sentence: `Fun fact: ${Math.round(chance * 100)} % of epochs bring the pool ${blocks}.` };
+  }
+  const oneIn = Math.round(1 / chance);
+  return { label: "ODDS", value: `1 in ${count(oneIn)}`, note: `epochs brings ${blocks}`, sentence: `Fun fact: only about 1 in ${count(oneIn)} epochs brings the pool ${blocks}.` };
+}
+
+/** The facts about the pool's history, which a plan can tell before its epoch has a block: by their place in FUN_FACTS. */
+const HISTORY_FACTS = [8, 9, 10, 11, 12, 15, 16, 18];
+
+/**
+ * The fact of a plan: the odds of so many blocks or a fact from the pool's history, the latter from the last finished
+ * epoch. The epoch picks where to start, like for the results.
+ */
+export function planFunFact(numbers: EpochNumbers | null | undefined, stake: number, delegators: number, scheduled: number, expected: number | null | undefined, epoch: number, start?: number): FunFact | null {
+  const makers: (() => FunFact | null)[] = [() => oddsFact(scheduled, expected), ...HISTORY_FACTS.map((index) => () => (numbers ? FUN_FACTS[index](numbers, stake, delegators) : null))];
+  const first = start ?? epoch;
+  for (let step = 0; step < makers.length; step++) {
+    const fact = makers[(first + step) % makers.length]();
     if (fact) return fact;
   }
   return null;
 }
 
 /** Text under the picture of the plan: how many blocks the coming epoch holds for the pool. */
-export function planCaption(ticker: string, facts: PoolEpochFacts, scheduled: number, siteUrl: string) {
+export function planCaption(ticker: string, facts: PoolEpochFacts, scheduled: number, siteUrl: string, fact?: FunFact | null) {
   const lines = [`[${ticker}] is scheduled for ${plural(scheduled, "block")} in epoch ${facts.epoch}.`];
   const percent = luck(scheduled, facts.expectedBlocks);
   if (facts.expectedBlocks != null && percent != null) {
     lines.push(`Its stake lets expect ${formatExpected(facts.expectedBlocks)}, so the epoch ${percent >= 100 ? "is a lucky one" : "falls short of the average"} with ${percent} %.`);
   }
+  if (fact) lines.push(fact.sentence);
   lines.push("", `${siteUrl}/pool`);
   return lines.join("\n");
 }

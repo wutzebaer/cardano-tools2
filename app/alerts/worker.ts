@@ -8,7 +8,7 @@ import path from "node:path";
 import { poolFindings, PoolFacts, PoolResults } from "../check/checkLogic";
 import { currentEpoch, currentSlot, epochStartUnix, NETWORK, slotToUnix, unixToEpoch } from "../cardano/network";
 import { POOL_ID, POOL_TICKER } from "../cardano/pool";
-import { battlesByEpoch, duePoolPosts, EpochBattles, EpochNumbers, funFact, initialPoolPostState, planCaption, PoolEpochFacts, PoolPostKind, PoolPostState, resultCaption, scheduledBlocks } from "./poolPosts";
+import { battlesByEpoch, duePoolPosts, EpochBattles, EpochNumbers, FUN_FACTS, funFact, initialPoolPostState, planFunFact, planCaption, PoolEpochFacts, PoolPostKind, PoolPostState, resultCaption, scheduledBlocks } from "./poolPosts";
 import { pushgatewayMetrics } from "./pushgateway";
 import { unlockSlotsFromMetadata } from "../cardano/timelockScript";
 import {
@@ -163,18 +163,27 @@ async function leaderlogNumbers() {
   return { scheduled: scheduledBlocks(metrics), battles: battlesByEpoch(metrics) };
 }
 
-/** Picture and text of a post about the pool, null when there is nothing to say about the epoch yet. */
-async function poolPost(kind: PoolPostKind, epoch: number, scheduled: Map<number, number>, battles: Map<number, EpochBattles>): Promise<{ image: Blob; caption: string } | null> {
+/**
+ * Picture and text of a post about the pool, null when there is nothing to say about the epoch yet. `factStart` picks
+ * the fun fact to start from instead of the epoch, for previews.
+ */
+async function poolPost(kind: PoolPostKind, epoch: number, scheduled: Map<number, number>, battles: Map<number, EpochBattles>, factStart?: number): Promise<{ image: Blob; caption: string } | null> {
   const count = scheduled.get(epoch);
   if (kind === "plan" && count == null) return null;
   const facts = await api<PoolEpochFacts>(`/pool/${POOL_ID}/epoch/${epoch}`);
   if (!facts) return null;
   // the page draws the picture, the bot runs in the same process and asks it directly
-  const picture = await fetch(`${OWN_URL}/pool-post/${kind}/${epoch}${count != null ? `?scheduled=${count}` : ""}`, { cache: "no-store", signal: AbortSignal.timeout(60_000) });
+  const query = new URLSearchParams();
+  if (count != null) query.set("scheduled", `${count}`);
+  if (factStart != null) query.set("fact", `${factStart}`);
+  const picture = await fetch(`${OWN_URL}/pool-post/${kind}/${epoch}${query.size > 0 ? `?${query}` : ""}`, { cache: "no-store", signal: AbortSignal.timeout(60_000) });
   if (!picture.ok) throw new Error(`picture of the post: ${picture.status}`);
-  const numbers = kind === "result" ? await api<EpochNumbers>(`/pool/${POOL_ID}/epoch/${epoch}/facts`).catch(() => null) : null;
+  // a plan speaks of the pool's history up to the last finished epoch, two before its own
+  const numbers = await api<EpochNumbers>(`/pool/${POOL_ID}/epoch/${kind === "plan" ? epoch - 2 : epoch}/facts`).catch(() => null);
   const caption =
-    kind === "plan" ? planCaption(POOL_TICKER, facts, count!, SITE_URL) : resultCaption(POOL_TICKER, facts, count, SITE_URL, battles.get(epoch), funFact(numbers, facts.stake, facts.delegators));
+    kind === "plan"
+      ? planCaption(POOL_TICKER, facts, count!, SITE_URL, planFunFact(numbers, facts.stake, facts.delegators, count!, facts.expectedBlocks, epoch, factStart))
+      : resultCaption(POOL_TICKER, facts, count, SITE_URL, battles.get(epoch), funFact(numbers, facts.stake, facts.delegators, factStart));
   return { image: await picture.blob(), caption };
 }
 
@@ -293,7 +302,9 @@ async function handleMessage(chatId: number, text: string) {
     const now = currentEpoch();
     // the newest plan there is, and the epoch that ended last
     const planned = scheduled.has(now + 1) ? now + 1 : now;
-    const posts = [await poolPost("plan", planned, scheduled, battles), await poolPost("result", now - 1, scheduled, battles)].filter((post) => post != null);
+    // a preview shows another fun fact each time, the posts in the group follow the epoch
+    const factStart = Math.floor(Math.random() * FUN_FACTS.length);
+    const posts = [await poolPost("plan", planned, scheduled, battles, factStart), await poolPost("result", now - 1, scheduled, battles, factStart)].filter((post) => post != null);
     if (posts.length === 0) await send(chatId, "There is nothing to show right now, the numbers of the pool could not be read.");
     for (const post of posts) await sendPhoto(chatId, post.image, post.caption);
   } else {

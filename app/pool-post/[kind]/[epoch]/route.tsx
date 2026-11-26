@@ -1,7 +1,7 @@
 import { getPoolCheck, getPoolEpoch, getPoolEpochFacts } from "@cardano/dbsync";
 import { POOL_ID, POOL_TICKER } from "@cardano/pool";
 import { ImageResponse } from "next/og";
-import { battleNote, battlesByEpoch, formatExpected, formatStake, funFact, luck } from "../../../alerts/poolPosts";
+import { battleNote, battlesByEpoch, formatExpected, formatStake, funFact, luck, planFunFact } from "../../../alerts/poolPosts";
 import { pushgatewayMetrics } from "../../../alerts/pushgateway";
 
 const SIZE = { width: 1200, height: 630 };
@@ -95,13 +95,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
   if ((kind !== "plan" && kind !== "result") || !Number.isInteger(epoch) || epoch < 0) return new Response("Not found", { status: 404 });
   const scheduledText = new URL(request.url).searchParams.get("scheduled");
   const scheduled = scheduledText != null && /^\d{1,4}$/.test(scheduledText) ? Number(scheduledText) : undefined;
+  // a preview asks for a fact of its own, without it the epoch picks one
+  const factText = new URL(request.url).searchParams.get("fact");
+  const factStart = factText != null && /^\d{1,2}$/.test(factText) ? Number(factText) : undefined;
   if (kind === "plan" && scheduled == null) return new Response("Not found", { status: 404 });
 
   const [facts, pool, metrics, numbers] = await Promise.all([
     getPoolEpoch(POOL_ID, epoch),
     getPoolCheck(POOL_ID),
     kind === "result" ? pushgatewayMetrics() : Promise.resolve(""),
-    kind === "result" ? getPoolEpochFacts(POOL_ID, epoch) : Promise.resolve(null),
+    // a plan speaks of the pool's history up to the last finished epoch, two before its own
+    getPoolEpochFacts(POOL_ID, kind === "plan" ? epoch - 2 : epoch),
   ]);
   if (!facts) return new Response("Not found", { status: 404 });
 
@@ -120,7 +124,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
           },
         ];
   // the result tells a different little fact each epoch; the expectation moves under the percentage
-  const fact = kind === "result" ? funFact(numbers, facts.stake, facts.delegators) : null;
+  const fact =
+    kind === "result"
+      ? funFact(numbers, facts.stake, facts.delegators, factStart)
+      : planFunFact(numbers, facts.stake, facts.delegators, scheduled!, facts.expectedBlocks, epoch, factStart);
   if (fact) tiles.push({ label: fact.label, value: fact.value, accent: false, note: fact.note });
   else if (facts.expectedBlocks != null) tiles.push({ label: "EXPECTED BY STAKE", value: formatExpected(facts.expectedBlocks), accent: false });
   if (percent != null) tiles.push({ label: "OF THE AVERAGE", value: `${percent} %`, accent: false, note: fact && facts.expectedBlocks != null ? `expected ${formatExpected(facts.expectedBlocks)}` : undefined });
