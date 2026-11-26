@@ -6,10 +6,9 @@
  * used: the registration travels in a transaction that mints the token with the empty name under the policy, the
  * "beacon", which nobody but the owner can do. That is the royalty token of CIP-27, so both are set in one transaction.
  */
-export const REGISTRATION_LABEL = 867;
+import { METADATA_TEXT_BYTES, textPieces } from "./metadata";
 
-/** Transaction metadata holds at most 64 bytes per string or byte string. */
-const METADATA_BYTES = 64;
+export const REGISTRATION_LABEL = 867;
 
 /** Transaction metadata as the serialization library reads it with its detailed schema, which knows integer keys and bytes. */
 export type Metadatum = { int: number } | { string: string } | { bytes: string } | { list: Metadatum[] } | { map: { k: Metadatum; v: Metadatum }[] };
@@ -20,32 +19,13 @@ const bytes = (hex: string): Metadatum => ({ bytes: hex });
 const list = (...items: Metadatum[]): Metadatum => ({ list: items });
 const map = (...entries: [number, Metadatum][]): Metadatum => ({ map: entries.map(([key, value]) => ({ k: int(key), v: value })) });
 
-/** Longer texts are written in pieces. Cut by bytes and between characters, so every piece is valid on its own. */
-function pieces(value: string): string[] {
-  const encoder = new TextEncoder();
-  const result: string[] = [];
-  let piece = "";
-  let length = 0;
-  for (const character of value) {
-    const bytes = encoder.encode(character).length;
-    if (length + bytes > METADATA_BYTES) {
-      result.push(piece);
-      piece = "";
-      length = 0;
-    }
-    piece += character;
-    length += bytes;
-  }
-  return piece ? [...result, piece] : result;
-}
-
 export const DESCRIPTION_MAX_LENGTH = 500;
 
 /** Why a collection name cannot be registered, undefined if it can. */
 export function collectionNameError(name: string): string | undefined {
   const length = new TextEncoder().encode(name.trim()).length;
   if (length === 0) return "Needs a name";
-  return length > METADATA_BYTES ? `At most ${METADATA_BYTES} bytes` : undefined;
+  return length > METADATA_TEXT_BYTES ? `At most ${METADATA_TEXT_BYTES} bytes` : undefined;
 }
 
 export interface Registration {
@@ -68,8 +48,8 @@ export interface Registration {
 /** The registration of a policy's collection, the value of label 867. */
 export function policyRegistration({ policyId, scriptCbor, name, description, image, royalty, nonce }: Registration): Metadatum {
   const collection: [number, Metadatum][] = [[0, text(name.trim())]];
-  if (description?.trim()) collection.push([1, list(...pieces(description.trim()).map(text))]);
-  if (image?.trim()) collection.push([2, list(...pieces(image.trim()).map(text))]);
+  if (description?.trim()) collection.push([1, list(...textPieces(description.trim()).map(text))]);
+  if (image?.trim()) collection.push([2, list(...textPieces(image.trim()).map(text))]);
   const details: [number, Metadatum][] = [[25, map([0, int(1)], [1, map(...collection)])]];
   if (royalty) {
     const address = [royalty.addr].flat().map(text);
@@ -78,7 +58,7 @@ export function policyRegistration({ policyId, scriptCbor, name, description, im
   const payload = map(
     // scope 0: a native script, with its hash and the script itself in pieces. The standard defines no scope for a
     // Plutus contract so far, 1 with the hash alone is what this site writes and reads for one.
-    [1, scriptCbor ? list(int(0), bytes(policyId), list(...(scriptCbor.match(new RegExp(`.{1,${METADATA_BYTES * 2}}`, "g")) ?? []).map(bytes))) : list(int(1), bytes(policyId))],
+    [1, scriptCbor ? list(int(0), bytes(policyId), list(...(scriptCbor.match(new RegExp(`.{1,${METADATA_TEXT_BYTES * 2}}`, "g")) ?? []).map(bytes))) : list(int(1), bytes(policyId))],
     [2, list(...details.map(([cip]) => int(cip)))],
     // validation 1: the beacon token, here the one with the empty name
     [3, list(int(1), list(bytes(policyId), bytes("")))],
