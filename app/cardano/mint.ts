@@ -40,10 +40,6 @@ export const utf8Bytes = (text: string) => new TextEncoder().encode(text);
 // Policy: derived from the wallet's payment key, nothing secret to store
 // ---------------------------------------------------------------------------
 
-export function paymentKeyHash(changeAddressHex: string) {
-  return Address.from_bytes(hexToBytes(changeAddressHex)).payment_cred()!.to_keyhash()!.to_hex();
-}
-
 export function policyScript(policy: MintPolicy): NativeScript {
   return toNativeScript(policy.script);
 }

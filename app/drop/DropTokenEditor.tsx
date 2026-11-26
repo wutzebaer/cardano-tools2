@@ -7,10 +7,9 @@ import { toIpfsUrl } from "@cardano/utils";
 import IpfsImage from "@components/IpfsImage";
 import { Field, inputClass, secondaryButtonClass } from "@components/ui";
 import { ArrowDownTrayIcon, ArrowUpTrayIcon, DocumentArrowUpIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { MAX_FILE_BYTES } from "@/app/mint/fileLimits";
 import { uploadToIpfs } from "@/app/mint/uploadToIpfs";
 import { ChangeEvent, KeyboardEvent, ReactNode, useEffect, useMemo, useState } from "react";
-
-const MAX_FILE_BYTES = 104_857_600;
 
 /** One attribute as the creator types it. Empty keys are ignored. */
 interface Attribute {

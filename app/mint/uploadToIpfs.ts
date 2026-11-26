@@ -1,8 +1,7 @@
 "use server";
 
 import { Answer, answer, UserError } from "@cardano/answer";
-
-const MAX_FILE_BYTES = 104_857_600;
+import { MAX_FILE_BYTES } from "./fileLimits";
 
 /** Stores a file on IPFS and answers with its hash. */
 export async function uploadToIpfs(file: File): Promise<Answer<string>> {

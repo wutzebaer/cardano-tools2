@@ -285,7 +285,7 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
               <span className="text-sm text-base-content/55">{option.text}</span>
             </button>
           ))}
-  </div>
+        </div>
       </div>
 
       {target === "mint" ? <PolicyChoice wallet={wallet} selection={selection} step={2} onRoyaltyStatus={setRoyaltyStatus} /> : null}
@@ -360,7 +360,7 @@ function Fungible({ wallet }: { wallet: ConnectedWallet }) {
           // a fungible token is one token: of a list in the JSON the first one counts
           <MetadataEditor tokens={tokens} onApply={(applied) => setTokens(applied.slice(0, 1).map((token) => ({ ...token, standard: 333 })))} onClose={() => setEditing(false)} />
         ) : (
-          tokens.map((token) => <TokenForm key={token.id} token={token} allTokens={tokens} fungibleOnly onChange={(changed) => setTokens(tokens.map((t) => (t.id === changed.id ? changed : t)))} />)
+          tokens.map((token) => <TokenForm key={token.id} token={token} allTokens={tokens} onChange={(changed) => setTokens(tokens.map((t) => (t.id === changed.id ? changed : t)))} />)
         )}
       </div>
 

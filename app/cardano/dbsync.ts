@@ -14,10 +14,6 @@ async function handleRequest<T>(request: Promise<{ data?: T; error?: unknown }>)
   return response.data!;
 }
 
-export async function getTip() {
-  return handleRequest(client.GET("/tip"));
-}
-
 export async function getStakeInfo(stakeAddress: string) {
   return handleRequest(
     client.GET("/{stakeAddress}/stakeInfo", {

@@ -16,7 +16,6 @@ import {
   parseDropList,
   positionOfToken,
   REFERENCE_LABEL,
-  USER_LABEL,
   utf8Hex,
 } from "@cardano/dropScript";
 import { burnTokensTx, buyTokenTx, closeGroupsTx, createDropTx, Drop, dropAddress, DropGroup, dropOf, DropOutput, DropTxContext, GROUPS_PER_CLOSE, NewDrop } from "@cardano/dropTx";
@@ -170,23 +169,4 @@ export async function closeGroups(connection: WalletConnection, state: DropState
   const closing = state.groups.slice(0, GROUPS_PER_CLOSE);
   const txHash = await signAndSubmitTransaction(connection, closeGroupsTx(await txContext(connection), state.drop, closing)).catch(withCollisionHint);
   return { txHash, left: state.groups.length - closing.length };
-}
-
-/** Asset names of the drop's tokens the wallet holds. */
-export async function heldTokens(connection: WalletConnection, policyId: string): Promise<string[]> {
-  const names: string[] = [];
-  for (const utxo of await walletUtxos(connection)) {
-    const assets = utxo.output().amount().multiasset();
-    const keys = assets?.keys();
-    for (let p = 0; p < (keys?.len() ?? 0); p++) {
-      if (keys!.get(p).to_hex() !== policyId) continue;
-      const held = assets!.get(keys!.get(p))!;
-      const heldNames = held.keys();
-      for (let n = 0; n < heldNames.len(); n++) {
-        const name = Buffer.from(heldNames.get(n).name()).toString("hex");
-        if (name.startsWith(USER_LABEL)) names.push(Buffer.from(name.slice(USER_LABEL.length), "hex").toString("utf8"));
-      }
-    }
-  }
-  return names;
 }
