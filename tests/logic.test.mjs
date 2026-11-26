@@ -42,6 +42,7 @@ import { NETWORK, NETWORKS, unixToEpoch, unixToSlot } from "../app/cardano/netwo
 import { collectionNameError, policyRegistration } from "../app/cardano/registration.ts";
 import { candidateUnlockTimes, DAY_SECONDS, FIRST_UNLOCK_UNIX, MAX_LOCK_DAYS, timelockMetadata, timeScriptHash, unlockSlotsFromMetadata, unlockTimeError } from "../app/cardano/timelockScript.ts";
 import { assetNameFromHex, cip67Label, errorToMessage, formatAda, formatTokenAmount, metadataDecimals, parseMetadata, policyLockSlot, shortenId, toDisplayMetadata, toIpfsUrl, tokenFiles, tokenImage } from "../app/cardano/utils.ts";
+import { DEFAULT_UPLOAD_LIMITS, uploadLimitsFrom, UploadMeter } from "../app/mint/uploadLimit.ts";
 import { priceAt, statementCsv, statementLines } from "../app/statement/statement.ts";
 import { isPaid, monthCsv, monthTotals, rewardCsv, rewardEntries, yearTotals } from "../app/tax/rewardReport.ts";
 
@@ -1061,4 +1062,40 @@ test("the two places that cut long metadata texts cut them alike", () => {
   assert.deepEqual(fromMint, fromRegistration);
   assert.equal(fromMint.join(""), long);
   assert.ok(fromMint.length > 1 && fromMint.every((piece) => new TextEncoder().encode(piece).length <= 64));
+});
+
+// ---------------------------------------------------------------------------
+// Uploads to IPFS
+// ---------------------------------------------------------------------------
+
+test("a visitor stores only so much on IPFS within a day, and so do all together", () => {
+  const meter = new UploadMeter({ filesPerDay: 3, bytesPerDay: 100, totalBytesPerDay: 150 });
+  const hour = 60 * 60 * 1000;
+  assert.equal(meter.admit("a", 40, 0), undefined);
+  assert.equal(meter.admit("a", 40, hour), undefined);
+  // too many bytes for one visitor, which is not counted
+  assert.match(meter.admit("a", 40, 2 * hour), /one visitor/);
+  assert.equal(meter.admit("a", 20, 2 * hour), undefined);
+  // too many files, however small
+  assert.match(meter.admit("a", 0, 3 * hour), /one visitor/);
+  // another visitor has an allowance of their own, until all together have used theirs
+  assert.equal(meter.admit("b", 50, 3 * hour), undefined);
+  assert.match(meter.admit("b", 1, 3 * hour), /within a day/);
+  assert.doesNotMatch(meter.admit("b", 1, 3 * hour), /one visitor/);
+  // a day after the first upload everything starts anew
+  assert.equal(meter.admit("a", 100, 24 * hour), undefined);
+  assert.equal(meter.admit("b", 50, 24 * hour), undefined);
+});
+
+test("the limits of uploads come from the environment where it sets them", () => {
+  assert.deepEqual(uploadLimitsFrom({}), DEFAULT_UPLOAD_LIMITS);
+  assert.deepEqual(uploadLimitsFrom({ IPFS_UPLOAD_FILES_PER_DAY: "100", IPFS_UPLOAD_GB_PER_DAY: "0.5", IPFS_UPLOAD_TOTAL_GB_PER_DAY: "2" }), {
+    filesPerDay: 100,
+    bytesPerDay: 536_870_912,
+    totalBytesPerDay: 2_147_483_648,
+  });
+  // nothing that is no positive number switches a limit off
+  assert.deepEqual(uploadLimitsFrom({ IPFS_UPLOAD_FILES_PER_DAY: "0", IPFS_UPLOAD_GB_PER_DAY: "many", IPFS_UPLOAD_TOTAL_GB_PER_DAY: " " }), DEFAULT_UPLOAD_LIMITS);
+  // the largest drop fits into what one visitor may store
+  assert.ok(DEFAULT_UPLOAD_LIMITS.filesPerDay > 10_000);
 });
