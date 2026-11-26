@@ -78,6 +78,11 @@ export interface MintToken {
   properties: TokenProperty[];
   /** Metadata fields set through the JSON editor that the form has no input for */
   extra: Record<string, MetaValue>;
+  /**
+   * The metadata of a token that was put together elsewhere than in the form, written as it is. The fields above
+   * then say nothing about what goes on chain.
+   */
+  metadata?: Record<string, MetaValue>;
 }
 
 export type TokenListItem = components["schemas"]["TokenListItem"];

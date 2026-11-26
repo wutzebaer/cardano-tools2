@@ -3,7 +3,7 @@
 import { SellAsDrop } from "@/app/drop/CreateDrop";
 import DropTokenEditor from "@/app/drop/DropTokenEditor";
 import { DropToken } from "@cardano/dropScript";
-import { assetNameFor, tokensFromMetadata } from "@cardano/metadata";
+import { assetNameFor } from "@cardano/metadata";
 import { MintCosts, mintCosts, mintedAssetNameHex, MintFormat, MintProgress, mintTokens, PartialMintError } from "@cardano/mint";
 import CostTable, { shown } from "@components/CostTable";
 import { formatAda } from "@cardano/utils";
@@ -254,9 +254,30 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
   const [royaltyStatus, setRoyaltyStatus] = useState<RoyaltyStatus>("settled");
   const [lastStep, setLastStep] = useState<number>();
 
-  // the mint transaction takes the tokens in the form of the mint page
+  // the mint writes the metadata as the editor made it, the same a drop of these tokens would sell
   const mintTokensList = useMemo(
-    () => (tokens ? tokensFromMetadata(Object.fromEntries(tokens.map((token) => [token.assetName, token.metadata])), []).map((token) => ({ ...token, standard: 222 as const, amount: "1" })) : null),
+    () =>
+      tokens
+        ? tokens.map(
+            (token): MintToken => ({
+              id: token.assetName,
+              standard: 222,
+              assetName: token.assetName,
+              amount: "1",
+              name: typeof token.metadata.name === "string" ? token.metadata.name : token.assetName,
+              description: "",
+              image: "",
+              mediaType: "",
+              ticker: "",
+              url: "",
+              decimals: "",
+              files: [],
+              properties: [],
+              extra: {},
+              metadata: token.metadata,
+            })
+          )
+        : null,
     [tokens]
   );
 

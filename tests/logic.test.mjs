@@ -251,6 +251,15 @@ test("CIP-25 metadata lists the tokens by asset name and cuts long texts into pi
   assert.equal(entry.rank, 3);
 });
 
+test("metadata that was put together elsewhere is written as it is", () => {
+  // these names are fields of a fungible token in the form, for an NFT they are attributes like any other
+  const metadata = { name: "Robot #1", image: "ipfs://QmImage", url: "https://example.org", ticker: "RBT", decimals: "none", logo: "round", files: [{ src: "ipfs://QmFile", note: "kept" }], story: "ä".repeat(40) };
+  const ready = token({ name: "ignored", image: "ignored", properties: [{ key: "ignored", value: "x" }], metadata });
+  assert.deepEqual(tokenMetadata(ready), metadata);
+  const entry = cip25Metadata("ab".repeat(28), [ready])["ab".repeat(28)].Token001;
+  assert.deepEqual(entry, { ...metadata, story: ["ä".repeat(32), "ä".repeat(8)] });
+});
+
 test("CIP-25 metadata of a fungible token carries its logo as image", () => {
   const metadata = cip25Metadata("ab".repeat(28), [token({ standard: 333, ticker: "TKN", decimals: "6" })]);
   assert.deepEqual(metadata["ab".repeat(28)].Token001, { name: "Token 001", ticker: "TKN", decimals: 6, image: "ipfs://QmImage" });
