@@ -56,7 +56,11 @@ function AngryMob() {
   );
 }
 
-function Tile({ label, value, accent = false, note = "" }: { label: string; value: string; accent?: boolean; note?: string }) {
+/** Heights of the rows in a tile: every tile has the same, so values and notes line up whatever their size. */
+const VALUE_HEIGHT = 92;
+const NOTE_HEIGHT = 56;
+
+function Tile({ label, value, accent = false, note = "", noteRow = false }: { label: string; value: string; accent?: boolean; note?: string; noteRow?: boolean }) {
   return (
     <div
       style={{
@@ -73,9 +77,11 @@ function Tile({ label, value, accent = false, note = "" }: { label: string; valu
       }}
     >
       <div style={{ display: "flex", fontSize: 20, letterSpacing: 2, whiteSpace: "nowrap", color: "#8b93a7" }}>{label}</div>
-      <div style={{ display: "flex", fontSize: value.length <= 6 ? 76 : value.length <= 8 ? 60 : 48, fontWeight: 700, color: accent ? "#ffffff" : "#e6e8ee" }}>{value}</div>
-      {note ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 22, color: note.includes("lost to") || note.includes("missed") ? "#fdba74" : "#8b93a7" }}>
+      <div style={{ display: "flex", alignItems: "center", height: VALUE_HEIGHT, fontSize: value.length <= 6 ? 76 : value.length <= 8 ? 60 : 48, fontWeight: 700, color: accent ? "#ffffff" : "#e6e8ee" }}>
+        {value}
+      </div>
+      {noteRow ? (
+        <div style={{ display: "flex", alignItems: "center", height: NOTE_HEIGHT, gap: 12, fontSize: 22, color: note.includes("lost to") || note.includes("missed") ? "#fdba74" : "#8b93a7" }}>
           {note.includes("lost to") ? <AngryMob /> : null}
           {/* several winners take two lines rather than leave the tile */}
           <span style={{ display: "flex", textAlign: "center", maxWidth: note.includes("lost to") ? 150 : 270 }}>{note}</span>
@@ -156,7 +162,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
         </div>
         <div style={{ display: "flex", gap: 24 }}>
           {tiles.map((tile) => (
-            <Tile key={tile.label} {...tile} />
+            <Tile key={tile.label} {...tile} noteRow={tiles.some((other) => other.note)} />
           ))}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 30, color: "#8b93a7" }}>
