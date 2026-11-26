@@ -1,7 +1,8 @@
 import { explorerPoolUrl, IS_MAINNET } from "@cardano/network";
-import { POOL_ID, POOL_TICKER, TELEGRAM_BOT } from "@cardano/pool";
+import { POOL_ID, POOL_TICKER } from "@cardano/pool";
 import { formatAda, formatNumber, shortenId } from "@cardano/utils";
 import CopyButton from "@components/CopyButton";
+import TelegramStart from "@components/TelegramStart";
 import { ExternalLink } from "@components/ui";
 import {
   ArrowRightStartOnRectangleIcon,
@@ -64,9 +65,7 @@ function AlertsCard({ stakeAddress }: { stakeAddress: string }) {
             <p className="mt-0.5 text-sm text-base-content/65">Free alerts on Telegram, so you do not have to come back and check.</p>
           </div>
         </div>
-        <ExternalLink href={`https://t.me/${TELEGRAM_BOT}?start=${stakeAddress}`} className="btn btn-primary shrink-0">
-          Get alerts on Telegram
-        </ExternalLink>
+        <TelegramStart stakeAddress={stakeAddress}>Get alerts on Telegram</TelegramStart>
       </div>
       <ul className="flex flex-wrap gap-2">
         {ALERTS.map((alert) => (

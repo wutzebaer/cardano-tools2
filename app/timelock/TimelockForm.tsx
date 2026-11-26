@@ -2,7 +2,7 @@
 
 import { assetKey, assetsInUtxos, lovelaceInUtxos, WalletAsset } from "@cardano/assets";
 import { explorerTxUrl, IS_MAINNET, unixToSlot } from "@cardano/network";
-import { TELEGRAM_BOT } from "@cardano/pool";
+import TelegramStart from "@components/TelegramStart";
 import {
   findTimelocks,
   fundKeyAddress,
@@ -210,9 +210,7 @@ function Timelocks({ wallet }: { wallet: ConnectedWallet }) {
               </p>
             </div>
           </div>
-          <ExternalLink href={`https://t.me/${TELEGRAM_BOT}?start=${wallet.stakeAddress}`} className="btn btn-primary shrink-0">
-            Tell me on Telegram
-          </ExternalLink>
+          <TelegramStart stakeAddress={wallet.stakeAddress}>Tell me on Telegram</TelegramStart>
         </div>
       ) : null}
 
