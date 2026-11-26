@@ -1,6 +1,6 @@
 "use client";
 
-import { SellAsDrop, YourDrops } from "@/app/drop/CreateDrop";
+import { SellAsDrop } from "@/app/drop/CreateDrop";
 import DropTokenEditor from "@/app/drop/DropTokenEditor";
 import { DropToken } from "@cardano/dropScript";
 import { assetNameFor, tokensFromMetadata } from "@cardano/metadata";
@@ -402,7 +402,6 @@ function Mint({ wallet }: { wallet: ConnectedWallet }) {
         ))}
       </div>
       {kind === "nft" ? <Nfts wallet={wallet} /> : <Fungible wallet={wallet} />}
-      <YourDrops />
     </div>
   );
 }

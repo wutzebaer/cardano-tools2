@@ -128,7 +128,11 @@ export function SellAsDrop({ wallet, tokens, step }: { wallet: ConnectedWallet; 
     return (
       <TxResult title="Drop created" txHashes={[result.txHash]} onReset={() => setResult(null)} resetLabel="Back to the form">
         <p className="text-sm text-base-content/65">
-          Once the transaction is confirmed, this is the page your buyers buy on:
+          Once the transaction is confirmed, this is the page your buyers buy on. You find it again under{" "}
+          <Link className="link" href="/drop">
+            My drops
+          </Link>
+          :
           <Link className="link link-primary mt-1 block break-all" href={`/drop/${result.policyId}`}>
             cardano-tools.io/drop/{result.policyId}
           </Link>
