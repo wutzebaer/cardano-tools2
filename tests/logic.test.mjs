@@ -31,15 +31,17 @@ import {
   parseDropList,
   plutusCbor,
   plutusFromCbor,
+  REFERENCE_LABEL,
   scriptHash,
   sizeOfGroup,
   suggestedGroups,
   tickSold,
+  USER_LABEL,
 } from "../app/cardano/dropScript.ts";
 import { NETWORK, NETWORKS, unixToEpoch, unixToSlot } from "../app/cardano/network.ts";
 import { collectionNameError, policyRegistration } from "../app/cardano/registration.ts";
 import { candidateUnlockTimes, DAY_SECONDS, FIRST_UNLOCK_UNIX, MAX_LOCK_DAYS, timelockMetadata, timeScriptHash, unlockSlotsFromMetadata, unlockTimeError } from "../app/cardano/timelockScript.ts";
-import { policyLockSlot } from "../app/cardano/utils.ts";
+import { assetNameFromHex, cip67Label, errorToMessage, formatAda, formatTokenAmount, metadataDecimals, parseMetadata, policyLockSlot, shortenId, toDisplayMetadata, toIpfsUrl, tokenFiles, tokenImage } from "../app/cardano/utils.ts";
 import { priceAt, statementCsv, statementLines } from "../app/statement/statement.ts";
 import { isPaid, monthCsv, monthTotals, rewardCsv, rewardEntries, yearTotals } from "../app/tax/rewardReport.ts";
 
@@ -939,4 +941,124 @@ test("the script of a drop is the one the chain accepted", () => {
   const seed = {"txHash": "6c2dfe0347e1de8d01a083441659accce41b67e629ad0063d837baafe793fb72", "index": 2};
   assert.equal(scriptHash(applyDropParams(DROP_CODE, DROP_TERM_BITS, seed, true)), "0aec62b19a2a78cdd8d200788f3969770f1c5f52ba12bb2ab1520324");
   assert.notEqual(scriptHash(applyDropParams(DROP_CODE, DROP_TERM_BITS, seed, false)), "0aec62b19a2a78cdd8d200788f3969770f1c5f52ba12bb2ab1520324");
+});
+
+// ---------------------------------------------------------------------------
+// Reading tokens: names, amounts and metadata as the lists show them
+// ---------------------------------------------------------------------------
+
+const hexOf = (text) => Buffer.from(text, "utf8").toString("hex");
+
+test("a CIP-67 label is read from an asset name only where its checksum fits", () => {
+  assert.equal(cip67Label(`000643b0${hexOf("Robot")}`), 100);
+  assert.equal(cip67Label(`000de140${hexOf("Robot")}`), 222);
+  assert.equal(cip67Label(`0014df10${hexOf("Robot")}`), 333);
+  // the labels the drop contract writes are the ones read here
+  assert.equal(cip67Label(REFERENCE_LABEL), 100);
+  assert.equal(cip67Label(USER_LABEL), 222);
+  // a wrong checksum, a plain name and a name too short for a label
+  assert.equal(cip67Label(`000de150${hexOf("Robot")}`), undefined);
+  assert.equal(cip67Label(hexOf("Robot")), undefined);
+  assert.equal(cip67Label("0006"), undefined);
+
+  assert.equal(assetNameFromHex(`000de140${hexOf("Robot")}`), "Robot");
+  assert.equal(assetNameFromHex(hexOf("Robot")), "Robot");
+  assert.equal(assetNameFromHex(""), "");
+});
+
+test("amounts and ids are written the same way everywhere", () => {
+  assert.equal(formatAda(1_500_000), "1.5 ₳");
+  assert.equal(formatAda(1_234_567_890), "1,234.57 ₳");
+  assert.equal(formatAda(0), "0.0 ₳");
+  assert.equal(formatAda(undefined), "");
+  assert.equal(formatTokenAmount(1_234_567, 6), "1.234567");
+  assert.equal(formatTokenAmount(1_234_567), "1,234,567");
+  assert.equal(formatTokenAmount(undefined), "");
+  assert.equal(shortenId("abcdefghijklmnop", 3), "abc…nop");
+  assert.equal(shortenId("abcdefg", 3), "abcdefg");
+});
+
+test("addresses of files become links a browser can load", () => {
+  assert.equal(toIpfsUrl("ipfs://QmFile"), "https://cardano-tools.io/ipfs/QmFile");
+  assert.equal(toIpfsUrl("ipfs://ipfs/QmFile"), "https://cardano-tools.io/ipfs/QmFile");
+  // CIP-25 cuts a long address into pieces
+  assert.equal(toIpfsUrl(["ipfs://Qm", "File"]), "https://cardano-tools.io/ipfs/QmFile");
+  assert.equal(toIpfsUrl("ar://abc"), "https://arweave.net/abc");
+  assert.equal(toIpfsUrl("https://example.org/a.png"), "https://example.org/a.png");
+  assert.equal(toIpfsUrl("data:image/png;base64,AAAA"), "data:image/png;base64,AAAA");
+  assert.equal(toIpfsUrl(null), "");
+});
+
+test("metadata is flattened to one line per value, with texts in pieces joined again", () => {
+  const metadata = parseMetadata(
+    JSON.stringify({
+      name: "Robot #1",
+      image: ["ipfs://Qm", "Image"],
+      rank: 1234.5,
+      attributes: { eyes: "blue" },
+      tags: ["a", "b"],
+      files: [
+        { name: "Full size", mediaType: "image/png", src: ["ipfs://Qm", "Full"] },
+        { mediaType: "image/png", src: "ipfs://QmImage" },
+      ],
+    })
+  );
+  assert.equal(metadata.name, "Robot #1");
+  assert.equal(metadata.image, "ipfs://QmImage");
+  assert.equal(metadata.rank, "1,234.5");
+  assert.equal(metadata["attributes / eyes"], "blue");
+  assert.equal(metadata["tags / 0"], "a");
+  assert.equal(metadata["tags / 1"], "b");
+  assert.equal(tokenImage(metadata), "ipfs://QmImage");
+  // the file that is the picture itself is not listed a second time
+  assert.deepEqual(tokenFiles(metadata, "ipfs://QmImage"), [{ name: "Full size", mediaType: "image/png", src: "ipfs://QmFull" }]);
+  assert.deepEqual(toDisplayMetadata({ name: "Robot #1", image: "ipfs://QmImage", eyes: "blue", "files / 0 / src": "ipfs://QmFull" }), { eyes: "blue" });
+  assert.deepEqual(toDisplayMetadata({ name: "Robot #1", attributes: { eyes: "red" } }), { eyes: "red" });
+
+  assert.equal(tokenImage({ logo: "ipfs://QmLogo" }), "ipfs://QmLogo");
+  assert.equal(tokenImage({}), "");
+  assert.deepEqual(parseMetadata("not json"), {});
+});
+
+test("CIP-25 metadata is found under its policy and asset name, written as text or as hex", () => {
+  const policyId = "ab".repeat(28);
+  const other = { name: "Another one" };
+  const asText = JSON.stringify({ 721: { [policyId]: { Other: other, Robot: { name: "Robot" } } } });
+  const asHex = JSON.stringify({ 721: { [policyId]: { [hexOf("Other")]: other, [hexOf("Robot")]: { name: "Robot" } } } });
+  assert.deepEqual(parseMetadata(asText, policyId, hexOf("Robot")), { name: "Robot" });
+  assert.deepEqual(parseMetadata(asHex, policyId, hexOf("Robot")), { name: "Robot" });
+  // a CIP-68 token is listed without its label
+  assert.deepEqual(parseMetadata(asText, policyId, `000de140${hexOf("Robot")}`), { name: "Robot" });
+  // metadata that is not wrapped stays as it is
+  assert.deepEqual(parseMetadata(JSON.stringify({ name: "Plain" }), policyId, hexOf("Robot")), { name: "Plain" });
+});
+
+test("decimals are read as a number however the metadata writes them", () => {
+  assert.equal(metadataDecimals({ decimals: 6 }), 6);
+  assert.equal(metadataDecimals({ decimals: "6" }), 6);
+  assert.equal(metadataDecimals({ decimals: "six" }), 0);
+  assert.equal(metadataDecimals({}), 0);
+});
+
+test("an error is told in its own words, a failure of the live server by its number", () => {
+  assert.equal(errorToMessage(new Error("Too little ADA")), "Too little ADA");
+  assert.equal(errorToMessage(new Error("Mint stopped", { cause: new Error("declined") })), "Mint stopped, declined");
+  // CIP-30 wallets answer with an object that has no message
+  assert.equal(errorToMessage({ code: 2, info: "User declined to sign" }), "User declined to sign");
+  assert.equal(errorToMessage("plain text"), "plain text");
+  assert.equal(errorToMessage({ digest: "123456" }), "The server could not answer this request. Please try again in a moment. (error 123456)");
+  assert.equal(errorToMessage(null), "An unexpected error occurred.");
+});
+
+test("the two places that cut long metadata texts cut them alike", () => {
+  // one, two, three and four bytes per character, so the pieces end at different places than characters do
+  const long = `${"a".repeat(63)}ä${"€".repeat(30)}${"😀".repeat(20)} and some more text at the end`;
+  const fromMint = cip25Metadata("ab".repeat(28), [token({ description: long })])["ab".repeat(28)].Token001.description;
+  const registration = policyRegistration({ policyId: "ab".repeat(28), name: "Name", description: long, nonce: 1 });
+  const entry = (map, key) => map.map.find(({ k }) => k.int === key).v;
+  const collection = entry(entry(entry(entry(registration, 1), 6), 25), 1);
+  const fromRegistration = entry(collection, 1).list.map((piece) => piece.string);
+  assert.deepEqual(fromMint, fromRegistration);
+  assert.equal(fromMint.join(""), long);
+  assert.ok(fromMint.length > 1 && fromMint.every((piece) => new TextEncoder().encode(piece).length <= 64));
 });
