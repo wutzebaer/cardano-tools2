@@ -1,7 +1,7 @@
 import { getPoolCheck, getPoolEpoch, getPoolEpochFacts } from "@cardano/dbsync";
 import { POOL_ID, POOL_TICKER } from "@cardano/pool";
 import { ImageResponse } from "next/og";
-import { battleNote, battlesByEpoch, epochStartNote, formatExpected, formatStake, funFact, luck, planFunFact } from "../../../alerts/poolPosts";
+import { battleNote, battlesByEpoch, epochStartNote, formatExpected, formatStake, funFact, luck, planCaption, planFunFact, resultCaption } from "../../../alerts/poolPosts";
 import { epochStartUnix } from "@cardano/network";
 import { pushgatewayMetrics } from "../../../alerts/pushgateway";
 
@@ -135,6 +135,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
     kind === "result"
       ? funFact(numbers, facts.stake, facts.delegators, factStart)
       : planFunFact(numbers, facts.stake, facts.delegators, scheduled!, facts.expectedBlocks, epoch, factStart);
+  // the text that goes with the picture, for posting it somewhere else by hand: the same words the bot writes
+  if (new URL(request.url).searchParams.get("format") === "text") {
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://cardano-tools.io").replace(/\/$/, "");
+    const caption = kind === "plan" ? planCaption(POOL_TICKER, facts, scheduled!, siteUrl, fact) : resultCaption(POOL_TICKER, facts, scheduled, siteUrl, battles, fact);
+    return new Response(caption, { headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
   if (fact) tiles.push({ label: fact.label, value: fact.value, accent: false, note: fact.note });
   else if (facts.expectedBlocks != null) tiles.push({ label: "EXPECTED BY STAKE", value: formatExpected(facts.expectedBlocks), accent: false });
   if (percent != null) tiles.push({ label: "OF THE AVERAGE", value: `${percent} %`, accent: false, note: fact && facts.expectedBlocks != null ? `expected ${formatExpected(facts.expectedBlocks)}` : undefined });
