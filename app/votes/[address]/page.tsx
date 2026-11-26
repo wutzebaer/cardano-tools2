@@ -25,10 +25,10 @@ export default async function Page({ params }: Props) {
   const data = await loadGovernance(input);
   return (
     <>
-      <PageHeader title="Governance" art="governance">
+      <PageHeader title="Governance" art="governance" compact>
         What Cardano is voting on and how the representative and the pool of an address voted
       </PageHeader>
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-4 sm:gap-8">
         <CheckForm initial={input} base="/votes" submitLabel="Show votes" />
         {"error" in data ? <Notice tone="warning">{data.error}</Notice> : <GovernanceView data={data} />}
       </div>

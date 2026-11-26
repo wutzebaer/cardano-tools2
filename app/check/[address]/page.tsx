@@ -26,10 +26,10 @@ export default async function Page({ params }: Props) {
   const data = await load(input);
   return (
     <>
-      <PageHeader title="Staking check" art="check">
+      <PageHeader title="Staking check" art="check" compact>
         Pool, fees, voting rights and rewards of a Cardano address
       </PageHeader>
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-4 sm:gap-8">
         <CheckForm initial={input} />
         {"error" in data ? <Notice tone="warning">{data.error}</Notice> : <CheckResult data={data} />}
       </div>

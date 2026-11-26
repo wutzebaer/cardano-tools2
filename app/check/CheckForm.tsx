@@ -37,12 +37,12 @@ export default function CheckForm({ initial = "", base = "/check", submitLabel =
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
-      <label className={`${inputClass} bg-base-200`}>
+    <form onSubmit={submit} className="flex gap-2">
+      <label className={`${inputClass} min-w-0 bg-base-200`}>
         <MagnifyingGlassIcon className="size-4 shrink-0 text-base-content/45" />
-        <input className="grow text-sm" value={input} onChange={(e) => setInput(e.target.value)} placeholder="stake1…, addr1… or $handle" aria-label="Address or handle" />
+        <input className="min-w-0 grow text-sm" value={input} onChange={(e) => setInput(e.target.value)} placeholder="stake1…, addr1… or $handle" aria-label="Address or handle" />
       </label>
-      <button className="btn btn-primary" type="submit" disabled={!input.trim()}>
+      <button className="btn btn-primary shrink-0" type="submit" disabled={!input.trim()}>
         {submitLabel}
       </button>
     </form>
