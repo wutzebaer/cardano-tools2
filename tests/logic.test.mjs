@@ -11,6 +11,7 @@ import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../
 import { drepKind, marginCostPerYear, pickAlternatives, poolFindings, suggestsAlternatives } from "../app/check/checkLogic.ts";
 import { actionStatus, actionTitle, poolsVoteOn, sortActions, voteOfAddress, voteOfPool } from "../app/votes/governanceLogic.ts";
 import { assetNameFor, cip25Metadata, tokenMetadata, tokensFromMetadata, tokensMetadata } from "../app/cardano/metadata.ts";
+import { isPresentable } from "../app/cardano/technicalToken.ts";
 import { DROP_BLUEPRINT_HASH, DROP_CODE, DROP_TERM_BITS } from "../app/cardano/dropBlueprint.ts";
 import {
   applyDropParams,
@@ -243,6 +244,19 @@ test("CIP-25 metadata lists the tokens by asset name and cuts long texts into pi
   assert.deepEqual(entry.description, ["ä".repeat(32), "ä".repeat(8)]);
   assert.deepEqual(entry.traits, ["a", "b"]);
   assert.equal(entry.rank, 3);
+});
+
+test("tokens named by a hash and without a picture stay out of the feed", () => {
+  const hex = (text) => Buffer.from(text, "utf8").toString("hex");
+  assert.equal(isPresentable({ maName: hex("Foxxy002"), name: "Foxxy #2", image: "" }), true);
+  assert.equal(isPresentable({ maName: "000de140" + hex("Foxxy002"), name: "", image: "" }), true);
+  // a name of raw bytes, as contracts use for their own bookkeeping
+  assert.equal(isPresentable({ maName: "f3a9c1ffee0102", name: "\uFFFD\uFFFD", image: "" }), false);
+  assert.equal(isPresentable({ maName: "f3a9c1ffee0102", name: "", image: "" }), false);
+  // with a picture it is somebody's token after all
+  assert.equal(isPresentable({ maName: "f3a9c1ffee0102", name: "Fluid tokens bond", image: "ipfs://Qm" }), true);
+  // the royalty token
+  assert.equal(isPresentable({ maName: "", name: "", image: "" }), true);
 });
 
 test("token metadata contains only what is set", () => {

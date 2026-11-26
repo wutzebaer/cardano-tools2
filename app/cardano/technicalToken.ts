@@ -25,6 +25,33 @@ export function isListed(nameHex: string | null | undefined) {
   return kind !== "reference" && kind !== "group";
 }
 
+/** Text a person can read: no bytes that are no text, no control characters. */
+function isReadable(text: string) {
+  return text.trim() !== "" && !/[\uFFFD\u0000-\u001F\u007F-\u009F]/.test(text);
+}
+
+/** The asset name (hex) as text, undefined where its bytes are no text. A CIP-67 label in front is left out. */
+function assetNameText(nameHex: string) {
+  try {
+    const bytes = Buffer.from(cip67Label(nameHex) != null ? nameHex.slice(8) : nameHex, "hex");
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Whether a token has anything to show in a feed of tokens: a picture, or a name that reads as text. Contracts keep
+ * their books in tokens named by a hash, without metadata; a list full of those says nothing to anybody.
+ */
+export function isPresentable(token: { maName: string; name?: string | null; image?: string | null }) {
+  if (token.image) return true;
+  // the royalty token has no name of its own and is shown as what it is
+  if (!token.maName) return true;
+  const assetName = assetNameText(token.maName);
+  return assetName !== undefined && isReadable(assetName) && (!token.name || isReadable(token.name));
+}
+
 /** What a token is by its asset name (hex), undefined for an ordinary one. */
 export function technicalToken(nameHex: string | null | undefined): TechnicalToken | undefined {
   // CIP-27: the token without a name is the one whose mint set the royalties of its policy
