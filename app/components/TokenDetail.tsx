@@ -264,7 +264,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                                         })}
                                         {holders.length > shownHolders.length ? (
                                             <span className="font-sans text-xs text-base-content/55">
-                                                and {holders.length > SHOWN_HOLDERS ? `more than ${SHOWN_HOLDERS - shownHolders.length}` : holders.length - shownHolders.length} more
+                                                {holders.length > SHOWN_HOLDERS ? 'and many more' : `and ${holders.length - shownHolders.length} more`}
                                             </span>
                                         ) : null}
                                     </span>
