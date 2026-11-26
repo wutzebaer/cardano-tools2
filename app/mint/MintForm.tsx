@@ -116,8 +116,28 @@ const FORMATS: { format: MintFormat; title: string; pros: string[]; cons: string
   },
 ];
 
-/** `formats` lets the user choose how the metadata is stored, which is a choice for NFTs only. */
-function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatus = "settled", formats, step, onMinted }: { wallet: ConnectedWallet; selection: Policies; tokens: MintToken[] | null; summary: string; disabled?: boolean; royaltyStatus?: RoyaltyStatus; formats?: boolean; step?: number; onMinted: (result: MintResult) => void }) {
+/**
+ * The same choice for a fungible token. CIP-25 was written for NFTs: it costs nothing to add, but what wallets know
+ * about a fungible token (ticker, decimals) they take from CIP-68 or from the token registry, which is no part of
+ * this site.
+ */
+const FUNGIBLE_FORMATS: typeof FORMATS = [
+  {
+    format: "cip68",
+    title: "CIP-68 · read by wallets",
+    pros: ["Ticker, decimals and logo are on chain where wallets look for them", "Metadata can still be changed while the policy is open"],
+    cons: ["A deposit of 1 to 2 ₳ for the token, back when all of it is burned"],
+  },
+  {
+    format: "cip25",
+    title: "CIP-25 · less ADA bound",
+    pros: ["Costs only the fee", "Explorers show its name and logo"],
+    cons: ["Made for NFTs: wallets do not take decimals and ticker from it", "Metadata is fixed with the mint"],
+  },
+];
+
+/** `formats` lets the user choose how the metadata is stored, with what speaks for and against it for that kind of token. */
+function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatus = "settled", formats, step, onMinted }: { wallet: ConnectedWallet; selection: Policies; tokens: MintToken[] | null; summary: string; disabled?: boolean; royaltyStatus?: RoyaltyStatus; formats?: "nft" | "fungible"; step?: number; onMinted: (result: MintResult) => void }) {
   const policy = selection.selected;
   const [minting, setMinting] = useState(false);
   const [progress, setProgress] = useState<MintProgress | null>(null);
@@ -174,7 +194,7 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
         ) : null}
         {formats ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            {FORMATS.map((option) => (
+            {(formats === "fungible" ? FUNGIBLE_FORMATS : FORMATS).map((option) => (
               <button
                 key={option.format}
                 type="button"
@@ -303,7 +323,7 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
           tokens={mintTokensList}
           summary={tokens ? `Mints ${tokens.length} NFT${tokens.length === 1 ? "" : "s"} into your wallet.` : "Add the tokens above first."}
           royaltyStatus={royaltyStatus}
-          formats
+          formats="nft"
           step={lastStep}
           onMinted={setResult}
         />
@@ -370,9 +390,10 @@ function Fungible({ wallet }: { wallet: ConnectedWallet }) {
         wallet={wallet}
         selection={selection}
         step={3}
+        formats="fungible"
         tokens={valid ? tokens : null}
         disabled={editing}
-        summary="Mints your CIP-68 token with on-chain metadata."
+        summary="Mints your token into your wallet."
         onMinted={setResult}
       />
     </div>

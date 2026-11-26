@@ -246,6 +246,11 @@ test("CIP-25 metadata lists the tokens by asset name and cuts long texts into pi
   assert.equal(entry.rank, 3);
 });
 
+test("CIP-25 metadata of a fungible token carries its logo as image", () => {
+  const metadata = cip25Metadata("ab".repeat(28), [token({ standard: 333, ticker: "TKN", decimals: "6" })]);
+  assert.deepEqual(metadata["ab".repeat(28)].Token001, { name: "Token 001", ticker: "TKN", decimals: 6, image: "ipfs://QmImage" });
+});
+
 test("tokens named by a hash and without a picture stay out of the feed", () => {
   const hex = (text) => Buffer.from(text, "utf8").toString("hex");
   assert.equal(isPresentable({ maName: hex("Foxxy002"), name: "Foxxy #2", image: "" }), true);

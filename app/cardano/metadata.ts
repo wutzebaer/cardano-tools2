@@ -73,7 +73,13 @@ function inPieces(value: MetaValue): MetaValue {
  * asset name. Version 1, where policy id and asset name are written as text.
  */
 export function cip25Metadata(policyId: string, tokens: MintToken[]): Record<string, MetaValue> {
-  return { [policyId]: Object.fromEntries(tokens.map((token) => [token.assetName, inPieces(tokenMetadata(token))])) };
+  return { [policyId]: Object.fromEntries(tokens.map((token) => [token.assetName, inPieces(cip25Fields(tokenMetadata(token)))])) };
+}
+
+/** CIP-25 knows the picture of a token as "image". The logo of a fungible token, which CIP-68 calls "logo", goes there. */
+function cip25Fields(metadata: Record<string, MetaValue>): Record<string, MetaValue> {
+  const { logo, ...rest } = metadata;
+  return logo === undefined || rest.image !== undefined ? metadata : { ...rest, image: logo };
 }
 
 /** Metadata of all tokens keyed by asset name, the shape the JSON editor works on. */
