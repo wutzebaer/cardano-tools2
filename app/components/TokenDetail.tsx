@@ -104,7 +104,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
         getPolicyRoyalties(tokenDetails.maPolicyId),
         getTokenHolders(tokenDetails.maPolicyId, tokenDetails.maName),
     ]);
-    // holders are known by their ADA Handle where they have one
+    // the API reads the holders once an hour; they are known by their ADA Handle where they have one
     const shownHolders = holders.slice(0, tokenDetails.totalSupply === 1 ? 1 : 5);
     const stakeHolders = shownHolders.map((holder) => holder.address).filter((address) => address.startsWith('stake'));
     const handles = new Map(stakeHolders.length ? (await getStakeHandles(stakeHolders).catch(() => [])).map((entry) => [entry.stakeAddress, entry.handle]) : []);
@@ -258,7 +258,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                                                         {handle ? <span className="font-sans font-medium">${handle}</span> : shortenId(holder.address, 10)}
                                                     </Link>
                                                     {isStake ? null : <span className="ml-2 font-sans text-xs text-base-content/55">an address without a stake key, e.g. a contract</span>}
-                                                    {tokenDetails.totalSupply > 1 ? <span className="ml-2 font-sans text-xs text-base-content/55">{formatTokenAmount(holder.quantity, decimals)}</span> : null}
+                                                    {tokenDetails.totalSupply > 1 && holder.quantity > 0 ? <span className="ml-2 font-sans text-xs text-base-content/55">{formatTokenAmount(holder.quantity, decimals)}</span> : null}
                                                 </span>
                                             );
                                         })}

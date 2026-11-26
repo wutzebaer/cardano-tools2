@@ -92,17 +92,18 @@ export async function getPolicyRoyalties(policyId: string) {
 interface TokenHolder {
   /** Stake address of the holder, or the address itself where it has no stake part, as that of a contract */
   address: string;
+  /** How much of the token, 0 where the API does not know it per token */
   quantity: number;
 }
 
 /**
- * Who holds a token right now, the largest holders first. Empty where nobody does or the answer is missing.
- * The token without an asset name cannot be asked for.
+ * Who holds a token, the largest holders first, as the API read it within the last hour. Empty where nobody does or
+ * the answer is missing. The token without an asset name cannot be asked for.
  */
 export async function getTokenHolders(policyId: string, assetName: string): Promise<TokenHolder[]> {
   try {
     if (!/^[0-9a-f]{56}$/.test(policyId) || !/^([0-9a-f]{2})+$/.test(assetName)) return [];
-    const response = await fetch(`${baseUrl}/token/${policyId}/${assetName}/holders`, { next: { revalidate: 60 } });
+    const response = await fetch(`${baseUrl}/token/${policyId}/${assetName}/holders`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(10_000) });
     const holders = response.ok ? await response.json() : [];
     return Array.isArray(holders) ? holders.filter((holder) => typeof holder?.address === "string" && typeof holder?.quantity === "number") : [];
   } catch {
