@@ -143,7 +143,7 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
       clearTimeout(timer);
     };
   }, [policy, tokens, wallet.connection, wallet.keyHashes, format]);
-  const short = costs != null && costs.held < costs.needed;
+  const short = costs != null && costs.free < costs.needed;
 
   const mint = async () => {
     if (!policy || !tokens) return;
@@ -219,10 +219,10 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
                   ...(costs.deposit > 0 ? [{ label: "Deposit for the metadata", hint: "back when you burn", lovelace: costs.deposit }] : []),
                   { label: costs.transactions > 1 ? `Fees of ${costs.transactions} transactions` : "Transaction fee", lovelace: costs.fee, about: true },
                   { label: "Leaves your wallet", lovelace: shown(costs.deposit) + shown(costs.fee), sum: true },
-                  { label: "Minimum ADA beside your tokens", hint: "stays yours", lovelace: costs.kept },
+                  { label: tokens && tokens.length > 1 ? "Minimum ADA beside the new tokens" : "Minimum ADA beside the new token", hint: "stays yours", lovelace: costs.kept },
                   {
                     label: "Your wallet needs",
-                    hint: short ? `it holds ${formatAda(costs.held)}` : undefined,
+                    hint: short ? `only ${formatAda(Math.max(costs.free, 0))} are free` : undefined,
                     lovelace: shown(costs.deposit) + shown(costs.fee) + shown(costs.kept),
                     sum: true,
                     tone: short ? "error" : undefined,

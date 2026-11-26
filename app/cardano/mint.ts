@@ -357,12 +357,12 @@ export interface MintCosts {
   /** Stays with the reference NFTs of CIP-68, one output per token. Wallets show it as spent, burning a token brings its share back. */
   deposit: number;
   fee: number;
-  /** Minimum of ADA beside the minted tokens and the other tokens of the wallet, which stays in the wallet */
+  /** Minimum of ADA beside the minted tokens, which stays in the wallet */
   kept: number;
   /** All of the above */
   needed: number;
-  /** What the wallet holds */
-  held: number;
+  /** What the wallet holds that is not already the minimum beside the tokens it has */
+  free: number;
   /** Transactions the mint takes, each signed on its own */
   transactions: number;
 }
@@ -381,7 +381,8 @@ export async function mintCosts(connection: WalletConnection, policy: MintPolicy
   const address = referenceAddress(changeAddress, referenceKeyHash(policy, keyHashes, changeAddress));
   const policyHash = policyScript(policy).hash();
   const deposit = format === "cip68" ? tokens.reduce((sum, token) => sum + Number(referenceOutput(address, policyHash, token).amount().coin().to_str()), 0) : 0;
-  // every transaction leaves its tokens in an output of their own, the change with the other tokens is there once
-  const kept = needs.reduce((sum, need) => sum + need.spent, 0) - deposit + needs[0].changeMinimum;
-  return { deposit, fee, kept, needed: deposit + fee + kept, held: needs[0].offered, transactions: batches.length };
+  // every transaction leaves its tokens in an output of their own. The minimum beside the tokens the wallet already
+  // has is bound today and stays so: it is no cost of the mint, it only cannot pay for it.
+  const kept = needs.reduce((sum, need) => sum + need.spent, 0) - deposit;
+  return { deposit, fee, kept, needed: deposit + fee + kept, free: needs[0].offered - needs[0].changeMinimum, transactions: batches.length };
 }
