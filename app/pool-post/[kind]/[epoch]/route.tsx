@@ -1,7 +1,8 @@
 import { getPoolCheck, getPoolEpoch, getPoolEpochFacts } from "@cardano/dbsync";
 import { POOL_ID, POOL_TICKER } from "@cardano/pool";
 import { ImageResponse } from "next/og";
-import { battleNote, battlesByEpoch, formatExpected, formatStake, funFact, luck, planFunFact } from "../../../alerts/poolPosts";
+import { battleNote, battlesByEpoch, epochStartNote, formatExpected, formatStake, funFact, luck, planFunFact } from "../../../alerts/poolPosts";
+import { epochStartUnix } from "@cardano/network";
 import { pushgatewayMetrics } from "../../../alerts/pushgateway";
 
 const SIZE = { width: 1200, height: 630 };
@@ -120,7 +121,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
   const percent = luck(counted, facts.expectedBlocks);
   const tiles: { label: string; value: string; accent: boolean; note?: string }[] =
     kind === "plan"
-      ? [{ label: "SCHEDULED BLOCKS", value: `${scheduled}`, accent: true }]
+      ? [{ label: "SCHEDULED BLOCKS", value: `${scheduled}`, accent: true, note: epochStartNote(epochStartUnix(epoch)) }]
       : [
           {
             label: scheduled != null ? "BLOCKS FORGED" : "BLOCKS",
