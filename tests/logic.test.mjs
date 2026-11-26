@@ -628,9 +628,9 @@ test("every epoch tells another little fact, and a fact without anything to say 
   assert.equal(FUN_FACTS.length, 20);
   assert.equal(shortAda(574_185_199_826), "574.2K");
   assert.equal(shortAda(3_732_476), "3.73");
-  // with a block every fact but the streak and the delegators has something to say
+  // with a block every fact but the streak, the delegators and a stake change of 3.8 ADA has something to say
   const told = FUN_FACTS.map((make) => make(numbers, 736_926_000_000, 209)).filter(Boolean);
-  assert.equal(told.length, 18);
+  assert.equal(told.length, 17);
   for (const fact of told) assert.ok(fact.value.length <= 11 && fact.label === fact.label.toUpperCase() && fact.sentence.startsWith("Fun fact: "), JSON.stringify(fact));
   // 669 % 20 = 9: the block height
   assert.deepEqual(funFact(numbers, 736_926_000_000, 209), { label: "BLOCK HEIGHT", value: "#14,228,406", note: "our latest block", sentence: "Fun fact: our latest block is number 14,228,406 of the Cardano chain." });
@@ -649,6 +649,9 @@ test("every epoch tells another little fact, and a fact without anything to say 
   assert.equal(planFunFact(null, 1, 1, 2, 0.74, 670, 1).label, "ODDS");
   // the plan says when its epoch starts, in UTC
   assert.equal(epochStartNote(Date.UTC(2026, 10, 28, 21, 45) / 1000), "starts Sat 21:45 UTC");
+  // dull numbers pass on: a largest transfer of 30 ADA is no fact (index 3), the next one speaks
+  const dull = { ...numbers, largestTransaction: 30_000_000, blockFill: 0.05 };
+  assert.equal(funFact(dull, 736_926_000_000, 209, 3).label, "TOKEN OUTPUTS");
   // a preview starts where it likes: 0 is the transactions
   assert.equal(funFact(numbers, 736_926_000_000, 209, 0).label, "TRANSACTIONS");
 });
