@@ -34,6 +34,17 @@ export async function getDropOutputs(policyId: string, namePrefix: string): Prom
   });
 }
 
+/**
+ * Names (hex) of all tokens ever minted under a drop that start with the prefix, burned ones included. What was sold
+ * is told from them once the groups that kept track of it are closed.
+ */
+export async function getDropMintedNames(policyId: string, namePrefix: string): Promise<Answer<string[]>> {
+  return answer(() => {
+    if (!/^([0-9a-f]{2}){1,32}$/.test(namePrefix)) throw new UserError("This is not a token name");
+    return chain<string[]>(`/script/${policyOf(policyId)}/mintedNames?namePrefix=${namePrefix}`);
+  });
+}
+
 /** What the transaction that created a drop put at its address, for a drop whose groups are closed. */
 export async function getDropFirstOutputs(policyId: string): Promise<Answer<ScriptOutputRow[]>> {
   return answer(() => chain<ScriptOutputRow[]>(`/script/${policyOf(policyId)}/firstOutputs`));

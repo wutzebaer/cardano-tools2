@@ -1,5 +1,5 @@
 /** An NFT drop as the pages use it: read from the chain and changed with the connected wallet. */
-import { getDropFirstOutputs, getDropOutputs, getPlutusV3CostModel, readDropList, ScriptOutputRow } from "@/app/drop/dropData";
+import { getDropFirstOutputs, getDropMintedNames, getDropOutputs, getPlutusV3CostModel, readDropList, ScriptOutputRow } from "@/app/drop/dropData";
 import { answered } from "@cardano/answer";
 import {
   DropConfig,
@@ -31,6 +31,11 @@ export interface DropState {
   config: DropConfig;
   /** The groups that are still open */
   groups: DropGroup[];
+  /**
+   * Asset names (hex) of the tokens that were ever minted, read only where a group is closed: a closed group no longer
+   * says what it sold, but a sold token was minted, and that stays on chain even if it was burned since.
+   */
+  minted?: Set<string>;
 }
 
 function outputsOf(rows: ScriptOutputRow[]): DropOutput[] {
@@ -68,7 +73,10 @@ export async function loadDrop(policyId: string): Promise<DropState | null> {
   const drop = dropOf(config.seed, config.burnable);
   // anybody can send a made-up datum to an address, only the real contract has this policy id
   if (drop.policyId !== policyId) return null;
-  return { drop, config, groups };
+  if (groups.length >= config.groups) return { drop, config, groups };
+  // without the answer the tokens of closed groups show as closed, as before
+  const minted = await answered(getDropMintedNames(policyId, USER_LABEL)).catch(() => undefined);
+  return { drop, config, groups, minted: minted ? new Set(minted) : undefined };
 }
 
 /** Loads the published list of a drop and makes sure it is the one the drop sells. */
@@ -82,10 +90,13 @@ export async function loadDropTokens(config: DropConfig): Promise<DropToken[]> {
 
 export type TokenStatus = "available" | "sold" | "closed";
 
-/** Whether a token can be bought: it is sold once ticked off, and nothing sells from a closed group. */
-export function tokenStatus(state: DropState, index: number): TokenStatus {
+/**
+ * Whether a token can be bought: it is sold once ticked off, and nothing sells from a closed group. A token of a
+ * closed group is sold if it was ever minted, and closed if nobody bought it.
+ */
+export function tokenStatus(state: DropState, index: number, assetName: string): TokenStatus {
   const group = state.groups.find((open) => open.group === groupOfToken(index, state.config.groups));
-  if (!group) return "closed";
+  if (!group) return state.minted?.has(USER_LABEL + utf8Hex(assetName)) ? "sold" : "closed";
   return isSold(group.sold, positionOfToken(index, state.config.groups)) ? "sold" : "available";
 }
 

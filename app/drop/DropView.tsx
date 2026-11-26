@@ -70,8 +70,8 @@ export default function DropView({ policyId }: { policyId: string }) {
   const statuses = useMemo(
     () =>
       drop
-        ? drop.tokens.map((_, index) => {
-            const status = tokenStatus(drop.state, index);
+        ? drop.tokens.map((token, index) => {
+            const status = tokenStatus(drop.state, index, token.assetName);
             return status === "available" && justBought.includes(index) ? "sold" : status;
           })
         : [],
