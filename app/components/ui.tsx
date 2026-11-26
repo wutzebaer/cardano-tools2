@@ -34,6 +34,11 @@ export function PageHeader({ title, children, art }: { title: string; children?:
   );
 }
 
+/** The number in front of the heading of a step, for forms that lead through several steps. */
+export function StepNumber({ children }: { children: ReactNode }) {
+  return <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{children}</span>;
+}
+
 export function Field({ label, error, hint, children, className = "" }: { label: string; error?: string; hint?: string; children: ReactNode; className?: string }) {
   return (
     <label className={`flex flex-col gap-1 ${className}`}>

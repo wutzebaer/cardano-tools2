@@ -5,7 +5,7 @@ import { DROP_NAME_MAX_BYTES, DropToken, listErrors, MAX_DROP_TOKENS, parseDropL
 import { assetNameFor, MetaValue } from "@cardano/metadata";
 import { toIpfsUrl } from "@cardano/utils";
 import IpfsImage from "@components/IpfsImage";
-import { Field, inputClass, secondaryButtonClass } from "@components/ui";
+import { Field, inputClass, secondaryButtonClass, StepNumber } from "@components/ui";
 import { ArrowDownTrayIcon, ArrowUpTrayIcon, DocumentArrowUpIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { MAX_FILE_BYTES } from "@/app/mint/fileLimits";
 import { uploadToIpfs } from "@/app/mint/uploadToIpfs";
@@ -126,7 +126,7 @@ function Step({ number, title, text, aside, children }: { number: number; title:
     <section className="flex flex-col gap-2 border-t border-line pt-4 first:border-t-0 first:pt-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{number}</span>
+          <StepNumber>{number}</StepNumber>
           <div>
             <h3 className="text-base font-semibold leading-7 tracking-tight text-base-content">{title}</h3>
             {text ? <p className="text-sm text-base-content/60">{text}</p> : null}

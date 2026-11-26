@@ -11,7 +11,7 @@ import { explorerPolicyUrl, IS_MAINNET } from "@cardano/network";
 import { MintPolicy, MintToken } from "@cardano/types";
 import ConnectWallet from "@components/ConnectWallet";
 import TxResult from "@components/TxResult";
-import { ExternalLink, Notice, secondaryButtonClass } from "@components/ui";
+import { ExternalLink, Notice, secondaryButtonClass, StepNumber } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
 import { CodeBracketIcon, ExclamationTriangleIcon, MinusIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useState } from "react";
@@ -161,7 +161,7 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
     <div className="surface flex flex-col gap-3 p-5">
       {step ? (
         <h3 className="flex items-center gap-3 text-base font-semibold tracking-tight">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{step}</span>
+          <StepNumber>{step}</StepNumber>
           Mint
         </h3>
       ) : null}
@@ -266,7 +266,7 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
     <div className="flex flex-col gap-6">
       <div className="surface flex flex-col gap-4 p-5">
         <h2 className="flex items-center gap-3 text-base font-semibold tracking-tight">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">1</span>
+          <StepNumber>1</StepNumber>
           What do you want to do?
         </h2>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -343,7 +343,7 @@ function Fungible({ wallet }: { wallet: ConnectedWallet }) {
       <div className="surface flex flex-col gap-4 p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">2</span>
+            <StepNumber>2</StepNumber>
             <div>
               <h3 className="text-base font-semibold leading-7 tracking-tight">Your token</h3>
               <p className="text-sm text-base-content/60">Its name, ticker and amount. It is minted into your wallet.</p>

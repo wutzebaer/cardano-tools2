@@ -11,7 +11,7 @@ import IpfsImage from "@components/IpfsImage";
 import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import { uploadToIpfs } from "@/app/mint/uploadToIpfs";
 import TxResult from "@components/TxResult";
-import { Field, inputClass, Notice, secondaryButtonClass } from "@components/ui";
+import { Field, inputClass, Notice, secondaryButtonClass, StepNumber } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -145,7 +145,7 @@ export function SellAsDrop({ wallet, tokens, step }: { wallet: ConnectedWallet; 
     <div className="surface flex flex-col gap-6 p-6">
       {step ? (
         <h3 className="flex items-center gap-3 text-base font-semibold tracking-tight">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{step}</span>
+          <StepNumber>{step}</StepNumber>
           Price and sale
         </h3>
       ) : null}
