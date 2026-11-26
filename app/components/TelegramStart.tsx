@@ -21,7 +21,7 @@ export default function TelegramStart({ stakeAddress, children }: { stakeAddress
       <ExternalLink href={`https://t.me/${TELEGRAM_BOT}?start=${stakeAddress}`} className="btn btn-primary">
         {children}
       </ExternalLink>
-      <button type="button" className="text-left text-xs text-base-content/55 underline-offset-2 hover:text-base-content hover:underline sm:text-right" onClick={copy}>
+      <button type="button" className="py-1 text-left text-xs text-base-content/55 underline-offset-2 hover:text-base-content hover:underline sm:text-right" onClick={copy}>
         {copied ? `Copied. Send it to @${TELEGRAM_BOT} in Telegram.` : "Telegram does not open? Copy the message for the bot"}
       </button>
     </div>

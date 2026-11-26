@@ -3,7 +3,7 @@ import { POOL_ID, POOL_TICKER } from "@cardano/pool";
 import { formatAda, formatNumber, shortenId } from "@cardano/utils";
 import CopyButton from "@components/CopyButton";
 import TelegramStart from "@components/TelegramStart";
-import { ExternalLink } from "@components/ui";
+import { ExternalLink, secondaryButtonClass } from "@components/ui";
 import {
   ArrowRightStartOnRectangleIcon,
   BellAlertIcon,
@@ -11,7 +11,6 @@ import {
   ExclamationTriangleIcon,
   GiftIcon,
   InformationCircleIcon,
-  ReceiptPercentIcon,
   ScaleIcon,
   ServerStackIcon,
   Squares2X2Icon,
@@ -39,7 +38,7 @@ const poolTitle = (pool: PoolCheck) => (pool.ticker ? `[${pool.ticker}] ${pool.n
 
 function Card({ title, icon: Icon, children }: { title: string; icon: ComponentType<SVGProps<SVGSVGElement>>; children: ReactNode }) {
   return (
-    <section className="surface flex flex-col gap-4 p-5">
+    <section className="surface flex flex-col gap-4 p-4 sm:p-5">
       <div className="flex items-center gap-3">
         <span className="icon-brand flex size-9 shrink-0 items-center justify-center rounded-field">
           <Icon className="size-5" />
@@ -53,20 +52,8 @@ function Card({ title, icon: Icon, children }: { title: string; icon: ComponentT
 
 /** The offer of the page: the Telegram bot that keeps checking this address. */
 function AlertsCard({ stakeAddress }: { stakeAddress: string }) {
-  return (
-    <section className="alert-card flex flex-col gap-5 rounded-box p-5 sm:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <span className="icon-brand flex size-12 shrink-0 items-center justify-center rounded-field">
-            <BellAlertIcon className="size-6" />
-          </span>
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight">Get a message when your staking needs you</h2>
-            <p className="mt-0.5 text-sm text-base-content/65">Free alerts on Telegram, so you do not have to come back and check.</p>
-          </div>
-        </div>
-        <TelegramStart stakeAddress={stakeAddress}>Get alerts on Telegram</TelegramStart>
-      </div>
+  const details = (
+    <>
       <ul className="flex flex-wrap gap-2">
         {ALERTS.map((alert) => (
           <li key={alert} className="flex items-center gap-1.5 rounded-full border border-line bg-base-300/60 px-3 py-1 text-xs text-base-content/80">
@@ -76,6 +63,28 @@ function AlertsCard({ stakeAddress }: { stakeAddress: string }) {
         ))}
       </ul>
       <p className="text-xs text-base-content/50">The bot looks at this address once an hour. It stores your Telegram chat and this address, nothing else, and /stop ends it.</p>
+    </>
+  );
+  return (
+    <section className="alert-card flex flex-col gap-4 rounded-box p-4 sm:gap-5 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <span className="icon-brand flex size-9 shrink-0 items-center justify-center rounded-field sm:size-12">
+            <BellAlertIcon className="size-5 sm:size-6" />
+          </span>
+          <div>
+            <h2 className="font-semibold tracking-tight sm:text-lg">Get a message when your staking needs you</h2>
+            <p className="mt-0.5 hidden text-sm text-base-content/65 sm:block">Free alerts on Telegram, so you do not have to come back and check.</p>
+          </div>
+        </div>
+        <TelegramStart stakeAddress={stakeAddress}>Get alerts on Telegram</TelegramStart>
+      </div>
+      {/* on a phone the list of alerts opens on demand, from a tablet on it is always there */}
+      <details className="text-sm sm:hidden">
+        <summary className="cursor-pointer py-2 text-base-content/65">What the bot writes about</summary>
+        <div className="mt-3 flex flex-col gap-4">{details}</div>
+      </details>
+      <div className="hidden flex-col gap-5 sm:flex">{details}</div>
     </section>
   );
 }
@@ -162,16 +171,20 @@ export default function CheckResult({ data }: { data: CheckData }) {
   const marginCost = pool ? marginCostPerYear(stake, pool.margin, performance?.roa ?? performance?.networkRoa ?? 0) : 0;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-col gap-4 sm:gap-6">
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-brand truncate text-xl font-semibold tracking-tight">{label.startsWith("$") ? label : shortenId(stakeAddress, 14)}</p>
+          <p className="text-brand max-w-full truncate text-xl font-semibold tracking-tight">{label.startsWith("$") ? label : shortenId(stakeAddress, 14)}</p>
           <p className="text-sm text-base-content/55">{known ? `${formatAda(stake)} staked or stakeable, epoch ${check.currentEpoch}` : "A new address, the chain has not seen it yet"}</p>
         </div>
-        <CopyButton text={`https://cardano-tools.io${sharePath}`}>Copy link to this check</CopyButton>
+        <div className="shrink-0">
+          <CopyButton text={`https://cardano-tools.io${sharePath}`}>
+            <span>
+              Copy link<span className="hidden sm:inline"> to this check</span>
+            </span>
+          </CopyButton>
+        </div>
       </div>
-
-      {IS_MAINNET ? <AlertsCard stakeAddress={stakeAddress} /> : null}
 
       <Card title="Stake pool" icon={ServerStackIcon}>
         {!check.registered ? (
@@ -190,9 +203,11 @@ export default function CheckResult({ data }: { data: CheckData }) {
           </ul>
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-lg font-semibold tracking-tight">{poolTitle(pool)}</p>
-              <ExternalLink href={explorerPoolUrl(pool.poolHash)}>cexplorer</ExternalLink>
+            <div className="flex items-center justify-between gap-3">
+              <p className="min-w-0 break-words text-lg font-semibold tracking-tight">{poolTitle(pool)}</p>
+              <ExternalLink href={explorerPoolUrl(pool.poolHash)} className={`${secondaryButtonClass} shrink-0`}>
+                cexplorer
+              </ExternalLink>
             </div>
             <ul className="flex flex-col gap-2">
               {findings.map((finding) => (
@@ -200,22 +215,22 @@ export default function CheckResult({ data }: { data: CheckData }) {
               ))}
             </ul>
             <PoolFacts pool={pool} performance={performance} />
+            <div className="flex flex-col gap-1 border-t border-line pt-4">
+              <h3 className="text-[11px] uppercase tracking-wide text-base-content/45">What the pool&apos;s margin costs you</h3>
+              <p className="font-semibold tracking-tight">{pool.margin > 0 ? `About ${formatAda(marginCost)} per year` : "Nothing, the pool takes no margin"}</p>
+              <p className="text-xs text-base-content/55">
+                {pool.margin > 0
+                  ? `Estimated for ${formatAda(stake)} from the pool's returns of the last epochs, compared with a pool that takes 0 %. `
+                  : ""}
+                The margin is the share of the rewards a pool keeps. The return shown above is what delegators received after the margin and the fixed fee of {formatAda(pool.fixedCost)} per
+                epoch, which nearly every pool takes.
+              </p>
+            </div>
           </>
         )}
       </Card>
 
-      {pool && check.registered ? (
-        <Card title="What the pool's margin costs you" icon={ReceiptPercentIcon}>
-          <p className="text-lg font-semibold tracking-tight">{pool.margin > 0 ? `About ${formatAda(marginCost)} per year` : "Nothing, the pool takes no margin"}</p>
-          <p className="text-xs text-base-content/55">
-            {pool.margin > 0
-              ? `Estimated for ${formatAda(stake)} from the pool's returns of the last epochs, compared with a pool that takes 0 %. `
-              : ""}
-            The margin is the share of the rewards a pool keeps. The return shown above is what delegators received after the margin and the fixed fee of {formatAda(pool.fixedCost)} per
-            epoch, which nearly every pool takes.
-          </p>
-        </Card>
-      ) : null}
+      {IS_MAINNET ? <AlertsCard stakeAddress={stakeAddress} /> : null}
 
       {check.registered ? (
         <Card title="Your voting rights" icon={ScaleIcon}>
@@ -248,7 +263,7 @@ export default function CheckResult({ data }: { data: CheckData }) {
             </Link>
           </p>
           <details className="text-sm" open={vote === "none"}>
-            <summary className="cursor-pointer text-base-content/65">{vote === "none" ? "Make the choice now" : "Change the choice"}</summary>
+            <summary className="cursor-pointer py-2 text-base-content/65 sm:py-0">{vote === "none" ? "Make the choice now" : "Change the choice"}</summary>
             <div className="mt-3">
               <VoteDelegation
                 stakeAddress={stakeAddress}
