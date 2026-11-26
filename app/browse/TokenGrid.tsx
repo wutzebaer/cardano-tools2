@@ -92,7 +92,7 @@ export default function TokenGrid({ query, initial }: { query?: string; initial:
   return (
     <>
       {tokens.length > 0 ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] sm:gap-5">
           {entries.map((entry) =>
             entry.kind === "collection" ? (
               <CollectionCard key={entry.policyId} policyId={entry.policyId} tokens={entry.tokens} collection={collections[entry.policyId]} />

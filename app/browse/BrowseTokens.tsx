@@ -9,13 +9,13 @@ export default async function BrowseTokens({ query }: { query?: string }) {
   const initial = await (query ? loadSearchPage(query) : loadFeedPage()).catch(() => null);
   return (
     <>
-      <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="mb-5 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:gap-5">
+        <div className="min-w-0">
           <h1 className="text-brand text-2xl font-semibold tracking-tight">Browse</h1>
           <p className="mt-1 text-sm text-base-content/55">
             {query ? (
               <>
-                Results for <span className="font-mono text-base-content/80">{query}</span>
+                Results for <span className="break-all font-mono text-base-content/80">{query}</span>
               </>
             ) : (
               "Latest tokens minted on Cardano"

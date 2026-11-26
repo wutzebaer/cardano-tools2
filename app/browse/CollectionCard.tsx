@@ -31,8 +31,8 @@ export default function CollectionCard({ policyId, tokens, collection }: { polic
         {previews.length < PREVIEWS ? <div className="aspect-square bg-base-300" /> : null}
         <span className="absolute right-2 top-2 rounded-full bg-base-100/85 px-2.5 py-1 text-xs font-semibold tabular-nums backdrop-blur">{tokens.length} tokens</span>
       </Link>
-      <div className="flex items-start gap-3 p-4">
-        {collection?.picture ? <IpfsImage width="40" height="40" className="size-10 shrink-0 rounded-full bg-base-300 object-cover" src={toIpfsUrl(collection.picture)} alt="" /> : null}
+      <div className="flex items-start gap-3 p-3 sm:p-4">
+        {collection?.picture ? <IpfsImage width="40" height="40" className="hidden size-10 shrink-0 rounded-full bg-base-300 object-cover sm:block" src={toIpfsUrl(collection.picture)} alt="" /> : null}
         <div className="flex min-w-0 flex-col gap-1">
           <p className="flex items-center gap-1 text-[11px] text-base-content/50">
             Collection

@@ -60,7 +60,7 @@ export default function MyTokens() {
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-5 sm:gap-8">
       <form onSubmit={search} className="flex gap-2">
         <label className={`${inputClass} min-w-0 bg-base-200`}>
           <MagnifyingGlassIcon className="size-4 shrink-0 text-base-content/45" />
@@ -89,7 +89,7 @@ export default function MyTokens() {
               {collection?.verified ? <Verified className="size-4" /> : null}
               <span className="text-xs font-normal text-base-content/45">{tokens.length}</span>
             </Link>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] sm:gap-5">
               {tokens.map((token) => (
                 <TokenCard key={token.maFingerprint} item={token} collection={collection} footer={token.quantity === 1 ? "1 token" : `${formatNumber(token.quantity)} tokens`} />
               ))}

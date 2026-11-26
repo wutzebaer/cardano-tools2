@@ -35,7 +35,7 @@ function TokenCard({ item, collection, footer, badge }: { item: TokenListItem; c
         ) : null}
         {badge ? <span className="absolute right-2 top-2 rounded-full bg-base-100/85 px-2.5 py-1 text-xs font-semibold tabular-nums backdrop-blur">{badge}</span> : null}
       </Link>
-      <div className="flex flex-col gap-1 p-4">
+      <div className="flex flex-col gap-1 p-3 sm:p-4">
         <Link
           href={`/browse/search/${item.maPolicyId}`}
           className={`flex items-center gap-1 text-[11px] hover:text-base-content ${collectionName ? "text-base-content/50" : "font-mono text-base-content/50"}`}
