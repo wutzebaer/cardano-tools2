@@ -39,6 +39,7 @@ import {
   USER_LABEL,
 } from "../app/cardano/dropScript.ts";
 import { NETWORK, NETWORKS, unixToEpoch, unixToSlot } from "../app/cardano/network.ts";
+import { DEFAULT_PROTOCOL_PARAMS, fraction, largestSizeFee, protocolParamsFrom, scriptFee } from "../app/cardano/protocol.ts";
 import { collectionNameError, policyRegistration } from "../app/cardano/registration.ts";
 import { candidateUnlockTimes, DAY_SECONDS, FIRST_UNLOCK_UNIX, MAX_LOCK_DAYS, timelockMetadata, timeScriptHash, unlockSlotsFromMetadata, unlockTimeError } from "../app/cardano/timelockScript.ts";
 import { assetNameFromHex, cip67Label, errorToMessage, formatAda, formatTokenAmount, metadataDecimals, parseMetadata, policyLockSlot, shortenId, toDisplayMetadata, toIpfsUrl, tokenFiles, tokenImage } from "../app/cardano/utils.ts";
@@ -1098,4 +1099,36 @@ test("the limits of uploads come from the environment where it sets them", () =>
   assert.deepEqual(uploadLimitsFrom({ IPFS_UPLOAD_FILES_PER_DAY: "0", IPFS_UPLOAD_GB_PER_DAY: "many", IPFS_UPLOAD_TOTAL_GB_PER_DAY: " " }), DEFAULT_UPLOAD_LIMITS);
   // the largest drop fits into what one visitor may store
   assert.ok(DEFAULT_UPLOAD_LIMITS.filesPerDay > 10_000);
+});
+
+// ---------------------------------------------------------------------------
+// Protocol parameters
+// ---------------------------------------------------------------------------
+
+test("protocol parameters come from the chain, and a value that makes no sense keeps the known one", () => {
+  assert.deepEqual(protocolParamsFrom(null), DEFAULT_PROTOCOL_PARAMS);
+  assert.deepEqual(protocolParamsFrom("nonsense"), DEFAULT_PROTOCOL_PARAMS);
+  const voted = protocolParamsFrom({ minFeeA: 50, coinsPerUtxoByte: 4000, priceMem: 0.06, somethingElse: 1 });
+  assert.equal(voted.minFeeA, 50);
+  assert.equal(voted.coinsPerUtxoByte, 4000);
+  assert.equal(voted.priceMem, 0.06);
+  assert.equal(voted.minFeeB, DEFAULT_PROTOCOL_PARAMS.minFeeB);
+  assert.equal("somethingElse" in voted, false);
+  // nothing, text, zero, a negative number and a value far off are a mistake of the source
+  const broken = protocolParamsFrom({ minFeeA: null, minFeeB: "155381", keyDeposit: 0, maxTxSize: -1, coinsPerUtxoByte: 4_310_000, priceStep: 0.000000001 });
+  assert.deepEqual(broken, DEFAULT_PROTOCOL_PARAMS);
+});
+
+test("a price is the fraction the chain means by it", () => {
+  assert.deepEqual(fraction(0.0577), [577n, 10000n]);
+  assert.deepEqual(fraction(0.0000721), [721n, 10000000n]);
+  assert.deepEqual(fraction(15), [15n, 1n]);
+  assert.deepEqual(fraction(20), [20n, 1n]);
+  assert.deepEqual(fraction(1.5), [15n, 10n]);
+});
+
+test("the most a transaction can cost follows from its size and its script budgets", () => {
+  assert.equal(largestSizeFee(DEFAULT_PROTOCOL_PARAMS), 155381 + 44 * 16384);
+  assert.equal(Math.round(scriptFee(DEFAULT_PROTOCOL_PARAMS, [{ mem: 1_000_000, steps: 1_000_000_000 }])), 57700 + 72100);
+  assert.equal(scriptFee(DEFAULT_PROTOCOL_PARAMS, []), 0);
 });

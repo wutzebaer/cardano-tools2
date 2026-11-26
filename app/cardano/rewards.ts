@@ -1,12 +1,12 @@
 import { ONE_ADA, RewardPosition } from "@cardano/distribution";
-import { buildTransaction, COINS_PER_UTXO_BYTE, hexToBytes, MAX_TX_SIZE, signAndSubmitTransaction, walletUtxos } from "@cardano/transaction";
+import { protocol } from "@cardano/protocol";
+import { buildTransaction, dataCost, hexToBytes, signAndSubmitTransaction, walletUtxos } from "@cardano/transaction";
 import { WalletConnection } from "@cardano/types";
 import { sleep } from "@cardano/utils";
 import {
   Address,
   AssetName,
   BigNum,
-  DataCost,
   MetadataJsonSchema,
   min_ada_for_output,
   MultiAsset,
@@ -17,7 +17,7 @@ import {
 } from "@emurgo/cardano-serialization-lib-browser";
 
 /** Bytes of outputs per transaction; leaves room for inputs, change, witnesses and the message. */
-const OUTPUT_BYTES_PER_TX = MAX_TX_SIZE - 6000;
+const outputBytesPerTx = () => protocol().maxTxSize - 6000;
 
 const MESSAGE_LABEL = "674";
 
@@ -41,7 +41,7 @@ function positionOutput(position: Pick<RewardPosition, "address" | "lovelace" | 
 /** Minimum ADA an output to `address` carrying `tokens` needs. */
 export function minLovelaceForOutput(address: string, tokens: Map<string, bigint>) {
   const output = positionOutput({ address, lovelace: ONE_ADA, tokens });
-  return BigInt(min_ada_for_output(output, DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE)).to_str());
+  return BigInt(min_ada_for_output(output, dataCost()).to_str());
 }
 
 /** One transaction holds only so many outputs, so large distributions are split. */
@@ -51,7 +51,7 @@ export function batchPositions(positions: RewardPosition[]): RewardPosition[][] 
   let bytes = 0;
   for (const position of positions) {
     const size = positionOutput(position).to_bytes().length;
-    if (batch.length > 0 && bytes + size > OUTPUT_BYTES_PER_TX) {
+    if (batch.length > 0 && bytes + size > outputBytesPerTx()) {
       batches.push(batch);
       batch = [];
       bytes = 0;

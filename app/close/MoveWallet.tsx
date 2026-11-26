@@ -3,6 +3,7 @@
 import { assetsInUtxos, lovelaceInUtxos } from "@cardano/assets";
 import { getStakeCheck } from "@cardano/dbsync";
 import { moveEverything, MoveProgress } from "@cardano/moveWallet";
+import { protocol } from "@cardano/protocol";
 import { walletUtxos } from "@cardano/transaction";
 import { assetNameFromHex, formatAda, shortenId } from "@cardano/utils";
 import ConnectWallet from "@components/ConnectWallet";
@@ -14,7 +15,6 @@ import { useEffect, useState } from "react";
 
 type Staking = NonNullable<Awaited<ReturnType<typeof getStakeCheck>>>;
 
-const KEY_DEPOSIT = 2_000_000;
 const VISIBLE_TOKENS = 12;
 
 function parseAddress(bech32: string) {
@@ -65,7 +65,7 @@ function Move({ wallet }: { wallet: ConnectedWallet }) {
   // such a wallet gets the choice "do not take part" made first, in a transaction of its own
   const needsVoteFirst = registered && rewards > 0 && !staking?.drepId;
   const willUnstake = registered && unstake;
-  const arriving = Number(lovelace) + (willUnstake ? KEY_DEPOSIT + rewards : 0);
+  const arriving = Number(lovelace) + (willUnstake ? protocol().keyDeposit + rewards : 0);
 
   const send = async () => {
     if (!targetAddress) return;
@@ -144,7 +144,7 @@ function Move({ wallet }: { wallet: ConnectedWallet }) {
                   <span>
                     Stop staking with this wallet as well
                     <span className="block text-base-content/65">
-                      Deregisters the stake key, which returns its {formatAda(KEY_DEPOSIT)} deposit{rewards > 0 ? ` and pays out ${formatAda(rewards)} of rewards` : ""}. Both go to the
+                      Deregisters the stake key, which returns its {formatAda(protocol().keyDeposit)} deposit{rewards > 0 ? ` and pays out ${formatAda(rewards)} of rewards` : ""}. Both go to the
                       new address too.
                     </span>
                   </span>

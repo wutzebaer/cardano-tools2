@@ -20,6 +20,8 @@ import {
 } from "@cardano/dropScript";
 import { burnTokensTx, buyTokenTx, closeGroupsTx, createDropTx, Drop, dropAddress, DropGroup, dropOf, DropOutput, DropTxContext, GROUPS_PER_CLOSE, NewDrop } from "@cardano/dropTx";
 import { NETWORK } from "@cardano/network";
+import { protocol } from "@cardano/protocol";
+import { refreshProtocol } from "@cardano/protocolLoad";
 import { royaltyMetadata } from "@cardano/royalties";
 import { currentSlot, signAndSubmitTransaction, TTL_SECONDS, walletChangeAddress, walletUtxos } from "@cardano/transaction";
 import { WalletConnection } from "@cardano/types";
@@ -116,8 +118,8 @@ export function tokenStatus(state: DropState, index: number): TokenStatus {
 }
 
 async function txContext(connection: WalletConnection): Promise<DropTxContext> {
-  const [utxos, changeAddress, costModel] = await Promise.all([walletUtxos(connection), walletChangeAddress(connection), answered(getPlutusV3CostModel())]);
-  return { utxos, changeAddress, costModel, ttlSlot: currentSlot() + TTL_SECONDS };
+  const [utxos, changeAddress, costModel] = await Promise.all([walletUtxos(connection), walletChangeAddress(connection), answered(getPlutusV3CostModel()), refreshProtocol()]);
+  return { utxos, changeAddress, costModel, params: protocol(), ttlSlot: currentSlot() + TTL_SECONDS };
 }
 
 /** Somebody else spending the same group shows as a missing input, which wallets and nodes word in many ways. */

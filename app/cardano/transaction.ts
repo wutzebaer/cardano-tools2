@@ -2,6 +2,8 @@ import { watchConfirmation } from "@cardano/confirmation";
 import { answered } from "@cardano/answer";
 import { isStakeRegistered } from "@cardano/dbsync";
 import { currentSlot } from "@cardano/network";
+import { protocol } from "@cardano/protocol";
+import { refreshProtocol } from "@cardano/protocolLoad";
 import { SimpleScript, WalletConnection } from "@cardano/types";
 import { formatAda } from "@cardano/utils";
 import {
@@ -43,23 +45,24 @@ import {
 
 export { currentEpoch, currentSlot, unixToSlot } from "@cardano/network";
 
-const KEY_DEPOSIT = BigNum.from_str("2000000");
+const keyDeposit = () => BigNum.from_str(`${protocol().keyDeposit}`);
 
-export const COINS_PER_UTXO_BYTE = BigNum.from_str("4310");
-
-export const MAX_TX_SIZE = 16384;
+/** What an output has to hold per byte, for working out the minimum of ADA of an output. */
+export const dataCost = () => DataCost.new_coins_per_byte(BigNum.from_str(`${protocol().coinsPerUtxoByte}`));
 
 /** Seconds a built transaction stays valid. */
 export const TTL_SECONDS = 60 * 10;
 
-export const txBuilderConfig = TransactionBuilderConfigBuilder.new()
-  .fee_algo(LinearFee.new(BigNum.from_str("44"), BigNum.from_str("155381")))
-  .coins_per_utxo_byte(COINS_PER_UTXO_BYTE)
-  .pool_deposit(BigNum.from_str("500000000"))
-  .key_deposit(KEY_DEPOSIT)
-  .max_value_size(5000)
-  .max_tx_size(MAX_TX_SIZE)
-  .build();
+/** The builder's settings from the protocol parameters in force, see `refreshProtocol`. */
+export const txBuilderConfig = () =>
+  TransactionBuilderConfigBuilder.new()
+    .fee_algo(LinearFee.new(BigNum.from_str(`${protocol().minFeeA}`), BigNum.from_str(`${protocol().minFeeB}`)))
+    .coins_per_utxo_byte(BigNum.from_str(`${protocol().coinsPerUtxoByte}`))
+    .pool_deposit(BigNum.from_str(`${protocol().poolDeposit}`))
+    .key_deposit(keyDeposit())
+    .max_value_size(protocol().maxValueSize)
+    .max_tx_size(protocol().maxTxSize)
+    .build();
 
 export interface TxOptions {
   /** Extra keys that have to sign, e.g. the key of an imported policy. Never leaves the browser. */
@@ -104,6 +107,7 @@ export const buildTransaction = async (
   utxos?: TransactionUnspentOutput[],
   signerKeyHash?: string
 ): Promise<Transaction> => {
+  await refreshProtocol();
   const available = utxos ?? (await walletUtxos(connection));
   const signerUtxo = signerKeyHash ? utxoOfKey(available, signerKeyHash) : undefined;
   const changeAddress = signerUtxo?.output().address() ?? (await walletChangeAddress(connection));
@@ -113,7 +117,7 @@ export const buildTransaction = async (
   let lastError: unknown;
   for (const strategy of INPUT_STRATEGIES) {
     try {
-      const txBuilder = TransactionBuilder.new(txBuilderConfig);
+      const txBuilder = TransactionBuilder.new(txBuilderConfig());
       txBuilder.set_ttl(currentSlot() + TTL_SECONDS);
 
       configure(txBuilder);
@@ -169,7 +173,7 @@ export interface TransactionNeeds {
 }
 
 export function transactionNeeds(configure: (txBuilder: TransactionBuilder) => void, available: TransactionUnspentOutput[], changeAddress: Address): TransactionNeeds {
-  const txBuilder = TransactionBuilder.new(txBuilderConfig);
+  const txBuilder = TransactionBuilder.new(txBuilderConfig());
   txBuilder.set_ttl(currentSlot() + TTL_SECONDS);
   configure(txBuilder);
   for (const utxo of available) {
@@ -182,7 +186,7 @@ export function transactionNeeds(configure: (txBuilder: TransactionBuilder) => v
 
   const changeTokens = totalInput.clamped_sub(totalOutput).multiasset();
   const change = TransactionOutput.new(changeAddress, changeTokens && changeTokens.len() > 0 ? Value.new_with_assets(BigNum.from_str("2000000"), changeTokens) : Value.new(BigNum.from_str("2000000")));
-  const changeMinimum = changeTokens && changeTokens.len() > 0 ? Number(min_ada_for_output(change, DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE)).to_str()) : 0;
+  const changeMinimum = changeTokens && changeTokens.len() > 0 ? Number(min_ada_for_output(change, dataCost()).to_str()) : 0;
 
   let fee = ASSUMED_FEE;
   try {
@@ -297,6 +301,8 @@ export const sendAda = async (connection: WalletConnection, targetAddress: Addre
 };
 
 export const delegateToPool = async (connection: WalletConnection, poolId: string) => {
+  // the deposit named in the certificate has to be the one in force
+  await refreshProtocol();
   const poolKeyHash = Ed25519KeyHash.from_bech32(poolId);
 
   const rewardAddressHash = (await connection.getRewardAddresses())[0];
@@ -313,7 +319,7 @@ export const delegateToPool = async (connection: WalletConnection, poolId: strin
     certificates.add(Certificate.new_stake_delegation(StakeDelegation.new(stakeCredential, poolKeyHash)));
   } else {
     certificates.add(
-      Certificate.new_stake_registration_and_delegation(StakeRegistrationAndDelegation.new(stakeCredential, poolKeyHash, KEY_DEPOSIT))
+      Certificate.new_stake_registration_and_delegation(StakeRegistrationAndDelegation.new(stakeCredential, poolKeyHash, keyDeposit()))
     );
   }
 

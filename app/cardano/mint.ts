@@ -1,5 +1,7 @@
+import { protocol } from "@cardano/protocol";
+import { refreshProtocol } from "@cardano/protocolLoad";
 import { waitUntilSpent } from "@cardano/rewards";
-import { buildTransaction, COINS_PER_UTXO_BYTE, currentSlot, hexToBytes, signAndSubmitTransaction, toNativeScript, transactionNeeds, TTL_SECONDS, TxOptions, walletChangeAddress, walletUtxos } from "@cardano/transaction";
+import { buildTransaction, currentSlot, dataCost, hexToBytes, signAndSubmitTransaction, toNativeScript, transactionNeeds, TTL_SECONDS, TxOptions, walletChangeAddress, walletUtxos } from "@cardano/transaction";
 import { MintPolicy, MintToken, SimpleScript, TokenDetails, WalletConnection } from "@cardano/types";
 import { cip25Metadata, MetaValue, tokenMetadata } from "@cardano/metadata";
 import { crc8, scriptLockSlot } from "@cardano/utils";
@@ -11,7 +13,6 @@ import {
   BigNum,
   ConstrPlutusData,
   Credential,
-  DataCost,
   Ed25519KeyHash,
   EnterpriseAddress,
   Int,
@@ -223,7 +224,7 @@ function referenceOutput(address: Address, policyHash: ScriptHash, token: MintTo
     .with_address(address)
     .with_plutus_data(tokenDatum(token))
     .next()
-    .with_asset_and_min_required_coin_by_utxo_cost(referenceAsset, DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE))
+    .with_asset_and_min_required_coin_by_utxo_cost(referenceAsset, dataCost())
     .build();
 }
 
@@ -245,7 +246,6 @@ function mintConfigure(policy: MintPolicy, tokens: MintToken[], keyHashes: strin
   const script = policyScript(policy);
   const policyHash = script.hash();
   const referenceOutputAddress = referenceAddress(changeAddress, referenceKeyHash(policy, keyHashes, changeAddress));
-  const dataCost = DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE);
 
   return (txBuilder: TransactionBuilder) => {
     const mintBuilder = MintBuilder.new();
@@ -266,17 +266,17 @@ function mintConfigure(policy: MintPolicy, tokens: MintToken[], keyHashes: strin
       txBuilder.add_json_metadatum_with_schema(BigNum.from_str(`${CIP25_LABEL}`), JSON.stringify(cip25Metadata(policy.policyId, tokens)), MetadataJsonSchema.NoConversions);
     }
 
-    txBuilder.add_output(TransactionOutputBuilder.new().with_address(changeAddress).next().with_asset_and_min_required_coin_by_utxo_cost(userAssets, dataCost).build());
+    txBuilder.add_output(TransactionOutputBuilder.new().with_address(changeAddress).next().with_asset_and_min_required_coin_by_utxo_cost(userAssets, dataCost()).build());
     txBuilder.set_mint_builder(mintBuilder);
     applyPolicy(txBuilder, policy, keyHashes);
   };
 }
 
 /**
- * Bytes the tokens of one mint transaction may take. A transaction holds 16 kB, the rest is left for its inputs,
- * signatures, the script and the change with the other tokens of the wallet.
+ * Bytes the tokens of one mint transaction may take. A transaction holds 16 kB as the chain stands, the rest is left
+ * for its inputs, signatures, the script and the change with the other tokens of the wallet.
  */
-const MINT_BATCH_BYTES = 13_000;
+const mintBatchBytes = () => protocol().maxTxSize - 3_384;
 
 /** About what a token adds to its mint transaction, rather too much than too little. */
 function tokenBytes(policy: MintPolicy, token: MintToken, format: MintFormat, reference: Address) {
@@ -293,7 +293,7 @@ function mintBatches(policy: MintPolicy, tokens: MintToken[], keyHashes: string[
   let bytes = 0;
   for (const token of tokens) {
     const size = tokenBytes(policy, token, format, reference);
-    if (bytes + size > MINT_BATCH_BYTES && batches[batches.length - 1].length > 0) {
+    if (bytes + size > mintBatchBytes() && batches[batches.length - 1].length > 0) {
       batches.push([]);
       bytes = 0;
     }
@@ -326,6 +326,7 @@ export class PartialMintError extends Error {
  * the wallet has seen the one before. Returns the hashes of the transactions.
  */
 export async function mintTokens(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[], format: MintFormat = "cip68", onProgress?: (progress: MintProgress) => void) {
+  await refreshProtocol();
   const changeAddress = await walletChangeAddress(connection);
   const batches = mintBatches(policy, tokens, keyHashes, changeAddress, format);
   const txHashes: string[] = [];
@@ -364,7 +365,7 @@ export interface MintCosts {
 }
 
 export async function mintCosts(connection: WalletConnection, policy: MintPolicy, tokens: MintToken[], keyHashes: string[], format: MintFormat = "cip68"): Promise<MintCosts> {
-  const [changeAddress, utxos] = await Promise.all([walletChangeAddress(connection), walletUtxos(connection)]);
+  const [changeAddress, utxos] = await Promise.all([walletChangeAddress(connection), walletUtxos(connection), refreshProtocol()]);
   const batches = mintBatches(policy, tokens, keyHashes, changeAddress, format);
   const needs = batches.map((batch) => transactionNeeds(mintConfigure(policy, batch, keyHashes, changeAddress, format), utxos, changeAddress));
   let fee = needs.reduce((sum, need) => sum + need.fee, 0);
