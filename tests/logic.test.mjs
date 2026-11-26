@@ -24,6 +24,7 @@ import {
   listErrors,
   markerName,
   MAX_GROUPS,
+  MAX_METADATA_BYTES,
   merkleProof,
   merkleRoot,
   merkleTree,
@@ -890,6 +891,13 @@ test("a list is refused for what the contract cannot sell", () => {
   assert.match(listErrors([...dropTokens(2), dropTokens(1)[0]])[0], /used twice/);
   assert.match(listErrors([{ assetName: "x".repeat(29), metadata: { name: "x" } }])[0], /1 to 28 bytes/);
   assert.match(listErrors([{ assetName: "x", metadata: {} }])[0], /needs a name/);
+  // a token with more metadata than a purchase can carry could never be bought
+  const filler = (count) => Object.fromEntries(Array.from({ length: count }, (_, n) => [`attribute${n}`, "x".repeat(60)]));
+  assert.deepEqual(listErrors([{ assetName: "x", metadata: { name: "x", ...filler(90) } }]), []);
+  assert.match(listErrors([{ assetName: "x", metadata: { name: "x", ...filler(120) } }])[0], /too large to be bought/);
+  assert.ok(metadataDatum({ assetName: "x", metadata: { name: "x", ...filler(90) } }).length / 2 < MAX_METADATA_BYTES);
+  // a number with a fraction has no place in the data of the chain
+  assert.match(listErrors([{ assetName: "x", metadata: { name: "x", weight: 1.5 } }])[0], /cannot be written on chain/);
 });
 
 test("a list is read in the forms creators have", () => {

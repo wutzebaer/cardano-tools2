@@ -6,13 +6,13 @@
 //   node --import ./site-hooks.mjs site.mjs close
 //   node --import ./site-hooks.mjs site.mjs show
 //
-// With --dry a transaction is built and run by a node, but not submitted. The run prints what the scripts used,
-// which is where the fixed budgets in dropTx.ts come from.
+// With --dry a transaction is built and run by a node, but not submitted. The run prints what the scripts used.
+// The budgets in dropTx.ts are checked without a chain by measure.mjs.
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import * as CSL from "@emurgo/cardano-serialization-lib-nodejs";
 import { groupOfDatum, groupOfMarker, isSold, positionOfToken, REFERENCE_LABEL, utf8Hex } from "@cardano/dropScript";
 import { policyRegistration, REGISTRATION_LABEL } from "@cardano/registration";
-import { BUDGET, burnTokenTx, buyTokenTx, closeGroupsTx, createDropTx, dropAddress, dropOf, GROUPS_PER_CLOSE } from "@cardano/dropTx";
+import { burnTokensTx, buyTokenTx, closeGroupsTx, createDropTx, dropAddress, dropOf, GROUPS_PER_CLOSE } from "@cardano/dropTx";
 
 const KOIOS = "https://preview.koios.rest/api/v1";
 const NETWORK_ID = 0;
@@ -136,7 +136,7 @@ if (command === "create") {
   // CIP-27 metadata: 5 % to the wallet, the address in pieces of 64 characters
   const royalty = args.includes("royalty") ? { rate: "0.05", addr: wallet.to_bech32().match(/.{1,64}/g) } : undefined;
   const { tx, drop, config } = createDropTx(await context(), NETWORK_ID, { tokens, groups, price: 5_000_000n, burnable, list, royalty });
-  console.log(`policy ${drop.policyId}, ${total} tokens in ${groups} groups, burnable ${burnable}, budget ${JSON.stringify(BUDGET.create(groups))}`);
+  console.log(`policy ${drop.policyId}, ${total} tokens in ${groups} groups, burnable ${burnable}`);
   if (!DRY) writeFileSync(STATE, JSON.stringify({ seed: config.seed, burnable, total, file }));
   await send(tx, "create");
 } else if (command === "register") {
@@ -189,7 +189,7 @@ if (command === "create") {
   const token = tokens[Number(args[1])];
   const metadata = (await chainOf(drop)).metadata.find((output) => output.tokens.some((held) => held.name === REFERENCE_LABEL + utf8Hex(token.assetName)));
   if (!metadata) throw new Error("no metadata of this token at the script");
-  await send(burnTokenTx(await context(), drop, metadata, token.assetName), `burn ${args[1]}`);
+  await send(burnTokensTx(await context(), drop, [{ metadata, assetName: token.assetName }]), `burn ${args[1]}`);
 } else if (command === "close") {
   const { drop } = state();
   for (;;) {

@@ -141,6 +141,11 @@ export interface DropList {
 }
 
 export const DROP_NAME_MAX_BYTES = 28;
+/**
+ * Bytes the metadata of one token may have as it is written on chain. A purchase carries it, next to the contract
+ * and the proof, in a transaction of 16 kB at most, with room left for what the wallet of the buyer adds.
+ */
+export const MAX_METADATA_BYTES = 8000;
 export const MAX_DROP_TOKENS = 10000;
 
 export const REFERENCE_LABEL = "000643b0";
@@ -182,6 +187,15 @@ export function merkleProof(tree: string[][], index: number): string[] {
   return proof;
 }
 
+/** Bytes of the metadata of a token as it is written on chain, undefined if it cannot be written. */
+function metadataBytes(token: DropToken) {
+  try {
+    return metadataDatum(token).length / 2;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Why a list cannot be sold as it is, in words for whoever uploads it. Empty if it is fine. */
 export function listErrors(tokens: DropToken[]): string[] {
   const errors: string[] = [];
@@ -196,6 +210,12 @@ export function listErrors(tokens: DropToken[]): string[] {
     seen.add(token.assetName);
     if (token.metadata == null || typeof token.metadata !== "object" || Array.isArray(token.metadata)) errors.push(`${where}: no metadata`);
     else if (typeof token.metadata.name !== "string" || !token.metadata.name) errors.push(`${where}: the metadata needs a name`);
+    else {
+      // a token with more could never be bought, which nobody would notice before somebody tries
+      const bytes = metadataBytes(token);
+      if (bytes === undefined) errors.push(`${where}: the metadata holds a value that cannot be written on chain, only texts, whole numbers, lists and objects can`);
+      else if (bytes > MAX_METADATA_BYTES) errors.push(`${where}: the metadata is too large to be bought, ${bytes.toLocaleString("en")} bytes of at most ${MAX_METADATA_BYTES.toLocaleString("en")}`);
+    }
     if (errors.length >= 8) return [...errors, "…"];
   }
   return errors;

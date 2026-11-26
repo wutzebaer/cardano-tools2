@@ -88,25 +88,48 @@ const dropTxConfig = (params: ProtocolParams) =>
     .ref_script_coins_per_byte(unitInterval(params.minFeeRefScriptCostPerByte))
     .build();
 
+type Budget = { mem: number; steps: number };
+
 /**
- * What a script run may cost at most. The site has no way to run the contract before submitting, so these are
- * fixed: measured on the preview testnet and rounded up generously. A transaction pays for the budget it names,
- * not for what it uses, so they are not larger than needed either.
+ * What the script runs of a transaction may use at most. A transaction pays for the budget it names, not for what
+ * its scripts use, and the site has no way to run the contract before submitting. So the budgets are worked out
+ * from what drives the work: `contracts/drop/offchain/measure.mjs` builds the transactions with this code, runs the
+ * contract on them and fails if a budget is not at least a tenth above what a run used.
+ *
+ * Every run looks through the inputs of its transaction for the one it belongs to, and reading an input is work.
+ * A wallet that pays from many small outputs makes that a large part of the whole, so the budgets of creating and
+ * buying, which such a wallet may have to pay for with many outputs, count the inputs.
  */
-export const BUDGET = {
-  create: (groups: number) => ({ mem: 250_000 + 60_000 * groups, steps: 100_000_000 + 33_000_000 * groups }),
-  buySpend: { mem: 500_000, steps: 250_000_000 },
-  buyMint: { mem: 120_000, steps: 50_000_000 },
-  burnSpend: { mem: 300_000, steps: 120_000_000 },
-  burnMint: { mem: 150_000, steps: 50_000_000 },
-  closeSpend: { mem: 450_000, steps: 180_000_000 },
-  closeMint: { mem: 150_000, steps: 60_000_000 },
-};
+export const createBudget = (groups: number, inputs = 1): Budget => ({ mem: 250_000 + 60_000 * groups + 7_200 * inputs, steps: 100_000_000 + 33_000_000 * groups + 4_000_000 * inputs });
+
+/**
+ * A purchase proves its token against the list, one hash per level of the Merkle tree, and hashes the metadata of
+ * the token, which is most of the work for a token that has a lot of it.
+ */
+export function buyBudgets(token: DropToken, config: Pick<DropConfig, "total">, inputs: number): { spend: Budget; mint: Budget } {
+  let levels = 0;
+  while (2 ** levels < config.total) levels++;
+  const metadataBytes = metadataDatum(token).length / 2;
+  return {
+    spend: { mem: 260_000 + 12_000 * levels + metadataBytes + 4_400 * inputs, steps: 115_000_000 + 4_000_000 * levels + 60_000 * metadataBytes + 3_000_000 * inputs },
+    mint: { mem: 40_000 + 7_200 * inputs, steps: 15_000_000 + 4_000_000 * inputs },
+  };
+}
+
+/** Every metadata output is checked by a run of its own, and each looks at all that is burned. */
+export function burnBudgets(burned: number): { spend: Budget; mint: Budget } {
+  const more = 1 + (burned - 1) / 4;
+  return { spend: { mem: Math.ceil(300_000 * more), steps: Math.ceil(120_000_000 * more) }, mint: { mem: 150_000 * burned, steps: 50_000_000 * burned } };
+}
+
+/** Every group is closed by a run of its own, which finds its output among those of all the groups closed along. */
+export const closeBudgets = (): { spend: Budget; mint: Budget } => ({ spend: { mem: 450_000, steps: 180_000_000 }, mint: { mem: 150_000, steps: 60_000_000 } });
+
+/** Outputs of the wallet a transaction spends at most: more would not fit into it together with the rest. */
+export const MAX_WALLET_INPUTS = 120;
 
 /** Groups closed by one transaction, so their script runs stay within what one transaction may use. */
 export const GROUPS_PER_CLOSE = 16;
-
-type Budget = { mem: number; steps: number };
 
 /**
  * ADA put up as collateral. It is only taken if a script fails after the transaction was accepted, which the node
@@ -272,8 +295,11 @@ interface Parts {
   /** Outputs of the wallet that have to be spent, whatever else gets picked */
   mustSpend?: TransactionUnspentOutput[];
   /** What the script runs of the transaction may use, the collateral follows from it */
-  budgets: Budget[];
-  configure: (txBuilder: TransactionBuilder, inputs: TxInputsBuilder) => void;
+  budgets: (inputCount: number) => Budget[];
+  /** Outputs of the contract the transaction spends, which count as inputs like those of the wallet */
+  scriptInputs?: number;
+  /** `inputCount`: all inputs the transaction will have, for the budgets that depend on it */
+  configure: (txBuilder: TransactionBuilder, inputs: TxInputsBuilder, inputCount: number) => void;
 }
 
 /**
@@ -285,15 +311,17 @@ function build(context: DropTxContext, parts: Parts): Transaction {
   const mustSpend = parts.mustSpend ?? [];
   const spendable = context.utxos.filter((utxo) => !mustSpend.some((must) => sameOutput(must, utxo))).sort((a, b) => (lovelaceOf(a) > lovelaceOf(b) ? -1 : 1));
   const params = paramsOf(context);
-  const amount = collateralFor(parts.budgets, params);
-  const collateral = collateralOf(context.utxos, context.changeAddress, amount, params);
   let lastError: unknown;
-  for (let count = 0; count <= spendable.length; count++) {
+  const most = Math.min(spendable.length, Math.max(0, MAX_WALLET_INPUTS - mustSpend.length));
+  for (let count = 0; count <= most; count++) {
     try {
       const txBuilder = TransactionBuilder.new(dropTxConfig(params));
       txBuilder.set_ttl_bignum(big(context.ttlSlot));
       const inputs = TxInputsBuilder.new();
-      parts.configure(txBuilder, inputs);
+      const inputCount = mustSpend.length + count + (parts.scriptInputs ?? 0);
+      const amount = collateralFor(parts.budgets(inputCount), params);
+      const collateral = collateralOf(context.utxos, context.changeAddress, amount, params);
+      parts.configure(txBuilder, inputs, inputCount);
       for (const utxo of [...mustSpend, ...spendable.slice(0, count)]) inputs.add_regular_utxo(utxo);
       txBuilder.set_inputs(inputs);
       const collateralInputs = TxInputsBuilder.new();
@@ -303,11 +331,14 @@ function build(context: DropTxContext, parts: Parts): Transaction {
       if (collateral.withReturn) txBuilder.set_total_collateral_and_return(big(amount), context.changeAddress);
       txBuilder.calc_script_data_hash(costModels(context.costModel));
       const hasChange = txBuilder.add_change_if_needed(context.changeAddress);
-      if (!hasChange && count < spendable.length) continue;
+      if (!hasChange && count < most) continue;
       return txBuilder.build_tx();
     } catch (error) {
       lastError = error;
     }
+  }
+  if (most < spendable.length) {
+    throw new Error(`Your wallet holds its ADA in many small outputs, and the ${MAX_WALLET_INPUTS} largest do not cover this transaction. Send your ADA to yourself in one transaction, which puts them together, and try again.`);
   }
   throw lastError ?? new Error("Your wallet does not hold enough ADA for this transaction");
 }
@@ -356,10 +387,10 @@ export function createDropTx(context: DropTxContext, networkId: number, drop: Ne
   const address = dropAddress(created, networkId);
   const script = plutusScript(created);
   const tx = build(context, {
-    budgets: [BUDGET.create(drop.groups)],
+    budgets: (inputCount) => [createBudget(drop.groups, inputCount)],
     mustSpend: [seedUtxo],
-    configure: (txBuilder) => {
-      const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.create(config), BUDGET.create(drop.groups)));
+    configure: (txBuilder, _inputs, inputCount) => {
+      const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.create(config), createBudget(drop.groups, inputCount)));
       const mint = MintBuilder.new();
       for (let group = 0; group < drop.groups; group++) {
         mint.add_asset(witness, AssetName.new(hexBytes(markerName(group))), Int.new_i32(1));
@@ -402,17 +433,19 @@ export function buyTokenTx(context: DropTxContext, networkId: number, drop: Drop
   const address = dropAddress(drop, networkId);
   const script = plutusScript(drop);
   return build(context, {
-    budgets: [BUDGET.buySpend, BUDGET.buyMint],
-    configure: (txBuilder, inputs) => {
+    budgets: (inputCount) => Object.values(buyBudgets(token, config, inputCount)),
+    scriptInputs: 1,
+    configure: (txBuilder, inputs, inputCount) => {
+      const budgets = buyBudgets(token, config, inputCount);
       inputs.add_plutus_script_input(
         PlutusWitness.new_with_ref_without_datum(
           PlutusScriptSource.new(script),
-          redeemer(RedeemerTag.new_spend(), REDEEMER.buy(index, token.assetName, merkleProof(merkleTree(tokens), index)), BUDGET.buySpend)
+          redeemer(RedeemerTag.new_spend(), REDEEMER.buy(index, token.assetName, merkleProof(merkleTree(tokens), index)), budgets.spend)
         ),
         inputOf(group.output),
         valueOf(group.output.lovelace, group.output.tokens)
       );
-      const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.withOutput, BUDGET.buyMint));
+      const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.withOutput, budgets.mint));
       const mint = MintBuilder.new();
       mint.add_asset(witness, AssetName.new(hexBytes(REFERENCE_LABEL + name)), Int.new_i32(1));
       mint.add_asset(witness, AssetName.new(hexBytes(USER_LABEL + name)), Int.new_i32(1));
@@ -452,11 +485,10 @@ export function burnTokensTx(context: DropTxContext, drop: Drop, items: { metada
   const names = items.map((item) => utf8Hex(item.assetName));
   const held = [...names.map((name) => USER_LABEL + name), ...(royaltyToken ? [ROYALTY_TOKEN] : [])];
   const holders = new Map(held.map((name) => holderOf(context, drop.policyId, name)).map((utxo) => [utxo.input().to_hex(), utxo]));
-  const more = 1 + (burned - 1) / 4;
-  const spendBudget = { mem: Math.ceil(BUDGET.burnSpend.mem * more), steps: Math.ceil(BUDGET.burnSpend.steps * more) };
-  const mintBudget = { mem: BUDGET.burnMint.mem * burned, steps: BUDGET.burnMint.steps * burned };
+  const { spend: spendBudget, mint: mintBudget } = burnBudgets(burned);
   return build(context, {
-    budgets: [...items.map(() => spendBudget), mintBudget],
+    budgets: () => [...items.map(() => spendBudget), mintBudget],
+    scriptInputs: items.length,
     mustSpend: [...holders.values()],
     configure: (txBuilder, inputs) => {
       const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.burn, mintBudget));
@@ -479,14 +511,16 @@ export function burnTokensTx(context: DropTxContext, drop: Drop, items: { metada
 /** Closes groups: their markers are burned and their deposits return to the wallet, which has to be the owner. */
 export function closeGroupsTx(context: DropTxContext, drop: Drop, groups: DropGroup[]) {
   const script = plutusScript(drop);
+  const budgets = closeBudgets();
   return build(context, {
-    budgets: [...groups.map(() => BUDGET.closeSpend), BUDGET.closeMint],
+    budgets: () => [...groups.map(() => budgets.spend), budgets.mint],
+    scriptInputs: groups.length,
     configure: (txBuilder, inputs) => {
-      const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.withOutput, BUDGET.closeMint));
+      const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.withOutput, budgets.mint));
       const mint = MintBuilder.new();
       for (const group of groups) {
         inputs.add_plutus_script_input(
-          PlutusWitness.new_with_ref_without_datum(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_spend(), REDEEMER.close, BUDGET.closeSpend)),
+          PlutusWitness.new_with_ref_without_datum(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_spend(), REDEEMER.close, budgets.spend)),
           inputOf(group.output),
           valueOf(group.output.lovelace, group.output.tokens)
         );
