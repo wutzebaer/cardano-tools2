@@ -11,7 +11,7 @@ import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../
 import { drepKind, marginCostPerYear, pickAlternatives, poolFindings, suggestsAlternatives } from "../app/check/checkLogic.ts";
 import { actionStatus, actionTitle, poolsVoteOn, sortActions, voteOfAddress, voteOfPool } from "../app/votes/governanceLogic.ts";
 import { assetNameFor, cip25Metadata, tokenMetadata, tokensFromMetadata, tokensMetadata } from "../app/cardano/metadata.ts";
-import { isPresentable } from "../app/cardano/technicalToken.ts";
+import { assetNameText, isPresentable } from "../app/cardano/readableName.ts";
 import { DROP_BLUEPRINT_HASH, DROP_CODE, DROP_TERM_BITS } from "../app/cardano/dropBlueprint.ts";
 import {
   applyDropParams,
@@ -257,6 +257,14 @@ test("tokens named by a hash and without a picture stay out of the feed", () => 
   assert.equal(isPresentable({ maName: "f3a9c1ffee0102", name: "Fluid tokens bond", image: "ipfs://Qm" }), true);
   // the royalty token
   assert.equal(isPresentable({ maName: "", name: "", image: "" }), true);
+});
+
+test("an asset name is text only where its bytes are", () => {
+  const hex = (text) => Buffer.from(text, "utf8").toString("hex");
+  assert.equal(assetNameText(hex("Foxxy002")), "Foxxy002");
+  assert.equal(assetNameText("000de140" + hex("Foxxy002")), "Foxxy002");
+  assert.equal(assetNameText("f3a9c1ffee0102"), undefined);
+  assert.equal(assetNameText(""), undefined);
 });
 
 test("token metadata contains only what is set", () => {

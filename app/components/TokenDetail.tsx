@@ -1,6 +1,7 @@
 import { getPolicyRoyalties, getStakeHandles, getTokenDetailsByFingerprint, getTokenHolders } from '@cardano/dbsync';
 import { currentSlot, explorerAddressUrl, explorerAssetUrl, IS_MAINNET, slotToUnix } from '@cardano/network';
 import LocalTime from '@components/LocalTime';
+import { assetNameText } from '@cardano/readableName';
 import { technicalToken } from '@cardano/technicalToken';
 import { assetNameFromHex, formatNumber, formatTokenAmount, policyLockSlot, metadataDecimals, parseMetadata, shortenId, toDisplayMetadata, tokenFiles, tokenImage, toIpfsUrl } from '@cardano/utils';
 import { getCollectionInfo } from '@cardano/wayup';
@@ -241,7 +242,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                                 </Link>
                             </DetailRow>
                             <DetailRow label="Fingerprint">{tokenDetails.fingerprint}</DetailRow>
-                            <DetailRow label="Asset name">{assetName}</DetailRow>
+                            <DetailRow label="Asset name">{assetNameText(tokenDetails.maName) ?? (tokenDetails.maName ? <span title="The name is no text, shown as hex">{tokenDetails.maName}</span> : assetName)}</DetailRow>
                             <DetailRow label="Total supply">
                                 {formatTokenAmount(tokenDetails.totalSupply, decimals)}
                                 {isNft ? <span className="ml-2 font-sans text-xs text-success">unique, supply is final</span> : null}

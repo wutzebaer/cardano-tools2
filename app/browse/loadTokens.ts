@@ -2,7 +2,8 @@
 
 import { getTokenFeed, getTokenSearch } from "@cardano/dbsync";
 import { TokenListItem } from "@cardano/types";
-import { isListed, isPresentable } from "@cardano/technicalToken";
+import { isPresentable } from "@cardano/readableName";
+import { isListed } from "@cardano/technicalToken";
 import { CollectionInfo, getCollectionInfos } from "@cardano/wayup";
 
 const PAGE_SIZE = 100;
