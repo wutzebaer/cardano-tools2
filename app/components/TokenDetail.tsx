@@ -1,5 +1,5 @@
 import { getPolicyRoyalties, getStakeHandles, getTokenDetailsByFingerprint, getTokenHolders } from '@cardano/dbsync';
-import { currentSlot, explorerAddressUrl, explorerAssetUrl, explorerStakeUrl, IS_MAINNET, slotToUnix } from '@cardano/network';
+import { currentSlot, explorerAddressUrl, explorerAssetUrl, IS_MAINNET, slotToUnix } from '@cardano/network';
 import LocalTime from '@components/LocalTime';
 import { technicalToken } from '@cardano/technicalToken';
 import { assetNameFromHex, formatNumber, formatTokenAmount, policyLockSlot, metadataDecimals, parseMetadata, shortenId, toDisplayMetadata, tokenFiles, tokenImage, toIpfsUrl } from '@cardano/utils';
@@ -254,7 +254,7 @@ async function TokenDetail({ fingerprint, closeOverlay }: { fingerprint: string;
                                             const handle = handles.get(holder.address);
                                             return (
                                                 <span key={holder.address}>
-                                                    <Link href={isStake ? explorerStakeUrl(holder.address) : explorerAddressUrl(holder.address)} target="_blank" className="hover:text-primary" title={holder.address}>
+                                                    <Link href={`/my?address=${encodeURIComponent(holder.address)}`} className="hover:text-primary" title={`${holder.address}: show the tokens of this wallet`}>
                                                         {handle ? <span className="font-sans font-medium">${handle}</span> : shortenId(holder.address, 10)}
                                                     </Link>
                                                     {isStake ? null : <span className="ml-2 font-sans text-xs text-base-content/55">an address without a stake key, e.g. a contract</span>}

@@ -55,8 +55,6 @@ export const explorerTxUrl = (txHash: string) => `${NETWORK.explorer}/tx/${txHas
 
 export const explorerAddressUrl = (address: string) => `${NETWORK.explorer}/address/${address}`;
 
-export const explorerStakeUrl = (stakeAddress: string) => `${NETWORK.explorer}/stake/${stakeAddress}`;
-
 export const explorerPoolUrl = (poolId: string) => `${NETWORK.explorer}/pool/${poolId}`;
 
 export const explorerPolicyUrl = (policyId: string) => `${NETWORK.explorer}/policy/${policyId}`;
