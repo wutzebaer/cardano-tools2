@@ -8,7 +8,7 @@ import { answered } from "@cardano/answer";
 import { collectionNameError, DESCRIPTION_MAX_LENGTH } from "@cardano/registration";
 import { formatAda, shortenId, toIpfsUrl } from "@cardano/utils";
 import IpfsImage from "@components/IpfsImage";
-import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
+import { ArrowDownTrayIcon, ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import { uploadToIpfs } from "@/app/mint/uploadToIpfs";
 import TxResult from "@components/TxResult";
 import { Field, inputClass, Notice, secondaryButtonClass, StepNumber } from "@components/ui";
@@ -50,7 +50,7 @@ export function SellAsDrop({ wallet, tokens, step }: { wallet: ConnectedWallet; 
   const [uploading, setUploading] = useState(false);
   const [imageError, setImageError] = useState<string>();
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ txHash: string; policyId: string } | null>(null);
+  const [result, setResult] = useState<{ txHash: string; policyId: string; list: string } | null>(null);
 
   const priceAda = Number(price);
   const priceError = price.trim() === "" || !Number.isFinite(priceAda) || priceAda < 1 ? "At least 1 ADA" : undefined;
@@ -124,6 +124,14 @@ export function SellAsDrop({ wallet, tokens, step }: { wallet: ConnectedWallet; 
     }
   };
 
+  const downloadList = (created: { policyId: string; list: string }) => {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([created.list], { type: "application/json" }));
+    link.download = `drop-${created.policyId.slice(0, 8)}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
   if (result) {
     return (
       <TxResult title="Drop created" txHashes={[result.txHash]} onReset={() => setResult(null)} resetLabel="Back to the form">
@@ -137,6 +145,12 @@ export function SellAsDrop({ wallet, tokens, step }: { wallet: ConnectedWallet; 
             cardano-tools.io/drop/{result.policyId}
           </Link>
         </p>
+        <div className="flex flex-col gap-2 text-sm text-base-content/65 sm:flex-row sm:items-center">
+          <button type="button" className={secondaryButtonClass} onClick={() => downloadList(result)}>
+            <ArrowDownTrayIcon className="size-4" /> Download the list
+          </button>
+          <span>Keep this file. The drop sells from it, and should IPFS ever lose it, loading the file on the page of the drop brings it back.</span>
+        </div>
       </TxResult>
     );
   }

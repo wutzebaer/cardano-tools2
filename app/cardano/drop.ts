@@ -58,6 +58,9 @@ function groupsOf(policyId: string, outputs: DropOutput[]): DropGroup[] {
     .sort((a, b) => a.group - b.group);
 }
 
+/** Whether an output holds exactly one of a token. */
+const holdsToken = (output: DropOutput, policyId: string, name: string) => output.tokens.some((token) => token.policyId === policyId && token.name === name && token.quantity === 1n);
+
 /** Reads a drop from the chain, null if the policy id is not a drop of this contract. */
 export async function loadDrop(policyId: string): Promise<DropState | null> {
   const groups = groupsOf(policyId, outputsOf(await answered(getDropOutputs(policyId, markerName(0).slice(0, 6)))));
@@ -70,13 +73,37 @@ export async function loadDrop(policyId: string): Promise<DropState | null> {
   return { drop, config, groups };
 }
 
-/** Loads the published list of a drop and makes sure it is the one the drop sells. */
-export async function loadDropTokens(config: DropConfig): Promise<DropToken[]> {
-  const tokens = parseDropList(JSON.parse(await answered(readDropList(config.list))));
+/** The list of a drop as it is published: these bytes decide its address on IPFS, so they are the ones to keep. */
+export const dropListJson = (tokens: DropToken[]) => JSON.stringify({ version: 1, tokens } satisfies DropList);
+
+/** Reads a list and makes sure it is the one the drop sells, wherever it comes from. */
+function verifiedTokens(config: DropConfig, json: string): DropToken[] {
+  const tokens = parseDropList(JSON.parse(json));
   if (tokens.length !== config.total || merkleRoot(merkleTree(tokens)) !== config.root) {
-    throw new Error("The published list does not match what this drop sells. Do not buy from it.");
+    throw new Error("This list does not match what the drop sells. Do not buy from it.");
   }
   return tokens;
+}
+
+/** Loads the published list of a drop and makes sure it is the one the drop sells. */
+export async function loadDropTokens(config: DropConfig): Promise<DropToken[]> {
+  return verifiedTokens(config, await answered(readDropList(config.list)));
+}
+
+/**
+ * Takes the list of a drop from a file, for a drop whose list can no longer be loaded from IPFS. The file is only
+ * used if it is the list the drop sells. It is published again as well: the same bytes get the same address, so the
+ * drop then works for everybody again. `republished` says whether that worked out.
+ */
+export async function dropTokensFromFile(config: DropConfig, file: File): Promise<{ tokens: DropToken[]; republished: boolean }> {
+  let tokens: DropToken[];
+  try {
+    tokens = verifiedTokens(config, await file.text());
+  } catch (error) {
+    throw new Error(error instanceof SyntaxError ? "This file is not a list of tokens." : error instanceof Error ? error.message : "This file cannot be read.");
+  }
+  const hash = await answered(uploadToIpfs(file)).catch(() => null);
+  return { tokens, republished: `ipfs://${hash}` === config.list };
 }
 
 export type TokenStatus = "available" | "sold" | "closed";
@@ -109,10 +136,10 @@ function withCollisionHint(error: unknown): never {
 export async function createDrop(connection: WalletConnection, drop: Omit<NewDrop, "list" | "royalty">, royalty?: { percent: number; address: string }) {
   const errors = listErrors(drop.tokens);
   if (errors.length > 0) throw new Error(errors[0]);
-  const published: DropList = { version: 1, tokens: drop.tokens };
-  const hash = await answered(uploadToIpfs(new File([JSON.stringify(published)], "drop.json", { type: "application/json" })));
+  const list = dropListJson(drop.tokens);
+  const hash = await answered(uploadToIpfs(new File([list], "drop.json", { type: "application/json" })));
   const { tx, drop: created } = createDropTx(await txContext(connection), NETWORK.id, { ...drop, list: `ipfs://${hash}`, royalty: royalty ? royaltyMetadata(royalty.percent, royalty.address) : undefined });
-  return { txHash: await signAndSubmitTransaction(connection, tx), policyId: created.policyId };
+  return { txHash: await signAndSubmitTransaction(connection, tx), policyId: created.policyId, list };
 }
 
 /** What creating a drop takes from the wallet, in lovelace. */
@@ -156,7 +183,9 @@ export async function buyToken(connection: WalletConnection, policyId: string, t
 export async function burnTokens(connection: WalletConnection, state: DropState, assetNames: string[], royaltyToken = false) {
   const items = await Promise.all(
     assetNames.map(async (assetName) => {
-      const [metadata] = outputsOf(await answered(getDropOutputs(state.drop.policyId, REFERENCE_LABEL + utf8Hex(assetName))));
+      // the API looks for names that start like this one, "Robot1" finds "Robot10" as well
+      const reference = REFERENCE_LABEL + utf8Hex(assetName);
+      const metadata = outputsOf(await answered(getDropOutputs(state.drop.policyId, reference))).find((output) => holdsToken(output, state.drop.policyId, reference));
       if (!metadata) throw new Error(`The metadata of ${assetName} is not at the contract, it cannot be burned here`);
       return { metadata, assetName };
     })
