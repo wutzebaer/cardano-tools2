@@ -7,7 +7,7 @@ import { MAX_FILE_BYTES } from "./fileLimits";
 export async function uploadToIpfs(file: File): Promise<Answer<string>> {
   return answer(async () => {
     if (file.size > MAX_FILE_BYTES) {
-      throw new UserError("Max 100mb");
+      throw new UserError("At most 100 MB per file");
     }
     const apiUrl = process.env.IPFS_API_URL?.replace(/\/$/, "");
     if (!apiUrl) {

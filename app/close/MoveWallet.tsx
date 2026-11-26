@@ -129,7 +129,7 @@ function Move({ wallet }: { wallet: ConnectedWallet }) {
                 <ul className="mt-2 flex flex-col gap-0.5 font-mono text-xs text-base-content/65">
                   {assets.slice(0, VISIBLE_TOKENS).map((asset) => (
                     <li key={`${asset.policyId}.${asset.name}`}>
-                      {`${asset.quantity}`} {asset.name ? assetNameFromHex(asset.name) || "(no name)" : "Royalty token"} ·{shortenId(asset.policyId)}
+                      {`${asset.quantity}`} {asset.name ? assetNameFromHex(asset.name) || "(no name)" : "Royalty token"} · {shortenId(asset.policyId)}
                     </li>
                   ))}
                   {assets.length > VISIBLE_TOKENS ? <li>and {assets.length - VISIBLE_TOKENS} more</li> : null}

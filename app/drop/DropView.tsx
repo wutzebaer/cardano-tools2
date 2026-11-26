@@ -222,7 +222,7 @@ export default function DropView({ policyId }: { policyId: string }) {
             "Tokens of this drop cannot be burned."
           )}
         </p>
-        {closed ? <Notice tone="warning">This drop is closed, nothing can be bought anymore.</Notice> : null}
+        {closed ? <Notice tone="warning">This drop is closed, nothing can be bought any more.</Notice> : null}
         {isOwner && !closed ? (
           <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
             <span className="text-sm text-base-content/65">This is your drop.</span>

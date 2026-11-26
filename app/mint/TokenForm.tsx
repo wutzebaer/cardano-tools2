@@ -36,9 +36,9 @@ export function tokenErrors(token: MintToken, allTokens: MintToken[]) {
 /** Small files can be stored on-chain as a data URI, everything else goes to IPFS. */
 async function storeFile(file: File): Promise<string> {
   if (file.size > MAX_FILE_BYTES) {
-    throw new Error("Max 100mb");
+    throw new Error("At most 100 MB per file");
   }
-  if (file.size < ONCHAIN_FILE_BYTES && confirm(`Store file ${file.name} onchain?`)) {
+  if (file.size < ONCHAIN_FILE_BYTES && confirm(`Store file ${file.name} on-chain?`)) {
     return new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
