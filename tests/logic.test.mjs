@@ -674,6 +674,8 @@ test("every epoch tells another little fact, and a fact without anything to say 
   // dull numbers pass on: a largest transfer of 30 ADA is no fact (index 3), the next one speaks
   const dull = { ...numbers, largestTransaction: 30_000_000, blockFill: 0.05 };
   assert.equal(funFact(dull, 736_926_000_000, 209, 3).label, "TOKEN OUTPUTS");
+  // the share of blocks says the number once, as a percentage
+  assert.deepEqual([FUN_FACTS[17](numbers, 1, 1).value, FUN_FACTS[17](numbers, 1, 1).note], ["0.0046 %", "of all 21,516 blocks"]);
   // a preview starts where it likes: 0 is the transactions
   assert.equal(funFact(numbers, 736_926_000_000, 209, 0).label, "TRANSACTIONS");
 });
