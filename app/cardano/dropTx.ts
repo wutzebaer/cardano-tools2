@@ -103,12 +103,20 @@ export const BUDGET = {
 /** Groups closed by one transaction, so their script runs stay within what one transaction may use. */
 export const GROUPS_PER_CLOSE = 16;
 
+type Budget = { mem: number; steps: number };
+
+/** What a transaction of the largest size costs before its scripts run: 155,381 lovelace and 44 per byte of 16,384. */
+const SIZE_FEE_LOVELACE = 880_000;
+
 /**
  * ADA put up as collateral. It is only taken if a script fails after the transaction was accepted, which the node
- * checks before. The ledger wants one and a half times the fee: a purchase or a burn costs well below 1 ADA, creating
- * and closing run the contract once per group and cost more.
+ * checks before. The ledger wants one and a half times the fee, so this is worked out from the most the transaction
+ * can cost: the largest size and what its script runs may use at the prices of `dropTxConfig`. Rounded up to 0.1 ADA.
  */
-const COLLATERAL_LOVELACE = { small: 1_500_000n, large: 4_000_000n };
+function collateralFor(budgets: Budget[]) {
+  const scripts = budgets.reduce((sum, budget) => sum + budget.mem * 0.0577 + budget.steps * 0.0000721, 0);
+  return BigInt(Math.ceil(((SIZE_FEE_LOVELACE + scripts) * 1.5) / 100_000) * 100_000);
+}
 
 /** Outputs a transaction may put up as collateral at most. */
 const MAX_COLLATERAL_INPUTS = 3;
@@ -262,8 +270,8 @@ function collateralOf(utxos: TransactionUnspentOutput[], changeAddress: Address,
 interface Parts {
   /** Outputs of the wallet that have to be spent, whatever else gets picked */
   mustSpend?: TransactionUnspentOutput[];
-  /** How much collateral the transaction needs, by what its script runs cost */
-  collateral: keyof typeof COLLATERAL_LOVELACE;
+  /** What the script runs of the transaction may use, the collateral follows from it */
+  budgets: Budget[];
   configure: (txBuilder: TransactionBuilder, inputs: TxInputsBuilder) => void;
 }
 
@@ -275,7 +283,7 @@ interface Parts {
 function build(context: DropTxContext, parts: Parts): Transaction {
   const mustSpend = parts.mustSpend ?? [];
   const spendable = context.utxos.filter((utxo) => !mustSpend.some((must) => sameOutput(must, utxo))).sort((a, b) => (lovelaceOf(a) > lovelaceOf(b) ? -1 : 1));
-  const amount = COLLATERAL_LOVELACE[parts.collateral];
+  const amount = collateralFor(parts.budgets);
   const collateral = collateralOf(context.utxos, context.changeAddress, amount);
   let lastError: unknown;
   for (let count = 0; count <= spendable.length; count++) {
@@ -346,7 +354,7 @@ export function createDropTx(context: DropTxContext, networkId: number, drop: Ne
   const address = dropAddress(created, networkId);
   const script = plutusScript(created);
   const tx = build(context, {
-    collateral: "large",
+    budgets: [BUDGET.create(drop.groups)],
     mustSpend: [seedUtxo],
     configure: (txBuilder) => {
       const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.create(config), BUDGET.create(drop.groups)));
@@ -392,7 +400,7 @@ export function buyTokenTx(context: DropTxContext, networkId: number, drop: Drop
   const address = dropAddress(drop, networkId);
   const script = plutusScript(drop);
   return build(context, {
-    collateral: "small",
+    budgets: [BUDGET.buySpend, BUDGET.buyMint],
     configure: (txBuilder, inputs) => {
       inputs.add_plutus_script_input(
         PlutusWitness.new_with_ref_without_datum(
@@ -446,7 +454,7 @@ export function burnTokensTx(context: DropTxContext, drop: Drop, items: { metada
   const spendBudget = { mem: Math.ceil(BUDGET.burnSpend.mem * more), steps: Math.ceil(BUDGET.burnSpend.steps * more) };
   const mintBudget = { mem: BUDGET.burnMint.mem * burned, steps: BUDGET.burnMint.steps * burned };
   return build(context, {
-    collateral: burned === 1 ? "small" : "large",
+    budgets: [...items.map(() => spendBudget), mintBudget],
     mustSpend: [...holders.values()],
     configure: (txBuilder, inputs) => {
       const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.burn, mintBudget));
@@ -470,7 +478,7 @@ export function burnTokensTx(context: DropTxContext, drop: Drop, items: { metada
 export function closeGroupsTx(context: DropTxContext, drop: Drop, groups: DropGroup[]) {
   const script = plutusScript(drop);
   return build(context, {
-    collateral: "large",
+    budgets: [...groups.map(() => BUDGET.closeSpend), BUDGET.closeMint],
     configure: (txBuilder, inputs) => {
       const witness = MintWitness.new_plutus_script(PlutusScriptSource.new(script), redeemer(RedeemerTag.new_mint(), REDEEMER.withOutput, BUDGET.closeMint));
       const mint = MintBuilder.new();
