@@ -1,13 +1,12 @@
 import { NETWORK } from "@cardano/network";
 import { applyPolicy, policyScript, policyTxOptions } from "@cardano/mint";
 import { policyRegistration, REGISTRATION_LABEL } from "@cardano/registration";
-import { COINS_PER_UTXO_BYTE, currentSlot, sendTransaction, walletChangeAddress } from "@cardano/transaction";
+import { currentSlot, dataCost, sendTransaction, walletChangeAddress } from "@cardano/transaction";
 import { MintPolicy, WalletConnection } from "@cardano/types";
 import {
   Address,
   AssetName,
   BigNum,
-  DataCost,
   Int,
   MetadataJsonSchema,
   MintBuilder,
@@ -57,7 +56,7 @@ export async function mintRoyaltyToken(connection: WalletConnection, policy: Min
         TransactionOutputBuilder.new()
           .with_address(changeAddress)
           .next()
-          .with_asset_and_min_required_coin_by_utxo_cost(royaltyAsset, DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE))
+          .with_asset_and_min_required_coin_by_utxo_cost(royaltyAsset, dataCost())
           .build()
       );
 

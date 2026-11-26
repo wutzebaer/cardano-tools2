@@ -1,8 +1,8 @@
 "use client";
 
-import { errorToMessage } from '@cardano/utils';
-import { ExclamationCircleIcon } from '@heroicons/react/24/outline';
-import { useEffect, useState } from 'react';
+import { errorToMessage } from "@cardano/utils";
+import { ExclamationCircleIcon } from "@heroicons/react/24/outline";
+import { useEffect, useState } from "react";
 
 const RELOADED_AT_KEY = "outdatedReloadAt";
 
@@ -29,10 +29,7 @@ const ErrorToast = () => {
   useEffect(() => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       if (reloadIfOutdated(errorToMessage(event.reason))) return;
-      setErrorMessages((prevMessages) => [
-        ...prevMessages,
-        errorToMessage(event.reason),
-      ]);
+      setErrorMessages((prevMessages) => [...prevMessages, errorToMessage(event.reason)]);
 
       // Clear the specific error message after 5 seconds
       setTimeout(() => {

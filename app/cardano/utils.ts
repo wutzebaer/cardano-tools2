@@ -206,13 +206,13 @@ function flattenAndTransform(obj: ReturnType<typeof JSON.parse>, path: string[] 
     }
     return Object.assign({}, ...obj.map((item, index) => flattenAndTransform(item, [...path, index.toString()])));
   } else if (typeof obj === "object") {
-    // Wenn es ein Objekt ist, verarbeite jedes Schlüssel-Wert-Paar rekursiv
+    // an object: every entry on its own, with its key added to the path
     return Object.assign({}, ...Object.entries(obj).map(([key, value]) => flattenAndTransform(value, [...path, key])));
   } else if (typeof obj === "number") {
-    // Formatiere Zahlen mit formatNumber
+    // numbers are shown the way the rest of the site formats them
     return { [path.join(" / ")]: formatNumber(obj) };
   }
-  // Andernfalls gib den Wert mit dem aktuellen Pfad als Schlüssel zurück
+  // anything else is a value, keyed by its path
   return { [path.join(" / ")]: obj };
 }
 

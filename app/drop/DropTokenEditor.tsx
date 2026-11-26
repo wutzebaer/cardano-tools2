@@ -5,12 +5,11 @@ import { DROP_NAME_MAX_BYTES, DropToken, listErrors, MAX_DROP_TOKENS, parseDropL
 import { assetNameFor, MetaValue } from "@cardano/metadata";
 import { toIpfsUrl } from "@cardano/utils";
 import IpfsImage from "@components/IpfsImage";
-import { Field, inputClass, secondaryButtonClass } from "@components/ui";
+import { Field, inputClass, secondaryButtonClass, StepNumber } from "@components/ui";
 import { ArrowDownTrayIcon, ArrowUpTrayIcon, DocumentArrowUpIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { MAX_FILE_BYTES } from "@/app/mint/fileLimits";
 import { uploadToIpfs } from "@/app/mint/uploadToIpfs";
 import { ChangeEvent, KeyboardEvent, ReactNode, useEffect, useMemo, useState } from "react";
-
-const MAX_FILE_BYTES = 104_857_600;
 
 /** One attribute as the creator types it. Empty keys are ignored. */
 interface Attribute {
@@ -127,7 +126,7 @@ function Step({ number, title, text, aside, children }: { number: number; title:
     <section className="flex flex-col gap-2 border-t border-line pt-4 first:border-t-0 first:pt-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{number}</span>
+          <StepNumber>{number}</StepNumber>
           <div>
             <h3 className="text-base font-semibold leading-7 tracking-tight text-base-content">{title}</h3>
             {text ? <p className="text-sm text-base-content/60">{text}</p> : null}
@@ -140,7 +139,12 @@ function Step({ number, title, text, aside, children }: { number: number; title:
   );
 }
 
-function AttributeRows({ attributes, onChange, keyPlaceholder = "website", valuePlaceholder = "https://…" }: {
+function AttributeRows({
+  attributes,
+  onChange,
+  keyPlaceholder = "website",
+  valuePlaceholder = "https://…",
+}: {
   attributes: Attribute[];
   onChange: (attributes: Attribute[]) => void;
   keyPlaceholder?: string;
@@ -337,7 +341,13 @@ export default function DropTokenEditor({ onChange, firstStep = 1, onNextStep }:
   };
 
   const traitName = newTrait.trim();
-  const traitError = RESERVED.has(traitName) ? `"${traitName}" is set by the token itself` : traits.some((trait) => trait.name === traitName) ? `"${traitName}" is there already` : common.some((attribute) => attribute.key.trim() === traitName && attribute.value.trim()) ? `"${traitName}" is set for all tokens above` : undefined;
+  const traitError = RESERVED.has(traitName)
+    ? `"${traitName}" is set by the token itself`
+    : traits.some((trait) => trait.name === traitName)
+      ? `"${traitName}" is there already`
+      : common.some((attribute) => attribute.key.trim() === traitName && attribute.value.trim())
+        ? `"${traitName}" is set for all tokens above`
+        : undefined;
   const addTrait = () => {
     if (!traitName || traitError) return;
     setTraits([...traits, { name: traitName, values: newValues }]);
@@ -384,11 +394,7 @@ export default function DropTokenEditor({ onChange, firstStep = 1, onNextStep }:
 
   return (
     <div className="flex flex-col gap-4">
-      <Step
-        number={firstStep}
-        title="Your tokens"
-        text="Every image becomes one token, named after its file, and is stored on IPFS. Or load a list you prepared as a JSON file."
-      >
+      <Step number={firstStep} title="Your tokens" text="Every image becomes one token, named after its file, and is stored on IPFS. Or load a list you prepared as a JSON file.">
         <div className="flex flex-wrap items-center gap-2">
           <label className={`${secondaryButtonClass} ${uploading ? "btn-disabled" : ""}`}>
             {uploading ? <span className="loading loading-spinner loading-xs" /> : <ArrowUpTrayIcon className="size-4" />}

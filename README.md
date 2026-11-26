@@ -40,6 +40,9 @@ Configuration in `.env`:
 | `CARDANO_DBSYNC_API_URL` | Base URL of cardano-db-sync-api, e.g. `http://localhost:8080/cardanoDbSyncApi` |
 | `NEXT_PUBLIC_CARDANO_NETWORK` | `mainnet` (default), `preprod` or `preview`. Sets slot and epoch arithmetic, the network the wallet has to be on and the explorer links. The API has to serve a db-sync of the same network |
 | `IPFS_API_URL` | IPFS node API used to upload and pin files while minting, e.g. `http://localhost:5001` |
+| `IPFS_UPLOAD_FILES_PER_DAY` | Optional. Files one visitor may store on IPFS within a day, 25000 if not set |
+| `IPFS_UPLOAD_GB_PER_DAY` | Optional. GB one visitor may store on IPFS within a day, 20 if not set |
+| `IPFS_UPLOAD_TOTAL_GB_PER_DAY` | Optional. GB all visitors together may store on IPFS within a day, 100 if not set |
 
 Refresh the OpenAPI types after API changes:
 

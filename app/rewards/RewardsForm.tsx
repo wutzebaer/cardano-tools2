@@ -2,7 +2,7 @@
 
 import { assetKey, assetsInUtxos, lovelaceInUtxos, WalletAsset } from "@cardano/assets";
 import { distribute, NotEnoughFundsError, RewardPosition, RewardToken } from "@cardano/distribution";
-import { IS_MAINNET } from "@cardano/network";
+import { explorerTxUrl, IS_MAINNET } from "@cardano/network";
 import { POOL_TICKER } from "@cardano/pool";
 import { batchPositions, DistributionProgress, minLovelaceForOutput, sendRewards } from "@cardano/rewards";
 import { currentEpoch, walletUtxos } from "@cardano/transaction";
@@ -10,7 +10,7 @@ import { formatAda, formatNumber, shortenId } from "@cardano/utils";
 import ConnectWallet from "@components/ConnectWallet";
 import TokenSelect from "@components/TokenSelect";
 import TxResult from "@components/TxResult";
-import { Field, inputClass, Notice, secondaryButtonClass } from "@components/ui";
+import { ExternalLink, Field, inputClass, Notice, secondaryButtonClass } from "@components/ui";
 import { ConnectedWallet } from "@components/useWallet";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useHandles } from "@components/useHandles";
@@ -32,7 +32,18 @@ interface TokenRow {
   amount: string;
 }
 
-const isPoolId = (value: string) => /^pool1[a-z0-9]{51}$/.test(value);
+/** A distribution as it was started: what it sends stays the same until all of it is sent, whatever the form says by then. */
+interface Run {
+  wallet: ConnectedWallet;
+  batches: RewardPosition[][];
+  message: string;
+  /** Stakers that get a share, the tip not counted */
+  recipients: number;
+  /** Hashes of the transactions that are sent, one per batch from the first on */
+  sent: string[];
+}
+
+const isPoolId =(value: string) => /^pool1[a-z0-9]{51}$/.test(value);
 
 /** Accepts a pool id or the ticker of a pool. */
 function resolvePool(input: string, pools: Pool[]) {
@@ -61,6 +72,7 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
   const [funds, setFunds] = useState<{ wallet: ConnectedWallet; lovelace: bigint; assets: WalletAsset[] } | null>(null);
   const [progress, setProgress] = useState<DistributionProgress | null>(null);
   const [sending, setSending] = useState(false);
+  const [run, setRun] = useState<Run | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -153,24 +165,56 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
   const tipPosition = distribution.positions.find((position) => position.tip);
 
   const exceedsWallet = walletFunds != null && lovelace > walletFunds.lovelace;
-  const canSend = distribution.positions.length > 0 && tokenErrors.every((error) => !error) && messageBytes <= MESSAGE_MAX_BYTES && !exceedsWallet && !sending;
+  // the distribution of this wallet that is under way or stopped; one of a wallet connected before is not this wallet's to finish
+  const ownRun = run?.wallet === wallet ? run : null;
+  // while a distribution is unfinished only its rest can be sent, a new one would pay the first stakers again
+  const canSend = distribution.positions.length > 0 && tokenErrors.every((error) => !error) && messageBytes <= MESSAGE_MAX_BYTES && !exceedsWallet && !sending && ownRun == null;
 
-  const send = async () => {
-    const recipients = distribution.positions.filter((position) => !position.tip).length;
-    if (!confirm(`Send ${formatAda(Number(lovelace))} to ${recipients} stakers in ${batches.length} transaction${batches.length === 1 ? "" : "s"}?`)) return;
+  // a distribution that stopped on the way: some of its transactions are sent, the rest is still to be signed
+  const stopped = ownRun != null && !sending && ownRun.sent.length > 0 && ownRun.sent.length < ownRun.batches.length ? ownRun : null;
+
+  /** Sends what is left of a distribution, which is all of it for a new one. What is sent stays sent, whatever happens after. */
+  const sendRest = async (current: Run) => {
+    let sent = current.sent;
     setSending(true);
     try {
-      await sendRewards(wallet.connection, batches, message, setProgress);
+      await sendRewards(
+        wallet.connection,
+        current.batches,
+        current.message,
+        (next) => {
+          sent = next.txHashes;
+          setProgress(next);
+        },
+        current.sent
+      );
     } finally {
+      // kept as they were sent, not as the form stands now: sending them again would pay their stakers twice
+      setRun(sent.length > 0 ? { ...current, sent } : null);
       setSending(false);
+      if (sent.length < current.batches.length) setProgress(null);
     }
+  };
+
+  const send = () => {
+    const recipients = distribution.positions.filter((position) => !position.tip).length;
+    if (!confirm(`Send ${formatAda(Number(lovelace))} to ${recipients} stakers in ${batches.length} transaction${batches.length === 1 ? "" : "s"}?`)) return;
+    return sendRest({ wallet, batches, message, recipients, sent: [] });
   };
 
   if (progress?.state === "done") {
     return (
-      <TxResult title="Rewards sent" txHashes={progress.txHashes} onReset={() => setProgress(null)} resetLabel="Distribute again">
+      <TxResult
+        title="Rewards sent"
+        txHashes={progress.txHashes}
+        onReset={() => {
+          setProgress(null);
+          setRun(null);
+        }}
+        resetLabel="Distribute again"
+      >
         <p className="text-sm text-base-content/65">
-          {distribution.positions.filter((position) => !position.tip).length} stakers of epoch {epochNo} received their share.
+          {ownRun?.recipients ?? distribution.positions.filter((position) => !position.tip).length} stakers of epoch {epochNo} received their share.
         </p>
       </TxResult>
     );
@@ -258,6 +302,36 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
 
       {distribution.error ? <Notice tone="warning">{distribution.error}</Notice> : null}
 
+      {stopped ? (
+        <Notice tone="warning">
+          <div className="flex flex-col gap-3">
+            <p>
+              The distribution stopped on the way: {stopped.sent.length} of {stopped.batches.length} transactions {stopped.sent.length === 1 ? "is" : "are"} sent, and the stakers in{" "}
+              {stopped.sent.length === 1 ? "it" : "them"} have their share. Send only the rest. It goes out as it was started, changes to the form above do not count for it. If the last error came
+              right after a signature, check in your wallet first that this transaction did not go out.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button className="btn btn-primary btn-sm" onClick={() => sendRest(stopped)}>
+                Send the remaining {stopped.batches.length - stopped.sent.length}
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  if (confirm("Give up the rest of this distribution?\n\nThe stakers of the transactions that were not sent get nothing. What is sent stays sent.")) setRun(null);
+                }}
+              >
+                Give up the rest
+              </button>
+              {stopped.sent.map((txHash, index) => (
+                <ExternalLink key={txHash} href={explorerTxUrl(txHash)}>
+                  Transaction {index + 1}
+                </ExternalLink>
+              ))}
+            </div>
+          </div>
+        </Notice>
+      ) : null}
+
       {stakersCurrent ? (
         <div className="surface flex flex-col gap-4 p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -272,7 +346,7 @@ function Rewards({ wallet, pools }: { wallet: ConnectedWallet; pools: Pool[] }) 
             </button>
           </div>
 
-          {progress ? (
+          {progress && sending ? (
             <Notice>
               Transaction {progress.batch} of {progress.batches}: {progress.state === "signing" ? "waiting for your signature" : "sent, waiting for your wallet to pick it up before the next one"}
             </Notice>

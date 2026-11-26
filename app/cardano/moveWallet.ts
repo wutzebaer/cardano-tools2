@@ -1,5 +1,6 @@
 import { watchConfirmation } from "@cardano/confirmation";
 import { currentSlot } from "@cardano/network";
+import { refreshProtocol } from "@cardano/protocolLoad";
 import { delegateVote, signAndSubmitTransaction, TTL_SECONDS, txBuilderConfig, walletRewardAddress, walletUtxos } from "@cardano/transaction";
 import { WalletConnection } from "@cardano/types";
 import {
@@ -50,7 +51,7 @@ interface Unstake {
 
 /** These UTxOs as inputs and everything that is left after the fee as output to the target, with the stake key deregistered if asked. */
 function moveTransaction(utxos: TransactionUnspentOutput[], target: Address, unstake?: Unstake): Transaction {
-  const txBuilder = TransactionBuilder.new(txBuilderConfig);
+  const txBuilder = TransactionBuilder.new(txBuilderConfig());
   txBuilder.set_ttl(currentSlot() + TTL_SECONDS);
   for (const utxo of utxos) {
     txBuilder.add_regular_input(utxo.output().address(), utxo.input(), utxo.output().amount());
@@ -88,6 +89,7 @@ export async function moveEverything(
   chooseAbstainFirst: boolean,
   onProgress: (progress: MoveProgress) => void
 ): Promise<string[]> {
+  await refreshProtocol();
   let remaining = await walletUtxos(connection);
   if (remaining.length === 0) {
     throw new Error("Your wallet reports no ADA or tokens. If you just received some, wait until the wallet shows them.");

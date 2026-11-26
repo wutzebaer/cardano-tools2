@@ -40,7 +40,6 @@ export interface Finding {
   text: string;
 }
 
-export const EPOCHS_PER_YEAR = 73;
 export const EPOCH_DAYS = 5;
 
 /** Above this margin a pool keeps a noticeable part of the rewards. */

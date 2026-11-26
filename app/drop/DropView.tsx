@@ -1,7 +1,7 @@
 "use client";
 
 import { watchConfirmation } from "@cardano/confirmation";
-import { buyToken, closeGroups, DropState, loadDrop, loadDropTokens, tokenStatus } from "@cardano/drop";
+import { buyToken, closeGroups, DropState, dropTokensFromFile, loadDrop, loadDropTokens, tokenStatus } from "@cardano/drop";
 import { DropToken } from "@cardano/dropScript";
 import { explorerPolicyUrl, explorerTxUrl } from "@cardano/network";
 import { errorToMessage, formatAda, shortenId, toIpfsUrl } from "@cardano/utils";
@@ -21,7 +21,8 @@ const PAGE = 48;
 /** What a buyer pays on top of the price, rounded up: the transaction fee and the deposit that stays with the metadata. */
 const BUYER_EXTRA_ADA = 2;
 
-type Loaded = { state: DropState; tokens: DropToken[] } | { missing: true } | { error: string };
+/** `listError`: the drop is there, but its list could not be loaded or is not the right one. */
+type Loaded = { state: DropState; tokens: DropToken[] } | { state: DropState; listError: string } | { missing: true } | { error: string };
 
 function imageOf(token: DropToken) {
   const image = token.metadata.image;
@@ -41,13 +42,22 @@ export default function DropView({ policyId }: { policyId: string }) {
   // bought here a moment ago: sold, although the chain data may not say so yet
   const [justBought, setJustBought] = useState<number[]>([]);
   const grid = useRef<HTMLDivElement>(null);
+  // the list from a file of the visitor, for a drop whose list IPFS no longer has
+  const [supplied, setSupplied] = useState<DropToken[] | null>(null);
+  const [supplying, setSupplying] = useState(false);
+  const [supplyNote, setSupplyNote] = useState<{ tone: "info" | "error"; text: string }>();
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const state = await loadDrop(policyId);
       if (!state) return { missing: true as const };
-      return { state, tokens: await loadDropTokens(state.config) };
+      if (supplied) return { state, tokens: supplied };
+      try {
+        return { state, tokens: await loadDropTokens(state.config) };
+      } catch (error) {
+        return { state, listError: errorToMessage(error) };
+      }
     })().then(
       (value) => !cancelled && setLoaded(value),
       (error) => !cancelled && setLoaded({ error: errorToMessage(error) })
@@ -55,7 +65,7 @@ export default function DropView({ policyId }: { policyId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [policyId, reload]);
+  }, [policyId, reload, supplied]);
 
   // what is on chain changes with the transaction, not with its submission
   useEffect(() => {
@@ -66,7 +76,7 @@ export default function DropView({ policyId }: { policyId: string }) {
     });
   }, [result]);
 
-  const drop = loaded && "state" in loaded ? loaded : null;
+  const drop = loaded && "tokens" in loaded ? loaded : null;
   const statuses = useMemo(
     () =>
       drop
@@ -94,6 +104,44 @@ export default function DropView({ policyId }: { policyId: string }) {
   }
   if ("missing" in loaded) return <Notice tone="warning">There is no drop with this policy id. If you just created it, wait for the transaction to be confirmed and reload.</Notice>;
   if ("error" in loaded) return <Notice tone="error">{loaded.error}</Notice>;
+  if ("listError" in loaded) {
+    const supply = async (file: File | undefined) => {
+      if (!file) return;
+      setSupplying(true);
+      setSupplyNote(undefined);
+      try {
+        const { tokens, republished } = await dropTokensFromFile(loaded.state.config, file);
+        setSupplyNote({
+          tone: "info",
+          text: republished
+            ? "This is the list of the drop. It is published again, the drop works for everybody."
+            : "This is the list of the drop. It could not be published again under its address, so it only counts in this browser until the page is closed.",
+        });
+        setSupplied(tokens);
+      } catch (error) {
+        setSupplyNote({ tone: "error", text: errorToMessage(error) });
+      } finally {
+        setSupplying(false);
+      }
+    };
+    return (
+      <div className="flex flex-col gap-4">
+        <Notice tone="warning">{loaded.listError}</Notice>
+        <div className="surface flex flex-col gap-3 p-6 text-sm text-base-content/65">
+          <p>
+            A drop sells from a list of its tokens, which is published on IPFS. Without the list nothing can be shown or bought. Whoever created the drop got the list as a file. If you have it, load
+            it here: it is checked against the drop on chain, and published again if it is the right one.
+          </p>
+          <label className={`${secondaryButtonClass} self-start ${supplying ? "btn-disabled" : ""}`}>
+            {supplying ? <span className="loading loading-spinner loading-xs" /> : null}
+            Load the list from a file
+            <input type="file" accept="application/json,.json" className="hidden" disabled={supplying} onChange={(event) => supply(event.target.files?.[0])} />
+          </label>
+          {supplyNote ? <span className={supplyNote.tone === "error" ? "text-error" : ""}>{supplyNote.text}</span> : null}
+        </div>
+      </div>
+    );
+  }
 
   const { state, tokens } = loaded;
   const { config } = state;
@@ -222,7 +270,7 @@ export default function DropView({ policyId }: { policyId: string }) {
             "Tokens of this drop cannot be burned."
           )}
         </p>
-        {closed ? <Notice tone="warning">This drop is closed, nothing can be bought anymore.</Notice> : null}
+        {closed ? <Notice tone="warning">This drop is closed, nothing can be bought any more.</Notice> : null}
         {isOwner && !closed ? (
           <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
             <span className="text-sm text-base-content/65">This is your drop.</span>

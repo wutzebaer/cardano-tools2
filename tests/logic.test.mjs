@@ -24,6 +24,7 @@ import {
   listErrors,
   markerName,
   MAX_GROUPS,
+  MAX_METADATA_BYTES,
   merkleProof,
   merkleRoot,
   merkleTree,
@@ -31,15 +32,19 @@ import {
   parseDropList,
   plutusCbor,
   plutusFromCbor,
+  REFERENCE_LABEL,
   scriptHash,
   sizeOfGroup,
   suggestedGroups,
   tickSold,
+  USER_LABEL,
 } from "../app/cardano/dropScript.ts";
 import { NETWORK, NETWORKS, unixToEpoch, unixToSlot } from "../app/cardano/network.ts";
+import { DEFAULT_PROTOCOL_PARAMS, fraction, largestSizeFee, protocolParamsFrom, scriptFee } from "../app/cardano/protocol.ts";
 import { collectionNameError, policyRegistration } from "../app/cardano/registration.ts";
 import { candidateUnlockTimes, DAY_SECONDS, FIRST_UNLOCK_UNIX, MAX_LOCK_DAYS, timelockMetadata, timeScriptHash, unlockSlotsFromMetadata, unlockTimeError } from "../app/cardano/timelockScript.ts";
-import { policyLockSlot } from "../app/cardano/utils.ts";
+import { assetNameFromHex, cip67Label, errorToMessage, formatAda, formatTokenAmount, metadataDecimals, parseMetadata, policyLockSlot, shortenId, toDisplayMetadata, toIpfsUrl, tokenFiles, tokenImage } from "../app/cardano/utils.ts";
+import { DEFAULT_UPLOAD_LIMITS, uploadLimitsFrom, UploadMeter } from "../app/mint/uploadLimit.ts";
 import { priceAt, statementCsv, statementLines } from "../app/statement/statement.ts";
 import { isPaid, monthCsv, monthTotals, rewardCsv, rewardEntries, yearTotals } from "../app/tax/rewardReport.ts";
 
@@ -244,6 +249,15 @@ test("CIP-25 metadata lists the tokens by asset name and cuts long texts into pi
   assert.deepEqual(entry.description, ["ä".repeat(32), "ä".repeat(8)]);
   assert.deepEqual(entry.traits, ["a", "b"]);
   assert.equal(entry.rank, 3);
+});
+
+test("metadata that was put together elsewhere is written as it is", () => {
+  // these names are fields of a fungible token in the form, for an NFT they are attributes like any other
+  const metadata = { name: "Robot #1", image: "ipfs://QmImage", url: "https://example.org", ticker: "RBT", decimals: "none", logo: "round", files: [{ src: "ipfs://QmFile", note: "kept" }], story: "ä".repeat(40) };
+  const ready = token({ name: "ignored", image: "ignored", properties: [{ key: "ignored", value: "x" }], metadata });
+  assert.deepEqual(tokenMetadata(ready), metadata);
+  const entry = cip25Metadata("ab".repeat(28), [ready])["ab".repeat(28)].Token001;
+  assert.deepEqual(entry, { ...metadata, story: ["ä".repeat(32), "ä".repeat(8)] });
 });
 
 test("CIP-25 metadata of a fungible token carries its logo as image", () => {
@@ -886,6 +900,13 @@ test("a list is refused for what the contract cannot sell", () => {
   assert.match(listErrors([...dropTokens(2), dropTokens(1)[0]])[0], /used twice/);
   assert.match(listErrors([{ assetName: "x".repeat(29), metadata: { name: "x" } }])[0], /1 to 28 bytes/);
   assert.match(listErrors([{ assetName: "x", metadata: {} }])[0], /needs a name/);
+  // a token with more metadata than a purchase can carry could never be bought
+  const filler = (count) => Object.fromEntries(Array.from({ length: count }, (_, n) => [`attribute${n}`, "x".repeat(60)]));
+  assert.deepEqual(listErrors([{ assetName: "x", metadata: { name: "x", ...filler(90) } }]), []);
+  assert.match(listErrors([{ assetName: "x", metadata: { name: "x", ...filler(120) } }])[0], /too large to be bought/);
+  assert.ok(metadataDatum({ assetName: "x", metadata: { name: "x", ...filler(90) } }).length / 2 < MAX_METADATA_BYTES);
+  // a number with a fraction has no place in the data of the chain
+  assert.match(listErrors([{ assetName: "x", metadata: { name: "x", weight: 1.5 } }])[0], /cannot be written on chain/);
 });
 
 test("a list is read in the forms creators have", () => {
@@ -939,4 +960,192 @@ test("the script of a drop is the one the chain accepted", () => {
   const seed = {"txHash": "6c2dfe0347e1de8d01a083441659accce41b67e629ad0063d837baafe793fb72", "index": 2};
   assert.equal(scriptHash(applyDropParams(DROP_CODE, DROP_TERM_BITS, seed, true)), "0aec62b19a2a78cdd8d200788f3969770f1c5f52ba12bb2ab1520324");
   assert.notEqual(scriptHash(applyDropParams(DROP_CODE, DROP_TERM_BITS, seed, false)), "0aec62b19a2a78cdd8d200788f3969770f1c5f52ba12bb2ab1520324");
+});
+
+// ---------------------------------------------------------------------------
+// Reading tokens: names, amounts and metadata as the lists show them
+// ---------------------------------------------------------------------------
+
+const hexOf = (text) => Buffer.from(text, "utf8").toString("hex");
+
+test("a CIP-67 label is read from an asset name only where its checksum fits", () => {
+  assert.equal(cip67Label(`000643b0${hexOf("Robot")}`), 100);
+  assert.equal(cip67Label(`000de140${hexOf("Robot")}`), 222);
+  assert.equal(cip67Label(`0014df10${hexOf("Robot")}`), 333);
+  // the labels the drop contract writes are the ones read here
+  assert.equal(cip67Label(REFERENCE_LABEL), 100);
+  assert.equal(cip67Label(USER_LABEL), 222);
+  // a wrong checksum, a plain name and a name too short for a label
+  assert.equal(cip67Label(`000de150${hexOf("Robot")}`), undefined);
+  assert.equal(cip67Label(hexOf("Robot")), undefined);
+  assert.equal(cip67Label("0006"), undefined);
+
+  assert.equal(assetNameFromHex(`000de140${hexOf("Robot")}`), "Robot");
+  assert.equal(assetNameFromHex(hexOf("Robot")), "Robot");
+  assert.equal(assetNameFromHex(""), "");
+});
+
+test("amounts and ids are written the same way everywhere", () => {
+  assert.equal(formatAda(1_500_000), "1.5 ₳");
+  assert.equal(formatAda(1_234_567_890), "1,234.57 ₳");
+  assert.equal(formatAda(0), "0.0 ₳");
+  assert.equal(formatAda(undefined), "");
+  assert.equal(formatTokenAmount(1_234_567, 6), "1.234567");
+  assert.equal(formatTokenAmount(1_234_567), "1,234,567");
+  assert.equal(formatTokenAmount(undefined), "");
+  assert.equal(shortenId("abcdefghijklmnop", 3), "abc…nop");
+  assert.equal(shortenId("abcdefg", 3), "abcdefg");
+});
+
+test("addresses of files become links a browser can load", () => {
+  assert.equal(toIpfsUrl("ipfs://QmFile"), "https://cardano-tools.io/ipfs/QmFile");
+  assert.equal(toIpfsUrl("ipfs://ipfs/QmFile"), "https://cardano-tools.io/ipfs/QmFile");
+  // CIP-25 cuts a long address into pieces
+  assert.equal(toIpfsUrl(["ipfs://Qm", "File"]), "https://cardano-tools.io/ipfs/QmFile");
+  assert.equal(toIpfsUrl("ar://abc"), "https://arweave.net/abc");
+  assert.equal(toIpfsUrl("https://example.org/a.png"), "https://example.org/a.png");
+  assert.equal(toIpfsUrl("data:image/png;base64,AAAA"), "data:image/png;base64,AAAA");
+  assert.equal(toIpfsUrl(null), "");
+});
+
+test("metadata is flattened to one line per value, with texts in pieces joined again", () => {
+  const metadata = parseMetadata(
+    JSON.stringify({
+      name: "Robot #1",
+      image: ["ipfs://Qm", "Image"],
+      rank: 1234.5,
+      attributes: { eyes: "blue" },
+      tags: ["a", "b"],
+      files: [
+        { name: "Full size", mediaType: "image/png", src: ["ipfs://Qm", "Full"] },
+        { mediaType: "image/png", src: "ipfs://QmImage" },
+      ],
+    })
+  );
+  assert.equal(metadata.name, "Robot #1");
+  assert.equal(metadata.image, "ipfs://QmImage");
+  assert.equal(metadata.rank, "1,234.5");
+  assert.equal(metadata["attributes / eyes"], "blue");
+  assert.equal(metadata["tags / 0"], "a");
+  assert.equal(metadata["tags / 1"], "b");
+  assert.equal(tokenImage(metadata), "ipfs://QmImage");
+  // the file that is the picture itself is not listed a second time
+  assert.deepEqual(tokenFiles(metadata, "ipfs://QmImage"), [{ name: "Full size", mediaType: "image/png", src: "ipfs://QmFull" }]);
+  assert.deepEqual(toDisplayMetadata({ name: "Robot #1", image: "ipfs://QmImage", eyes: "blue", "files / 0 / src": "ipfs://QmFull" }), { eyes: "blue" });
+  assert.deepEqual(toDisplayMetadata({ name: "Robot #1", attributes: { eyes: "red" } }), { eyes: "red" });
+
+  assert.equal(tokenImage({ logo: "ipfs://QmLogo" }), "ipfs://QmLogo");
+  assert.equal(tokenImage({}), "");
+  assert.deepEqual(parseMetadata("not json"), {});
+});
+
+test("CIP-25 metadata is found under its policy and asset name, written as text or as hex", () => {
+  const policyId = "ab".repeat(28);
+  const other = { name: "Another one" };
+  const asText = JSON.stringify({ 721: { [policyId]: { Other: other, Robot: { name: "Robot" } } } });
+  const asHex = JSON.stringify({ 721: { [policyId]: { [hexOf("Other")]: other, [hexOf("Robot")]: { name: "Robot" } } } });
+  assert.deepEqual(parseMetadata(asText, policyId, hexOf("Robot")), { name: "Robot" });
+  assert.deepEqual(parseMetadata(asHex, policyId, hexOf("Robot")), { name: "Robot" });
+  // a CIP-68 token is listed without its label
+  assert.deepEqual(parseMetadata(asText, policyId, `000de140${hexOf("Robot")}`), { name: "Robot" });
+  // metadata that is not wrapped stays as it is
+  assert.deepEqual(parseMetadata(JSON.stringify({ name: "Plain" }), policyId, hexOf("Robot")), { name: "Plain" });
+});
+
+test("decimals are read as a number however the metadata writes them", () => {
+  assert.equal(metadataDecimals({ decimals: 6 }), 6);
+  assert.equal(metadataDecimals({ decimals: "6" }), 6);
+  assert.equal(metadataDecimals({ decimals: "six" }), 0);
+  assert.equal(metadataDecimals({}), 0);
+});
+
+test("an error is told in its own words, a failure of the live server by its number", () => {
+  assert.equal(errorToMessage(new Error("Too little ADA")), "Too little ADA");
+  assert.equal(errorToMessage(new Error("Mint stopped", { cause: new Error("declined") })), "Mint stopped, declined");
+  // CIP-30 wallets answer with an object that has no message
+  assert.equal(errorToMessage({ code: 2, info: "User declined to sign" }), "User declined to sign");
+  assert.equal(errorToMessage("plain text"), "plain text");
+  assert.equal(errorToMessage({ digest: "123456" }), "The server could not answer this request. Please try again in a moment. (error 123456)");
+  assert.equal(errorToMessage(null), "An unexpected error occurred.");
+});
+
+test("the two places that cut long metadata texts cut them alike", () => {
+  // one, two, three and four bytes per character, so the pieces end at different places than characters do
+  const long = `${"a".repeat(63)}ä${"€".repeat(30)}${"😀".repeat(20)} and some more text at the end`;
+  const fromMint = cip25Metadata("ab".repeat(28), [token({ description: long })])["ab".repeat(28)].Token001.description;
+  const registration = policyRegistration({ policyId: "ab".repeat(28), name: "Name", description: long, nonce: 1 });
+  const entry = (map, key) => map.map.find(({ k }) => k.int === key).v;
+  const collection = entry(entry(entry(entry(registration, 1), 6), 25), 1);
+  const fromRegistration = entry(collection, 1).list.map((piece) => piece.string);
+  assert.deepEqual(fromMint, fromRegistration);
+  assert.equal(fromMint.join(""), long);
+  assert.ok(fromMint.length > 1 && fromMint.every((piece) => new TextEncoder().encode(piece).length <= 64));
+});
+
+// ---------------------------------------------------------------------------
+// Uploads to IPFS
+// ---------------------------------------------------------------------------
+
+test("a visitor stores only so much on IPFS within a day, and so do all together", () => {
+  const meter = new UploadMeter({ filesPerDay: 3, bytesPerDay: 100, totalBytesPerDay: 150 });
+  const hour = 60 * 60 * 1000;
+  assert.equal(meter.admit("a", 40, 0), undefined);
+  assert.equal(meter.admit("a", 40, hour), undefined);
+  // too many bytes for one visitor, which is not counted
+  assert.match(meter.admit("a", 40, 2 * hour), /one visitor/);
+  assert.equal(meter.admit("a", 20, 2 * hour), undefined);
+  // too many files, however small
+  assert.match(meter.admit("a", 0, 3 * hour), /one visitor/);
+  // another visitor has an allowance of their own, until all together have used theirs
+  assert.equal(meter.admit("b", 50, 3 * hour), undefined);
+  assert.match(meter.admit("b", 1, 3 * hour), /within a day/);
+  assert.doesNotMatch(meter.admit("b", 1, 3 * hour), /one visitor/);
+  // a day after the first upload everything starts anew
+  assert.equal(meter.admit("a", 100, 24 * hour), undefined);
+  assert.equal(meter.admit("b", 50, 24 * hour), undefined);
+});
+
+test("the limits of uploads come from the environment where it sets them", () => {
+  assert.deepEqual(uploadLimitsFrom({}), DEFAULT_UPLOAD_LIMITS);
+  assert.deepEqual(uploadLimitsFrom({ IPFS_UPLOAD_FILES_PER_DAY: "100", IPFS_UPLOAD_GB_PER_DAY: "0.5", IPFS_UPLOAD_TOTAL_GB_PER_DAY: "2" }), {
+    filesPerDay: 100,
+    bytesPerDay: 536_870_912,
+    totalBytesPerDay: 2_147_483_648,
+  });
+  // nothing that is no positive number switches a limit off
+  assert.deepEqual(uploadLimitsFrom({ IPFS_UPLOAD_FILES_PER_DAY: "0", IPFS_UPLOAD_GB_PER_DAY: "many", IPFS_UPLOAD_TOTAL_GB_PER_DAY: " " }), DEFAULT_UPLOAD_LIMITS);
+  // the largest drop fits into what one visitor may store
+  assert.ok(DEFAULT_UPLOAD_LIMITS.filesPerDay > 10_000);
+});
+
+// ---------------------------------------------------------------------------
+// Protocol parameters
+// ---------------------------------------------------------------------------
+
+test("protocol parameters come from the chain, and a value that makes no sense keeps the known one", () => {
+  assert.deepEqual(protocolParamsFrom(null), DEFAULT_PROTOCOL_PARAMS);
+  assert.deepEqual(protocolParamsFrom("nonsense"), DEFAULT_PROTOCOL_PARAMS);
+  const voted = protocolParamsFrom({ minFeeA: 50, coinsPerUtxoByte: 4000, priceMem: 0.06, somethingElse: 1 });
+  assert.equal(voted.minFeeA, 50);
+  assert.equal(voted.coinsPerUtxoByte, 4000);
+  assert.equal(voted.priceMem, 0.06);
+  assert.equal(voted.minFeeB, DEFAULT_PROTOCOL_PARAMS.minFeeB);
+  assert.equal("somethingElse" in voted, false);
+  // nothing, text, zero, a negative number and a value far off are a mistake of the source
+  const broken = protocolParamsFrom({ minFeeA: null, minFeeB: "155381", keyDeposit: 0, maxTxSize: -1, coinsPerUtxoByte: 4_310_000, priceStep: 0.000000001 });
+  assert.deepEqual(broken, DEFAULT_PROTOCOL_PARAMS);
+});
+
+test("a price is the fraction the chain means by it", () => {
+  assert.deepEqual(fraction(0.0577), [577n, 10000n]);
+  assert.deepEqual(fraction(0.0000721), [721n, 10000000n]);
+  assert.deepEqual(fraction(15), [15n, 1n]);
+  assert.deepEqual(fraction(20), [20n, 1n]);
+  assert.deepEqual(fraction(1.5), [15n, 10n]);
+});
+
+test("the most a transaction can cost follows from its size and its script budgets", () => {
+  assert.equal(largestSizeFee(DEFAULT_PROTOCOL_PARAMS), 155381 + 44 * 16384);
+  assert.equal(Math.round(scriptFee(DEFAULT_PROTOCOL_PARAMS, [{ mem: 1_000_000, steps: 1_000_000_000 }])), 57700 + 72100);
+  assert.equal(scriptFee(DEFAULT_PROTOCOL_PARAMS, []), 0);
 });

@@ -3,7 +3,7 @@
 import { createPolicy, policySecondsLeft } from "@cardano/mint";
 import { collectionNameError } from "@cardano/registration";
 import { MintPolicy } from "@cardano/types";
-import { Field, inputClass, secondaryButtonClass } from "@components/ui";
+import { Field, inputClass, secondaryButtonClass, StepNumber } from "@components/ui";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useState, ReactNode } from "react";
 import { PolicySelection } from "./usePolicies";
@@ -54,7 +54,7 @@ export default function PolicySelector({ keyHash, selection, step, children }: {
       <div className="flex flex-wrap items-center justify-between gap-3">
         {step ? (
           <div className="flex items-center gap-3">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{step}</span>
+            <StepNumber>{step}</StepNumber>
             <h3 className="text-base font-semibold tracking-tight">Policy</h3>
           </div>
         ) : (
@@ -99,9 +99,7 @@ export default function PolicySelector({ keyHash, selection, step, children }: {
         <div className="flex flex-col gap-4 rounded-field border border-line bg-base-300 p-4">
           <p className="text-xs text-base-content/55">
             The policy is signed by your wallet key, nothing secret is stored.{" "}
-            {noLock
-              ? "Without a lock you can mint and burn its tokens forever."
-              : "After the lock date nobody can mint or burn its tokens any more."}
+            {noLock ? "Without a lock you can mint and burn its tokens forever." : "After the lock date nobody can mint or burn its tokens any more."}
           </p>
           <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_10rem_auto]">
             {/* the name of the policy is the name of its collection, which can be registered on chain with the royalty token */}

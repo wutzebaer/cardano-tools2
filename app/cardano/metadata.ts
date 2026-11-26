@@ -15,6 +15,8 @@ export function assetNameFor(name: string) {
 
 /** Metadata of one token as it goes into the datum of its reference NFT; unset optional fields are left out. */
 export function tokenMetadata(token: MintToken): Record<string, MetaValue> {
+  // nothing is sorted into the fields of the form and back: an attribute named like one of them would get lost on the way
+  if (token.metadata) return token.metadata;
   const metadata: Record<string, MetaValue> = { name: token.name };
   if (token.standard === 222) {
     metadata.image = token.image;

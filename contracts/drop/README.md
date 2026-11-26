@@ -28,7 +28,12 @@ The leaf of a token is `blake2b_256(00 ‖ hash of the metadata datum ‖ name)`
 
 ## The site's code
 
-The site builds its transactions in `app/cardano/dropTx.ts` with its own library. `offchain/site.mjs` runs exactly that code against the preview testnet, and with `--dry` prints what the scripts used, which is where the fixed budgets in `dropTx.ts` come from. `offchain/blueprint.mjs` writes the compiled contract into `app/cardano/dropBlueprint.ts`, run it after every `aiken build`.
+The site builds its transactions in `app/cardano/dropTx.ts` with its own library. `offchain/site.mjs` runs exactly that code against the preview testnet, and with `--dry` prints what the scripts used. `offchain/measure.mjs` needs no chain: it builds the transactions from made-up outputs, runs the contract on them and fails if a budget in `dropTx.ts` is too small. Run it after every change to the contract or to the budgets:
+
+```sh
+cd offchain && npm ci && node --import ./site-hooks.mjs measure.mjs
+```
+ `offchain/blueprint.mjs` writes the compiled contract into `app/cardano/dropBlueprint.ts`, run it after every `aiken build`.
 
 ## Build and test
 

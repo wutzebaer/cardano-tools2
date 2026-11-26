@@ -2,7 +2,7 @@ import { getTransactionMetadata, getUtxos } from "@cardano/dbsync";
 import { scriptAddress } from "@cardano/mint";
 import { currentSlot, slotToUnix, unixToSlot } from "@cardano/network";
 import { candidateUnlockTimes, TIMELOCK_LABEL, timelockMetadata, timeScriptHash, unlockSlotsFromMetadata } from "@cardano/timelockScript";
-import { COINS_PER_UTXO_BYTE, hexToBytes, sendAda, sendTransaction, utxoOfKey, walletChangeAddress, walletUtxos } from "@cardano/transaction";
+import { dataCost, hexToBytes, sendAda, sendTransaction, utxoOfKey, walletChangeAddress, walletUtxos } from "@cardano/transaction";
 import { WalletConnection } from "@cardano/types";
 import {
   Address,
@@ -10,7 +10,6 @@ import {
   BaseAddress,
   BigNum,
   Credential,
-  DataCost,
   Ed25519KeyHash,
   EnterpriseAddress,
   MetadataJsonSchema,
@@ -88,7 +87,7 @@ function lockValue(lovelace: bigint, tokens: LockedToken[]) {
 /** ADA an output with these tokens needs at the least, a lock of tokens alone gets this much ADA along. */
 export function minLockLovelace(changeAddress: Address, keyHash: string, unlockSlot: number, tokens: LockedToken[]) {
   const output = TransactionOutput.new(timelockAddress(changeAddress, keyHash, unlockSlot), lockValue(1_000_000n, tokens));
-  return BigInt(min_ada_for_output(output, DataCost.new_coins_per_byte(COINS_PER_UTXO_BYTE)).to_str());
+  return BigInt(min_ada_for_output(output, dataCost()).to_str());
 }
 
 /** Sends ADA and tokens to the timelock address of the key. Until the slot nobody can move them, the owner included. */

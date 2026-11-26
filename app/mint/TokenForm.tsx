@@ -4,12 +4,12 @@ import { MintToken, TokenFile, TokenProperty } from "@cardano/types";
 import { toIpfsUrl } from "@cardano/utils";
 import IpfsImage from "@components/IpfsImage";
 import { Field, inputClass, textareaClass } from "@components/ui";
-import { DocumentDuplicateIcon, PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { ChangeEvent, useState } from "react";
+import { MAX_FILE_BYTES } from "./fileLimits";
 import { uploadToIpfs } from "./uploadToIpfs";
 
-/** Same limits as the old mint form: ≤ 16 KB can go on-chain, otherwise IPFS, max 100 MB. */
-export const MAX_FILE_BYTES = 104_857_600;
+/** Files of up to 16 KB can go on-chain, anything larger goes to IPFS. */
 const ONCHAIN_FILE_BYTES = 16_384;
 
 export function tokenErrors(token: MintToken, allTokens: MintToken[]) {
@@ -36,9 +36,9 @@ export function tokenErrors(token: MintToken, allTokens: MintToken[]) {
 /** Small files can be stored on-chain as a data URI, everything else goes to IPFS. */
 async function storeFile(file: File): Promise<string> {
   if (file.size > MAX_FILE_BYTES) {
-    throw new Error("Max 100mb");
+    throw new Error("At most 100 MB per file");
   }
-  if (file.size < ONCHAIN_FILE_BYTES && confirm(`Store file ${file.name} onchain?`)) {
+  if (file.size < ONCHAIN_FILE_BYTES && confirm(`Store file ${file.name} on-chain?`)) {
     return new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
@@ -50,28 +50,8 @@ async function storeFile(file: File): Promise<string> {
 
 const displayUri = (uri: string) => (uri.startsWith("data:") ? "(on-chain file)" : uri);
 
-export default function TokenForm({
-  token,
-  allTokens,
-  onChange,
-  onCopyToAll,
-  onAddPropertyToAll,
-  onRemove,
-  fungibleOnly,
-}: {
-  token: MintToken;
-  allTokens: MintToken[];
-  onChange: (token: MintToken) => void;
-  /** Applies the given fields of this token to all other tokens */
-  onCopyToAll?: (patch: Partial<MintToken>) => void;
-  /** Gives every other token a property of this name to fill in, unless it has one */
-  onAddPropertyToAll?: (key: string) => void;
-  onRemove?: () => void;
-  /** Leaves out the choice between NFT and fungible token: NFTs are put together elsewhere */
-  fungibleOnly?: boolean;
-}) {
+export default function TokenForm({ token, allTokens, onChange }: { token: MintToken; allTokens: MintToken[]; onChange: (token: MintToken) => void }) {
   const errors = tokenErrors(token, allTokens);
-  const isNft = token.standard === 222;
   const [uploading, setUploading] = useState<"image" | "file" | null>(null);
   const update = (patch: Partial<MintToken>) => onChange({ ...token, ...patch });
   const updateProperty = (index: number, patch: Partial<TokenProperty>) =>
@@ -108,27 +88,7 @@ export default function TokenForm({
   const extraKeys = Object.keys(token.extra);
 
   return (
-    <div className={fungibleOnly ? "flex flex-col gap-5" : "surface flex flex-col gap-5 p-5"}>
-      <div className={fungibleOnly && !onRemove ? "hidden" : "flex items-center justify-between gap-3"}>
-        <div className={fungibleOnly ? "hidden" : "join"}>
-          {([222, 333] as const).map((standard) => (
-            <button
-              key={standard}
-              type="button"
-              className={`btn btn-sm join-item border-line ${token.standard === standard ? "btn-primary" : "bg-base-300"}`}
-              onClick={() => update({ standard, amount: standard === 222 ? "1" : token.amount })}
-            >
-              {standard === 222 ? "NFT" : "Fungible"}
-            </button>
-          ))}
-        </div>
-        {onRemove ? (
-          <button type="button" className="btn btn-ghost btn-sm btn-square text-base-content/55 hover:text-error" onClick={onRemove} aria-label="Remove token">
-            <TrashIcon className="size-4" />
-          </button>
-        ) : null}
-      </div>
-
+    <div className="flex flex-col gap-5">
       <div className="grid gap-5 lg:grid-cols-[10rem_minmax(0,1fr)]">
         <div className="flex flex-col gap-2">
           <div className="surface relative aspect-square overflow-hidden bg-base-300">
@@ -169,10 +129,10 @@ export default function TokenForm({
               <span className="text-[11px] text-base-content/45">Asset name {token.assetName}</span>
             ) : null}
           </Field>
-          <Field label={isNft ? "Amount" : "Amount (smallest unit)"} error={errors.amount}>
-            <input className={inputClass} type="number" min="1" value={token.amount} disabled={isNft} onChange={(e) => update({ amount: e.target.value })} />
+          <Field label="Amount (smallest unit)" error={errors.amount}>
+            <input className={inputClass} type="number" min="1" value={token.amount} onChange={(e) => update({ amount: e.target.value })} />
           </Field>
-          <Field label={isNft ? "Image URI" : "Logo URI"} error={errors.image}>
+          <Field label="Logo URI" error={errors.image}>
             <input
               className={inputClass}
               value={displayUri(token.image)}
@@ -181,23 +141,15 @@ export default function TokenForm({
               placeholder="ipfs://… or https://…"
             />
           </Field>
-          {isNft ? (
-            <Field label="Media type">
-              <input className={inputClass} value={token.mediaType} onChange={(e) => update({ mediaType: e.target.value })} placeholder="image/png" />
-            </Field>
-          ) : (
-            <>
-              <Field label="Ticker">
-                <input className={inputClass} value={token.ticker} onChange={(e) => update({ ticker: e.target.value })} placeholder="TKN" />
-              </Field>
-              <Field label="Decimals" error={errors.decimals}>
-                <input className={inputClass} type="number" min="0" value={token.decimals} onChange={(e) => update({ decimals: e.target.value })} placeholder="0" />
-              </Field>
-              <Field label="URL">
-                <input className={inputClass} value={token.url} onChange={(e) => update({ url: e.target.value })} placeholder="https://…" />
-              </Field>
-            </>
-          )}
+          <Field label="Ticker">
+            <input className={inputClass} value={token.ticker} onChange={(e) => update({ ticker: e.target.value })} placeholder="TKN" />
+          </Field>
+          <Field label="Decimals" error={errors.decimals}>
+            <input className={inputClass} type="number" min="0" value={token.decimals} onChange={(e) => update({ decimals: e.target.value })} placeholder="0" />
+          </Field>
+          <Field label="URL">
+            <input className={inputClass} value={token.url} onChange={(e) => update({ url: e.target.value })} placeholder="https://…" />
+          </Field>
           <Field label="Description" className="sm:col-span-2">
             <textarea className={textareaClass} rows={2} value={token.description} onChange={(e) => update({ description: e.target.value })} />
           </Field>
@@ -239,17 +191,6 @@ export default function TokenForm({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-xs text-base-content/55">Custom properties</span>
-          {onCopyToAll ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-xs ml-auto gap-1"
-              title="Copy description and custom properties to all other tokens"
-              onClick={() => onCopyToAll({ description: token.description, properties: token.properties.map((property) => ({ ...property })) })}
-            >
-              <DocumentDuplicateIcon className="size-3.5" />
-              Copy to all
-            </button>
-          ) : null}
           <button
             type="button"
             className="btn btn-ghost btn-xs gap-1"
@@ -263,18 +204,6 @@ export default function TokenForm({
           <div key={index} className="flex gap-2">
             <input className="input input-sm w-2/5 border-line bg-base-300" value={property.key} onChange={(e) => updateProperty(index, { key: e.target.value })} placeholder="key" />
             <input className="input input-sm grow border-line bg-base-300" value={property.value} onChange={(e) => updateProperty(index, { value: e.target.value })} placeholder="value" />
-            {onAddPropertyToAll ? (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm gap-1 px-2 text-xs text-base-content/55"
-                disabled={!property.key.trim()}
-                title={`Give every other token a property "${property.key || "…"}" to fill in`}
-                onClick={() => onAddPropertyToAll(property.key.trim())}
-              >
-                <DocumentDuplicateIcon className="size-3.5" />
-                For all
-              </button>
-            ) : null}
             <button
               type="button"
               className="btn btn-ghost btn-sm btn-square text-base-content/45 hover:text-error"
