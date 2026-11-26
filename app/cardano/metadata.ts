@@ -39,10 +39,10 @@ export function tokenMetadata(token: MintToken): Record<string, MetaValue> {
 }
 
 /** A text in the metadata of a transaction holds 64 bytes at most. */
-export const METADATA_TEXT_BYTES = 64;
+const METADATA_TEXT_BYTES = 64;
 
-/** Cuts a text into pieces of at most 64 bytes, never inside a character, so every piece is valid on its own. Nothing for an empty text. */
-export function textPieces(text: string): string[] {
+/** Cuts a text into pieces of at most 64 bytes, never inside a character. */
+function textPieces(text: string) {
   const pieces: string[] = [];
   let piece = "";
   let size = 0;
@@ -56,7 +56,8 @@ export function textPieces(text: string): string[] {
     piece += character;
     size += bytes;
   }
-  return piece ? [...pieces, piece] : pieces;
+  pieces.push(piece);
+  return pieces;
 }
 
 /** Metadata as it fits into a transaction: a longer text becomes a list of its pieces, which readers of CIP-25 join again. */
