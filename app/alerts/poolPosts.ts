@@ -235,7 +235,7 @@ function oddsFact(scheduled: number, expected: number | null | undefined): FunFa
     return { label: "ODDS", value: `${Math.round(chance * 100)} %`, note: `of epochs bring ${blocks}`, sentence: `Fun fact: ${Math.round(chance * 100)} % of epochs bring the pool ${blocks}.` };
   }
   const oneIn = Math.round(1 / chance);
-  return { label: "ODDS", value: `1 in ${count(oneIn)}`, note: `epochs brings ${blocks}`, sentence: `Fun fact: only about 1 in ${count(oneIn)} epochs brings the pool ${blocks}.` };
+  return { label: "ODDS", value: `1 in ${count(oneIn)}`, note: `chance of ${scheduled === 1 ? "a block" : `${scheduled}+ blocks`}`, sentence: `Fun fact: only about 1 in ${count(oneIn)} epochs brings the pool ${blocks}.` };
 }
 
 /** The facts about the pool's history, which a plan can tell before its epoch has a block: by their place in FUN_FACTS. */
@@ -253,6 +253,14 @@ export function planFunFact(numbers: EpochNumbers | null | undefined, stake: num
     if (fact) return fact;
   }
   return null;
+}
+
+/** When an epoch starts, for the plan: "starts Sat 21:45 UTC". The start is public, unlike the slots of the pool. */
+export function epochStartNote(startUnix: number) {
+  const start = new Date(startUnix * 1000);
+  const day = start.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" });
+  const time = start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+  return `starts ${day} ${time} UTC`;
 }
 
 /** Text under the picture of the plan: how many blocks the coming epoch holds for the pool. */

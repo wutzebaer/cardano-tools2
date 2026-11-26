@@ -4,7 +4,7 @@ process.env.TZ = "UTC";
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { battleLines, battleNote, battlesByEpoch, chanceOfAtLeast, duePoolPosts, FUN_FACTS, funFact, planFunFact, shortAda, formatStake, initialPoolPostState, luck, planCaption, resultCaption, scheduledBlocks } from "../app/alerts/poolPosts.ts";
+import { battleLines, battleNote, battlesByEpoch, chanceOfAtLeast, duePoolPosts, epochStartNote, FUN_FACTS, funFact, planFunFact, shortAda, formatStake, initialPoolPostState, luck, planCaption, resultCaption, scheduledBlocks } from "../app/alerts/poolPosts.ts";
 import { alertMessage, alertsOf, listMessage, lockAlerts, locksOf, newAlerts, parseCommand, pendingLocksLine, watchSummary, welcomeMessage } from "../app/alerts/alertLogic.ts";
 import { groupFeed } from "../app/browse/groupTokens.ts";
 import { distribute, NotEnoughFundsError, ONE_ADA, TIP_STAKE_ADDRESS } from "../app/cardano/distribution.ts";
@@ -643,10 +643,12 @@ test("every epoch tells another little fact, and a fact without anything to say 
   // a plan tells the odds of its luck or a fact from the history
   assert.equal(Math.round(chanceOfAtLeast(2, 0.74) * 1000), 170);
   assert.equal(Math.round(chanceOfAtLeast(1, 0.74) * 1000), 523);
-  assert.deepEqual(planFunFact(numbers, 736_926_000_000, 209, 2, 0.74, 670, 0), { label: "ODDS", value: "1 in 6", note: "epochs brings 2 or more blocks", sentence: "Fun fact: only about 1 in 6 epochs brings the pool 2 or more blocks." });
+  assert.deepEqual(planFunFact(numbers, 736_926_000_000, 209, 2, 0.74, 670, 0), { label: "ODDS", value: "1 in 6", note: "chance of 2+ blocks", sentence: "Fun fact: only about 1 in 6 epochs brings the pool 2 or more blocks." });
   assert.equal(planFunFact(numbers, 736_926_000_000, 209, 1, 0.74, 670, 0).value, "52 %");
   assert.equal(planFunFact(numbers, 736_926_000_000, 209, 2, 0.74, 670, 1).label, "LIFETIME BLOCKS");
   assert.equal(planFunFact(null, 1, 1, 2, 0.74, 670, 1).label, "ODDS");
+  // the plan says when its epoch starts, in UTC
+  assert.equal(epochStartNote(Date.UTC(2026, 10, 28, 21, 45) / 1000), "starts Sat 21:45 UTC");
   // a preview starts where it likes: 0 is the transactions
   assert.equal(funFact(numbers, 736_926_000_000, 209, 0).label, "TRANSACTIONS");
 });
