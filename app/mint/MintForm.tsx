@@ -53,7 +53,6 @@ function newFungible(name: string): MintToken {
   };
 }
 
-
 function Minted({ result, onReset }: { result: MintResult; onReset: () => void }) {
   return (
     <TxResult title={result.stopped ? "Mint stopped on the way" : "Mint submitted"} txHashes={result.txHashes} onReset={onReset} resetLabel="Mint more">
@@ -85,11 +84,9 @@ type Policies = ReturnType<typeof usePolicies>;
 function PolicyChoice({ wallet, selection, step, onRoyaltyStatus }: { wallet: ConnectedWallet; selection: Policies; step?: number; onRoyaltyStatus?: (status: RoyaltyStatus) => void }) {
   const policy = selection.selected;
   return (
-    <>
-      <PolicySelector keyHash={wallet.keyHash} selection={selection} step={step}>
-        {policy && !selection.loading ? <RoyaltyPrompt key={policy.policyId} wallet={wallet} policy={policy} minted={selection.minted.has(policy.policyId)} onStatus={onRoyaltyStatus} /> : null}
-      </PolicySelector>
-    </>
+    <PolicySelector keyHash={wallet.keyHash} selection={selection} step={step}>
+      {policy && !selection.loading ? <RoyaltyPrompt key={policy.policyId} wallet={wallet} policy={policy} minted={selection.minted.has(policy.policyId)} onStatus={onRoyaltyStatus} /> : null}
+    </PolicySelector>
   );
 }
 
@@ -161,85 +158,83 @@ function MintButton({ wallet, selection, tokens, summary, disabled, royaltyStatu
   };
 
   return (
-    <>
-      <div className="surface flex flex-col gap-3 p-5">
-        {step ? (
-          <h3 className="flex items-center gap-3 text-base font-semibold tracking-tight">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{step}</span>
-            Mint
-          </h3>
-        ) : null}
-        {policy && royaltyWarning ? (
-          <p className="flex items-start gap-2 border-l-2 border-warning/60 pl-3 text-sm text-warning">
-            <ExclamationTriangleIcon className="mt-0.5 size-4 shrink-0" />
-            {royaltyWarning}
-          </p>
-        ) : null}
-        {formats ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {FORMATS.map((option) => (
-              <button
-                key={option.format}
-                type="button"
-                className={`flex flex-col gap-2 rounded-field border p-4 text-left transition-colors ${format === option.format ? "border-primary bg-primary/10" : "border-line bg-base-200 hover:border-line-strong"}`}
-                onClick={() => setFormat(option.format)}
-                aria-pressed={format === option.format}
-              >
-                <span className="flex items-center gap-2 font-semibold">
-                  <span className={`size-3 rounded-full border ${format === option.format ? "border-primary bg-primary" : "border-base-content/40"}`} />
-                  {option.title}
-                </span>
-                <ul className="flex flex-col gap-1 text-sm text-base-content/65">
-                  {option.pros.map((text) => (
-                    <li key={text} className="flex items-start gap-2">
-                      <PlusIcon className="mt-0.5 size-4 shrink-0 text-success" />
-                      {text}
-                    </li>
-                  ))}
-                  {option.cons.map((text) => (
-                    <li key={text} className="flex items-start gap-2">
-                      <MinusIcon className="mt-0.5 size-4 shrink-0 text-warning" />
-                      {text}
-                    </li>
-                  ))}
-                </ul>
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex grow flex-col gap-2 text-sm text-base-content/55">
-            <p>
-              {summary}
-              {costs && costs.transactions > 1 ? ` They take ${costs.transactions} transactions, which you sign one after another.` : ""}
-            </p>
-            {costs ? (
-              <CostTable
-                rows={[
-                  ...(costs.deposit > 0 ? [{ label: "Deposit for the metadata", hint: "back when you burn", lovelace: costs.deposit }] : []),
-                  { label: costs.transactions > 1 ? `Fees of ${costs.transactions} transactions` : "Transaction fee", lovelace: costs.fee, about: true },
-                  { label: "Leaves your wallet", lovelace: shown(costs.deposit) + shown(costs.fee), sum: true },
-                  { label: "Minimum ADA beside your tokens", hint: "stays yours", lovelace: costs.kept },
-                  {
-                    label: "Your wallet needs",
-                    hint: short ? `it holds ${formatAda(costs.held)}` : undefined,
-                    lovelace: shown(costs.deposit) + shown(costs.fee) + shown(costs.kept),
-                    sum: true,
-                    tone: short ? "error" : undefined,
-                  },
-                ]}
-              />
-            ) : (
-              <p>Your wallet shows the fee before signing.</p>
-            )}
-          </div>
-          <button className="btn btn-primary" disabled={!tokens || !policy || minting || disabled} onClick={mint}>
-            {minting ? <span className="loading loading-spinner loading-sm" /> : null}
-            {progress && progress.batches > 1 ? (progress.state === "signing" ? `Sign ${progress.batch} of ${progress.batches}` : `Waiting for ${progress.batch} of ${progress.batches}`) : "Mint"}
-          </button>
+    <div className="surface flex flex-col gap-3 p-5">
+      {step ? (
+        <h3 className="flex items-center gap-3 text-base font-semibold tracking-tight">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{step}</span>
+          Mint
+        </h3>
+      ) : null}
+      {policy && royaltyWarning ? (
+        <p className="flex items-start gap-2 border-l-2 border-warning/60 pl-3 text-sm text-warning">
+          <ExclamationTriangleIcon className="mt-0.5 size-4 shrink-0" />
+          {royaltyWarning}
+        </p>
+      ) : null}
+      {formats ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {FORMATS.map((option) => (
+            <button
+              key={option.format}
+              type="button"
+              className={`flex flex-col gap-2 rounded-field border p-4 text-left transition-colors ${format === option.format ? "border-primary bg-primary/10" : "border-line bg-base-200 hover:border-line-strong"}`}
+              onClick={() => setFormat(option.format)}
+              aria-pressed={format === option.format}
+            >
+              <span className="flex items-center gap-2 font-semibold">
+                <span className={`size-3 rounded-full border ${format === option.format ? "border-primary bg-primary" : "border-base-content/40"}`} />
+                {option.title}
+              </span>
+              <ul className="flex flex-col gap-1 text-sm text-base-content/65">
+                {option.pros.map((text) => (
+                  <li key={text} className="flex items-start gap-2">
+                    <PlusIcon className="mt-0.5 size-4 shrink-0 text-success" />
+                    {text}
+                  </li>
+                ))}
+                {option.cons.map((text) => (
+                  <li key={text} className="flex items-start gap-2">
+                    <MinusIcon className="mt-0.5 size-4 shrink-0 text-warning" />
+                    {text}
+                  </li>
+                ))}
+              </ul>
+            </button>
+          ))}
         </div>
+      ) : null}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex grow flex-col gap-2 text-sm text-base-content/55">
+          <p>
+            {summary}
+            {costs && costs.transactions > 1 ? ` They take ${costs.transactions} transactions, which you sign one after another.` : ""}
+          </p>
+          {costs ? (
+            <CostTable
+              rows={[
+                ...(costs.deposit > 0 ? [{ label: "Deposit for the metadata", hint: "back when you burn", lovelace: costs.deposit }] : []),
+                { label: costs.transactions > 1 ? `Fees of ${costs.transactions} transactions` : "Transaction fee", lovelace: costs.fee, about: true },
+                { label: "Leaves your wallet", lovelace: shown(costs.deposit) + shown(costs.fee), sum: true },
+                { label: "Minimum ADA beside your tokens", hint: "stays yours", lovelace: costs.kept },
+                {
+                  label: "Your wallet needs",
+                  hint: short ? `it holds ${formatAda(costs.held)}` : undefined,
+                  lovelace: shown(costs.deposit) + shown(costs.fee) + shown(costs.kept),
+                  sum: true,
+                  tone: short ? "error" : undefined,
+                },
+              ]}
+            />
+          ) : (
+            <p>Your wallet shows the fee before signing.</p>
+          )}
+        </div>
+        <button className="btn btn-primary" disabled={!tokens || !policy || minting || disabled} onClick={mint}>
+          {minting ? <span className="loading loading-spinner loading-sm" /> : null}
+          {progress && progress.batches > 1 ? (progress.state === "signing" ? `Sign ${progress.batch} of ${progress.batches}` : `Waiting for ${progress.batch} of ${progress.batches}`) : "Mint"}
+        </button>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -270,27 +265,27 @@ function Nfts({ wallet }: { wallet: ConnectedWallet }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="surface flex flex-col gap-4 p-5">
-      <h2 className="flex items-center gap-3 text-base font-semibold tracking-tight">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">1</span>
-        What do you want to do?
-      </h2>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {TARGETS.map((option) => (
-          <button
-            key={option.target}
-            type="button"
-            className={`flex flex-col gap-1 rounded-field border p-4 text-left transition-colors ${target === option.target ? "border-primary bg-primary/10" : "border-line bg-base-200 hover:border-line-strong"}`}
-            onClick={() => setTarget(option.target)}
-            aria-pressed={target === option.target}
-          >
-            <span className="flex items-center gap-2 font-semibold">
-              <span className={`size-3 rounded-full border ${target === option.target ? "border-primary bg-primary" : "border-base-content/40"}`} />
-              {option.title}
-            </span>
-            <span className="text-sm text-base-content/55">{option.text}</span>
-          </button>
-        ))}
-      </div>
+        <h2 className="flex items-center gap-3 text-base font-semibold tracking-tight">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">1</span>
+          What do you want to do?
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {TARGETS.map((option) => (
+            <button
+              key={option.target}
+              type="button"
+              className={`flex flex-col gap-1 rounded-field border p-4 text-left transition-colors ${target === option.target ? "border-primary bg-primary/10" : "border-line bg-base-200 hover:border-line-strong"}`}
+              onClick={() => setTarget(option.target)}
+              aria-pressed={target === option.target}
+            >
+              <span className="flex items-center gap-2 font-semibold">
+                <span className={`size-3 rounded-full border ${target === option.target ? "border-primary bg-primary" : "border-base-content/40"}`} />
+                {option.title}
+              </span>
+              <span className="text-sm text-base-content/55">{option.text}</span>
+            </button>
+          ))}
+  </div>
       </div>
 
       {target === "mint" ? <PolicyChoice wallet={wallet} selection={selection} step={2} onRoyaltyStatus={setRoyaltyStatus} /> : null}

@@ -239,7 +239,7 @@ function walletErrorText(walletError: unknown): string {
   return [error?.info, error?.message].filter((part) => typeof part === "string").join(" ");
 }
 
-export const signAndSubmitTransaction =async (connection: WalletConnection, tx: Transaction, signingKeys: PrivateKey[] = []) => {
+export const signAndSubmitTransaction = async (connection: WalletConnection, tx: Transaction, signingKeys: PrivateKey[] = []) => {
   // FixedTransaction keeps the body bytes untouched, so the hash the wallet signs is the hash we submit
   const fixedTransaction = FixedTransaction.from_bytes(tx.to_bytes());
 

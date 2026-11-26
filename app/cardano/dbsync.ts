@@ -47,7 +47,7 @@ export async function getTokenSearch(filter: string, after?: string) {
 
 export async function getTokenDetailsByFingerprint(fingerprint: string) {
   return handleRequest(
-    client.GET(`/token/{fingerprint}/`, {
+    client.GET("/token/{fingerprint}/", {
       params: {
         path: {
           fingerprint: fingerprint,

@@ -16,7 +16,7 @@ export const ApplicationContext = createContext<ApplicationStateContext>({
   state: {
     walletInfo: null,
   },
-  setState: () => { },
+  setState: () => {},
 });
 
 const StateProvider = ({ children }: { children: ReactNode }) => {
@@ -27,11 +27,7 @@ const StateProvider = ({ children }: { children: ReactNode }) => {
   // stable while the state is unchanged, so consumers only re-render on a real change
   const value = useMemo(() => ({ state, setState }), [state]);
 
-  return (
-    <ApplicationContext.Provider value={value}>
-      {children}
-    </ApplicationContext.Provider>
-  );
+  return <ApplicationContext.Provider value={value}>{children}</ApplicationContext.Provider>;
 };
 
 export default StateProvider;

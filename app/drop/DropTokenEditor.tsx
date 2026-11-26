@@ -140,7 +140,12 @@ function Step({ number, title, text, aside, children }: { number: number; title:
   );
 }
 
-function AttributeRows({ attributes, onChange, keyPlaceholder = "website", valuePlaceholder = "https://…" }: {
+function AttributeRows({
+  attributes,
+  onChange,
+  keyPlaceholder = "website",
+  valuePlaceholder = "https://…",
+}: {
   attributes: Attribute[];
   onChange: (attributes: Attribute[]) => void;
   keyPlaceholder?: string;
@@ -337,7 +342,13 @@ export default function DropTokenEditor({ onChange, firstStep = 1, onNextStep }:
   };
 
   const traitName = newTrait.trim();
-  const traitError = RESERVED.has(traitName) ? `"${traitName}" is set by the token itself` : traits.some((trait) => trait.name === traitName) ? `"${traitName}" is there already` : common.some((attribute) => attribute.key.trim() === traitName && attribute.value.trim()) ? `"${traitName}" is set for all tokens above` : undefined;
+  const traitError = RESERVED.has(traitName)
+    ? `"${traitName}" is set by the token itself`
+    : traits.some((trait) => trait.name === traitName)
+      ? `"${traitName}" is there already`
+      : common.some((attribute) => attribute.key.trim() === traitName && attribute.value.trim())
+        ? `"${traitName}" is set for all tokens above`
+        : undefined;
   const addTrait = () => {
     if (!traitName || traitError) return;
     setTraits([...traits, { name: traitName, values: newValues }]);
@@ -384,11 +395,7 @@ export default function DropTokenEditor({ onChange, firstStep = 1, onNextStep }:
 
   return (
     <div className="flex flex-col gap-4">
-      <Step
-        number={firstStep}
-        title="Your tokens"
-        text="Every image becomes one token, named after its file, and is stored on IPFS. Or load a list you prepared as a JSON file."
-      >
+      <Step number={firstStep} title="Your tokens" text="Every image becomes one token, named after its file, and is stored on IPFS. Or load a list you prepared as a JSON file.">
         <div className="flex flex-wrap items-center gap-2">
           <label className={`${secondaryButtonClass} ${uploading ? "btn-disabled" : ""}`}>
             {uploading ? <span className="loading loading-spinner loading-xs" /> : <ArrowUpTrayIcon className="size-4" />}
