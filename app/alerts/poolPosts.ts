@@ -164,6 +164,7 @@ export interface FunFact {
 }
 
 const EPOCH_DAYS = 5;
+const ADA = 1_000_000;
 const count = (value: number) => value.toLocaleString("en-US");
 /** ADA in few characters: 574K, 1.2M, 3.73 */
 export const shortAda = (lovelace: number) => {
@@ -177,16 +178,16 @@ const inOurBlocks = (numbers: EpochNumbers) => (numbers.blocks === 1 ? "in our b
 type FactMaker = (numbers: EpochNumbers, stake: number, delegators: number) => FunFact | null;
 
 /**
- * Twenty facts; an epoch shows one of them, the next epoch the next one. A fact that has nothing to say about the
- * epoch (no block, no change) gives way to the following one. The first eight need a block of the pool.
+ * Twenty facts; an epoch shows one of them, the next epoch the next one. A fact that has nothing worth saying about
+ * the epoch (no block, no change, a dull small number like a largest transfer of 30 ADA) gives way to the following one.
  */
 export const FUN_FACTS: FactMaker[] = [
-  (n) => (n.blocks > 0 ? { label: "TRANSACTIONS", value: count(n.transactions), note: inOurBlocks(n), sentence: `Fun fact: ${inOurBlocks(n).replace("in our", "Our")} carried ${count(n.transactions)} transactions.` } : null),
-  (n) => (n.blocks > 0 && n.lovelaceMoved > 0 ? { label: "ADA MOVED", value: shortAda(n.lovelaceMoved), note: `ADA ${inOurBlocks(n)}`, sentence: `Fun fact: ${shortAda(n.lovelaceMoved)} ADA changed hands ${inOurBlocks(n)}.` } : null),
-  (n) => (n.blocks > 0 && n.fees > 0 ? { label: "FEES", value: shortAda(n.fees), note: `ADA ${inOurBlocks(n)}`, sentence: `Fun fact: the transactions ${inOurBlocks(n)} paid ${shortAda(n.fees)} ADA in fees, they go to the rewards of all stakers.` } : null),
-  (n) => (n.largestTransaction ? { label: "LARGEST TRANSFER", value: shortAda(n.largestTransaction), note: "ADA in one transaction", sentence: `Fun fact: the largest transaction ${inOurBlocks(n)} moved ${shortAda(n.largestTransaction)} ADA at once.` } : null),
-  (n) => (n.blockFill != null && n.blockFill >= 0.01 && n.blocks > 0 ? { label: "BLOCK FILL", value: `${Math.round(n.blockFill * 100)} %`, note: "of the size limit", sentence: `Fun fact: ${n.blocks === 1 ? "our block was" : "our blocks were"} ${Math.round(n.blockFill * 100)} % full.` } : null),
-  (n) => (n.tokenOutputs > 0 ? { label: "TOKEN OUTPUTS", value: count(n.tokenOutputs), note: `with native tokens`, sentence: `Fun fact: ${count(n.tokenOutputs)} outputs ${inOurBlocks(n)} carried native tokens.` } : null),
+  (n) => (n.blocks > 0 && n.transactions >= 5 ? { label: "TRANSACTIONS", value: count(n.transactions), note: inOurBlocks(n), sentence: `Fun fact: ${inOurBlocks(n).replace("in our", "Our")} carried ${count(n.transactions)} transactions.` } : null),
+  (n) => (n.blocks > 0 && n.lovelaceMoved >= 1000 * ADA ? { label: "ADA MOVED", value: shortAda(n.lovelaceMoved), note: `ADA ${inOurBlocks(n)}`, sentence: `Fun fact: ${shortAda(n.lovelaceMoved)} ADA changed hands ${inOurBlocks(n)}.` } : null),
+  (n) => (n.blocks > 0 && n.fees >= ADA ? { label: "FEES", value: shortAda(n.fees), note: `ADA ${inOurBlocks(n)}`, sentence: `Fun fact: the transactions ${inOurBlocks(n)} paid ${shortAda(n.fees)} ADA in fees, they go to the rewards of all stakers.` } : null),
+  (n) => (n.largestTransaction != null && n.largestTransaction >= 1000 * ADA ? { label: "LARGEST TRANSFER", value: shortAda(n.largestTransaction), note: "ADA in one transaction", sentence: `Fun fact: the largest transaction ${inOurBlocks(n)} moved ${shortAda(n.largestTransaction)} ADA at once.` } : null),
+  (n) => (n.blockFill != null && n.blockFill >= 0.1 && n.blocks > 0 ? { label: "BLOCK FILL", value: `${Math.round(n.blockFill * 100)} %`, note: "of the size limit", sentence: `Fun fact: ${n.blocks === 1 ? "our block was" : "our blocks were"} ${Math.round(n.blockFill * 100)} % full.` } : null),
+  (n) => (n.tokenOutputs >= 5 ? { label: "TOKEN OUTPUTS", value: count(n.tokenOutputs), note: `with native tokens`, sentence: `Fun fact: ${count(n.tokenOutputs)} outputs ${inOurBlocks(n)} carried native tokens.` } : null),
   (n) => (n.scriptRuns > 0 ? { label: "SMART CONTRACTS", value: count(n.scriptRuns), note: `runs ${inOurBlocks(n)}`, sentence: `Fun fact: smart contracts ran ${count(n.scriptRuns)} times ${inOurBlocks(n)}.` } : null),
   (n) => (n.tokensMinted > 0 ? { label: "TOKENS MINTED", value: count(n.tokensMinted), note: `born ${inOurBlocks(n)}`, sentence: `Fun fact: ${count(n.tokensMinted)} new ${n.tokensMinted === 1 ? "token was" : "tokens were"} minted ${inOurBlocks(n)}.` } : null),
   (n) => (n.lifetimeBlocks > 0 ? { label: "LIFETIME BLOCKS", value: count(n.lifetimeBlocks), note: n.registeredEpoch != null ? `since epoch ${n.registeredEpoch}` : "so far", sentence: `Fun fact: that makes ${count(n.lifetimeBlocks)} blocks in the life of the pool.` } : null),
@@ -195,12 +196,12 @@ export const FUN_FACTS: FactMaker[] = [
   (n) => (n.blockStreak >= 2 ? { label: "BLOCK STREAK", value: count(n.blockStreak), note: "epochs in a row", sentence: `Fun fact: ${n.blockStreak} epochs in a row with a block.` } : null),
   (n) => (n.registeredEpoch != null && n.epochsWithBlocks > 0 ? { label: "EPOCHS WITH A BLOCK", value: count(n.epochsWithBlocks), note: `of ${count(n.epoch - n.registeredEpoch + 1)} epochs`, sentence: `Fun fact: the pool made blocks in ${count(n.epochsWithBlocks)} of its ${count(n.epoch - n.registeredEpoch + 1)} epochs.` } : null),
   (n, _stake, delegators) => (n.previousDelegators > 0 && delegators !== n.previousDelegators ? { label: "NEW DELEGATORS", value: signed(count(delegators - n.previousDelegators), delegators - n.previousDelegators), note: `now ${count(delegators)}`, sentence: `Fun fact: ${delegators > n.previousDelegators ? `${delegators - n.previousDelegators} more` : `${n.previousDelegators - delegators} fewer`} delegators than the epoch before, ${count(delegators)} in all.` } : null),
-  (n, stake) => (n.previousStake > 0 && Math.abs(stake - n.previousStake) >= 1_000_000 ? { label: "STAKE CHANGE", value: signed(shortAda(stake - n.previousStake), stake - n.previousStake), note: "ADA since last epoch", sentence: `Fun fact: the stake ${stake > n.previousStake ? "grew" : "shrank"} by ${shortAda(Math.abs(stake - n.previousStake))} ADA since the epoch before.` } : null),
+  (n, stake) => (n.previousStake > 0 && Math.abs(stake - n.previousStake) >= 1000 * ADA ? { label: "STAKE CHANGE", value: signed(shortAda(stake - n.previousStake), stake - n.previousStake), note: "ADA since last epoch", sentence: `Fun fact: the stake ${stake > n.previousStake ? "grew" : "shrank"} by ${shortAda(Math.abs(stake - n.previousStake))} ADA since the epoch before.` } : null),
   (_n, stake, delegators) => (delegators > 0 ? { label: "AVERAGE DELEGATION", value: shortAda(stake / delegators), note: "ADA per delegator", sentence: `Fun fact: our delegators stake ${shortAda(stake / delegators)} ADA on average, small and large are equally welcome.` } : null),
   (n) => (n.stakeRank != null && n.rankedPools > 0 ? { label: "STAKE RANK", value: `#${count(n.stakeRank)}`, note: `of ${count(n.rankedPools)} pools`, sentence: `Fun fact: by stake the pool is number ${count(n.stakeRank)} of ${count(n.rankedPools)} pools.` } : null),
   (n) => (n.blocks > 0 && n.networkBlocks > 0 ? { label: "SHARE OF BLOCKS", value: `1 in ${count(Math.round(n.networkBlocks / n.blocks))}`, note: `of ${count(n.networkBlocks)} blocks`, sentence: `Fun fact: ${n.blocks === 1 ? "one" : count(n.blocks)} of the ${count(n.networkBlocks)} blocks of the epoch ${n.blocks === 1 ? "was" : "were"} ours.` } : null),
   (n) => (n.delegatorRewards > 0 ? { label: "PAID TO DELEGATORS", value: shortAda(n.delegatorRewards), note: "ADA in rewards so far", sentence: `Fun fact: the pool has paid its delegators ${shortAda(n.delegatorRewards)} ADA in rewards so far.` } : null),
-  (n) => (n.transactions > 0 ? { label: "AVERAGE TRANSACTION", value: shortAda(n.lovelaceMoved / n.transactions), note: `ADA ${inOurBlocks(n)}`, sentence: `Fun fact: a transaction ${inOurBlocks(n)} moved ${shortAda(n.lovelaceMoved / n.transactions)} ADA on average.` } : null),
+  (n) => (n.transactions > 0 && n.lovelaceMoved / n.transactions >= 100 * ADA ? { label: "AVERAGE TRANSACTION", value: shortAda(n.lovelaceMoved / n.transactions), note: `ADA ${inOurBlocks(n)}`, sentence: `Fun fact: a transaction ${inOurBlocks(n)} moved ${shortAda(n.lovelaceMoved / n.transactions)} ADA on average.` } : null),
 ];
 
 /** The fact of an epoch: the epoch picks where to start, a fact without anything to say passes on to the next. */
