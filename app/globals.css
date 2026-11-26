@@ -117,6 +117,14 @@
   }
 }
 
+/* On a phone a small button is still tall enough for a thumb. */
+@media (pointer: coarse) and (width < 40rem) {
+  .btn-sm,
+  .select-sm {
+    --size: 2.5rem;
+  }
+}
+
 /* On paper: dark text on white, without the navigation. A page marks what else to leave out with print:hidden. */
 @media print {
   :root,
